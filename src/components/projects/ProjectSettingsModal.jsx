@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Upload, Copy, Archive, Trash2, Image as ImageIcon, ZoomIn, ZoomOut, Move } from 'lucide-react';
@@ -12,8 +12,29 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [projectDetails, setProjectDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(true);
 
-  const projectSize = project.videos?.reduce((acc, v) => acc + (v.file_size || 0), 0) || 0;
+  useEffect(() => {
+    fetchProjectDetails();
+  }, [project.id]);
+
+  const fetchProjectDetails = async () => {
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setProjectDetails(data);
+    } catch (error) {
+      console.error('Erro ao buscar detalhes do projeto:', error);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const projectData = projectDetails || project;
+  const projectSize = projectData.videos?.reduce((acc, v) => acc + (v.file_size || 0), 0) || 0;
   const projectSizeGB = (projectSize / (1024 * 1024 * 1024)).toFixed(2);
 
   const handleFileSelect = (e) => {
@@ -83,7 +104,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
       if (response.ok) {
         toast.success('Imagem de capa atualizada!', { id: uploadToast });
-        onProjectUpdate();
+        await fetchProjectDetails(); // Atualiza detalhes no modal
+        onProjectUpdate(); // Atualiza lista de projetos
         setShowCoverEditor(false);
         setPreviewImage(null);
         setSelectedFile(null);
@@ -114,7 +136,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
   const handleToggleStatus = async () => {
     try {
-      const newStatus = project.status === 'active' ? 'inactive' : 'active';
+      const newStatus = projectData.status === 'active' ? 'inactive' : 'active';
       const statusToast = toast.loading('Alterando status...');
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
@@ -139,7 +161,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   };
 
   const handleDeleteProject = async () => {
-    if (!confirm(`Tem certeza que deseja excluir o projeto "${project.name}"? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Tem certeza que deseja excluir o projeto "${projectData.name}"? Esta ação não pode ser desfeita.`)) return;
 
     const deleteToast = toast.loading('Excluindo projeto...');
     try {
@@ -280,22 +302,28 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         {/* Informações do Projeto */}
         <div className="mb-6 p-4 glass-card rounded-none border border-zinc-800">
           <h3 className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-3">Informações</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Total de itens:</span>
-              <span className="text-white font-bold">{project.videos?.length || 0} vídeos</span>
+          {loadingDetails ? (
+            <div className="text-center py-4">
+              <div className="w-6 h-6 border-2 border-red-600 border-t-transparent animate-spin mx-auto" />
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Tamanho total:</span>
-              <span className="text-white font-bold">{projectSizeGB} GB</span>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Total de itens:</span>
+                <span className="text-white font-bold">{projectData.videos?.length || 0} vídeos</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Tamanho total:</span>
+                <span className="text-white font-bold">{projectSizeGB} GB</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">Status:</span>
+                <span className={`font-bold uppercase text-xs ${projectData.status === 'active' ? 'text-green-500' : 'text-zinc-500'}`}>
+                  {projectData.status === 'active' ? 'Ativo' : 'Inativo'}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">Status:</span>
-              <span className={`font-bold uppercase text-xs ${project.status === 'active' ? 'text-green-500' : 'text-zinc-500'}`}>
-                {project.status === 'active' ? 'Ativo' : 'Inativo'}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Ações */}
@@ -333,7 +361,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
             onClick={handleToggleStatus}
           >
             <Archive className="w-4 h-4 mr-3" />
-            {project.status === 'active' ? 'Marcar como Inativo' : 'Marcar como Ativo'}
+            {projectData.status === 'active' ? 'Marcar como Inativo' : 'Marcar como Ativo'}
           </Button>
 
           <Button
