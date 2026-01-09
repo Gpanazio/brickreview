@@ -3,6 +3,7 @@ import multer from 'multer';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requireProjectAccess, requireVideoAccess } from '../middleware/access.js';
 import r2Client from '../utils/r2.js';
 import { generateThumbnail, getVideoMetadata } from '../utils/video.js';
 import path from 'path';
@@ -32,85 +33,91 @@ const upload = multer({ storage });
  * @route POST /api/videos/upload
  * @desc Upload a video to R2 and save metadata
  */
-router.post('/upload', authenticateToken, upload.single('video'), async (req, res) => {
-  const { project_id, title, description } = req.body;
-  const file = req.file;
+router.post(
+  '/upload',
+  authenticateToken,
+  requireProjectAccess((req) => req.body.project_id),
+  upload.single('video'),
+  async (req, res) => {
+    const { project_id, title, description } = req.body;
+    const file = req.file;
 
-  if (!file || !project_id || !title) {
-    return res.status(400).json({ error: 'Dados insuficientes para o upload' });
-  }
-
-  const thumbDir = 'thumbnails/';
-  const thumbFilename = `thumb-${uuidv4()}.jpg`;
-  let thumbPath = '';
-
-  try {
-    // 1. Obter metadados
-    const metadata = await getVideoMetadata(file.path);
-
-    // 2. Gerar thumbnail
-    thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
-    const thumbContent = fs.readFileSync(thumbPath);
-    const thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
-
-    // 3. Upload Vídeo para R2
-    const fileContent = fs.readFileSync(file.path);
-    const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
-
-    await r2Client.send(new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
-      Key: fileKey,
-      Body: fileContent,
-      ContentType: file.mimetype,
-    }));
-
-    // 4. Upload Thumbnail para R2
-    await r2Client.send(new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
-      Key: thumbKey,
-      Body: thumbContent,
-      ContentType: 'image/jpeg',
-    }));
-
-    const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
-    const thumbUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
-
-    // 5. Salva no banco
-    const result = await query(`
-      INSERT INTO brickreview_videos (
-        project_id, title, description, r2_key, r2_url, 
-        thumbnail_r2_key, thumbnail_url,
-        duration, fps, width, height,
-        file_size, mime_type, uploaded_by
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING *
-    `, [
-      project_id, title, description, fileKey, r2Url,
-      thumbKey, thumbUrl,
-      metadata.duration, metadata.fps, metadata.width, metadata.height,
-      file.size, file.mimetype, req.user.id
-    ]);
-
-    // Cleanup
-    fs.unlinkSync(file.path);
-    if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
-
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('Erro no upload de vídeo:', error);
-    if (file && fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
+    if (!file || !project_id || !title) {
+      return res.status(400).json({ error: 'Dados insuficientes para o upload' });
     }
-    res.status(500).json({ error: 'Erro ao processar upload' });
+
+    const thumbDir = 'thumbnails/';
+    const thumbFilename = `thumb-${uuidv4()}.jpg`;
+    let thumbPath = '';
+
+    try {
+      // 1. Obter metadados
+      const metadata = await getVideoMetadata(file.path);
+
+      // 2. Gerar thumbnail
+      thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
+      const thumbContent = fs.readFileSync(thumbPath);
+      const thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
+
+      // 3. Upload Vídeo para R2
+      const fileContent = fs.readFileSync(file.path);
+      const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
+
+      await r2Client.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileKey,
+        Body: fileContent,
+        ContentType: file.mimetype,
+      }));
+
+      // 4. Upload Thumbnail para R2
+      await r2Client.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: thumbKey,
+        Body: thumbContent,
+        ContentType: 'image/jpeg',
+      }));
+
+      const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
+      const thumbUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
+
+      // 5. Salva no banco
+      const result = await query(`
+        INSERT INTO brickreview_videos (
+          project_id, title, description, r2_key, r2_url, 
+          thumbnail_r2_key, thumbnail_url,
+          duration, fps, width, height,
+          file_size, mime_type, uploaded_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING *
+      `, [
+        project_id, title, description, fileKey, r2Url,
+        thumbKey, thumbUrl,
+        metadata.duration, metadata.fps, metadata.width, metadata.height,
+        file.size, file.mimetype, req.user.id
+      ]);
+
+      // Cleanup
+      fs.unlinkSync(file.path);
+      if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
+
+      res.status(201).json(result.rows[0]);
+    } catch (error) {
+      console.error('Erro no upload de vídeo:', error);
+      if (file && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+      res.status(500).json({ error: 'Erro ao processar upload' });
+    }
   }
-});
+);
 
 /**
  * @route GET /api/videos/:id
  * @desc Get video details and its comments
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, requireVideoAccess((req) => req.params.id), async (req, res) => {
   try {
     const videoResult = await query(
       'SELECT * FROM brickreview_videos_with_stats WHERE id = $1',

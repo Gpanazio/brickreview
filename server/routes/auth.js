@@ -86,6 +86,14 @@ router.get('/verify', async (req, res) => {
     return res.status(401).json({ valid: false })
   }
 
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET não configurado!')
+    return res.status(500).json({
+      valid: false,
+      error: 'Erro de configuração no servidor',
+    })
+  }
+
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET)
     res.json({ valid: true, user })

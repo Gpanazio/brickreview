@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requireProjectAccess } from '../middleware/access.js';
 
 const router = express.Router();
 
@@ -70,7 +71,7 @@ router.post('/', authenticateToken, async (req, res) => {
  * @route GET /api/projects/:id
  * @desc Get project details and its videos
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id', authenticateToken, requireProjectAccess((req) => req.params.id), async (req, res) => {
   try {
     const projectResult = await query(
       'SELECT * FROM brickreview_projects_with_stats WHERE id = $1',
@@ -104,7 +105,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * @route PATCH /api/projects/:id
  * @desc Update project details
  */
-router.patch('/:id', authenticateToken, async (req, res) => {
+router.patch('/:id', authenticateToken, requireProjectAccess((req) => req.params.id), async (req, res) => {
   const { name, description, client_name, status } = req.body;
 
   try {
@@ -133,7 +134,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
  * @route DELETE /api/projects/:id
  * @desc Delete project
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, requireProjectAccess((req) => req.params.id), async (req, res) => {
   try {
     const result = await query(
       'DELETE FROM brickreview_projects WHERE id = $1 RETURNING id',

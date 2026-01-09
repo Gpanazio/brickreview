@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { requireVideoAccess } from '../middleware/access.js';
 
 const router = express.Router();
 
@@ -8,7 +9,7 @@ const router = express.Router();
  * @route POST /api/reviews/approve
  * @desc Approve or Request Changes for a video
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, requireVideoAccess((req) => req.body.video_id), async (req, res) => {
   const { video_id, status, notes } = req.body;
 
   if (!video_id || !status) {
@@ -38,7 +39,7 @@ router.post('/', authenticateToken, async (req, res) => {
  * @route GET /api/reviews/:video_id
  * @desc Get approval history for a video
  */
-router.get('/:video_id', authenticateToken, async (req, res) => {
+router.get('/:video_id', authenticateToken, requireVideoAccess((req) => req.params.video_id), async (req, res) => {
   try {
     const result = await query(`
       SELECT a.*, u.username 
