@@ -22,6 +22,7 @@ import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
 import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal'
 import { ProjectListItem } from './components/projects/ProjectListItem'
 import { Toaster } from './components/ui/sonner'
+import { DEFAULT_PROJECT_COVER_URL } from './constants/images'
 
 function App() {
   return (
@@ -290,7 +291,7 @@ function ProjectsPage() {
     {
       id: 1,
       name: 'KEETA',
-      thumbnail: 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400',
+      thumbnail: DEFAULT_PROJECT_COVER_URL,
       color: '#FFD700',
       updatedAt: '0mo ago',
       team: "Brick's Team"
@@ -441,12 +442,12 @@ function ProjectsPage() {
             >
               <div className="relative aspect-video overflow-hidden mb-3 border border-zinc-800/50 group-hover:border-red-600/30 transition-colors bg-zinc-900">
                 <img
-                  src={project.cover_image_url ?? project.thumbnail_url ?? project.thumbnail ?? 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
+                  src={project.cover_image_url ?? project.thumbnail_url ?? project.thumbnail ?? DEFAULT_PROJECT_COVER_URL}
                   alt={project.name}
                   className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400';
+                    e.target.src = DEFAULT_PROJECT_COVER_URL;
                   }}
                 />
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors" />
@@ -615,7 +616,7 @@ function ProjectCard({ project, onProjectUpdate }) {
         <Link to={`/project/${project.id}`} className="flex-1 flex flex-col">
           <div className="relative aspect-[4/3] overflow-hidden mb-5 bg-zinc-900 border border-zinc-800/30">
             <img
-              src={project.cover_image_url || project.thumbnail_url || project.thumbnail || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
+              src={project.cover_image_url || project.thumbnail_url || project.thumbnail || DEFAULT_PROJECT_COVER_URL}
               alt={project.name}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out grayscale group-hover:grayscale-0"
             />
