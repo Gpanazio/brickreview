@@ -143,7 +143,7 @@ CREATE TABLE IF NOT EXISTS brickreview_notifications (
 -- ============================================
 
 CREATE INDEX IF NOT EXISTS idx_videos_project ON brickreview_videos(project_id);
-CREATE INDEX IF NOT EXISTS idx_videos_folder ON brickreview_folders(folder_id);
+CREATE INDEX IF NOT EXISTS idx_videos_folder_on_videos ON brickreview_videos(folder_id);
 CREATE INDEX IF NOT EXISTS idx_videos_parent ON brickreview_videos(parent_video_id);
 
 CREATE INDEX IF NOT EXISTS idx_comments_video ON brickreview_comments(video_id);
