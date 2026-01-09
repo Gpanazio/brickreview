@@ -460,51 +460,54 @@ function ProjectsPage() {
       </div>
 
       {/* Filters & View Controls */}
-      <div className="px-8 py-4 flex items-center justify-between border-b border-zinc-900">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Grid className="w-4 h-4 text-zinc-500" />
-            <span className="text-sm text-zinc-400">Filtrado por</span>
-            <Badge variant="secondary" className="bg-zinc-900 text-white border-zinc-700">
-              Projetos Ativos
-            </Badge>
-          </div>
+      <div className="px-8 py-4 flex items-center justify-between border-b border-zinc-900/50 bg-zinc-950/30 backdrop-blur-sm sticky top-[73px] z-20">
+        <div className="flex items-center gap-2">
+          {/* Sort Dropdown - Minimalista */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all text-xs font-medium uppercase tracking-wider">
+                <SlidersHorizontal className="w-3.5 h-3.5 mr-2" />
+                Ordenar: Nome
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-800 w-48">
+              <DropdownMenuItem className="text-zinc-400 hover:text-white hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer text-xs uppercase tracking-wider">Nome</DropdownMenuItem>
+              <DropdownMenuItem className="text-zinc-400 hover:text-white hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer text-xs uppercase tracking-wider">Data de Modificação</DropdownMenuItem>
+              <DropdownMenuItem className="text-zinc-400 hover:text-white hover:bg-zinc-800 focus:bg-zinc-800 cursor-pointer text-xs uppercase tracking-wider">Data de Criação</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <div className="flex items-center gap-2">
-            <SlidersHorizontal className="w-4 h-4 text-zinc-500" />
-            <span className="text-sm text-zinc-400">Ordenado por</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-white">
-                  Nome
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-zinc-900 border-zinc-800">
-                <DropdownMenuItem className="text-white">Nome</DropdownMenuItem>
-                <DropdownMenuItem className="text-white">Data de Modificação</DropdownMenuItem>
-                <DropdownMenuItem className="text-white">Data de Criação</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {/* Filter Badge - Estilo Tag */}
+          <div className="flex items-center h-8 px-3 bg-zinc-900/50 border border-zinc-800 rounded-md">
+            <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Ativos</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
+        {/* View Toggle - Segmented Control Style */}
+        <div className="flex items-center p-1 bg-zinc-900/80 border border-zinc-800 rounded-lg">
+          <button
             onClick={() => setViewMode('grid')}
-            className={viewMode === 'grid' ? 'text-white' : 'text-zinc-500'}
+            className={`p-1.5 rounded-md transition-all ${
+              viewMode === 'grid' 
+                ? 'bg-zinc-800 text-white shadow-sm' 
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+            title="Grid View"
           >
             <Grid className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
+          </button>
+          <button
             onClick={() => setViewMode('list')}
-            className={viewMode === 'list' ? 'text-white' : 'text-zinc-500'}
+            className={`p-1.5 rounded-md transition-all ${
+              viewMode === 'list' 
+                ? 'bg-zinc-800 text-white shadow-sm' 
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+            title="List View"
           >
             <List className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -565,6 +568,24 @@ function ProjectsPage() {
                 <ProjectCard project={project} onProjectUpdate={fetchProjects} />
               </motion.div>
             ))}
+            {/* New Project Card */}
+            <motion.div
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                show: { opacity: 1, y: 0 }
+              }}
+            >
+              <div 
+                onClick={() => setIsDialogOpen(true)}
+                className="group cursor-pointer h-full min-h-[280px] border border-dashed border-zinc-800 hover:border-red-600/50 bg-zinc-900/20 hover:bg-zinc-900/40 transition-all duration-300 flex flex-col items-center justify-center gap-4 rounded-lg relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-t from-red-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="w-16 h-16 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center group-hover:scale-110 group-hover:border-red-600 transition-all duration-300 relative z-10">
+                  <Plus className="w-8 h-8 text-zinc-500 group-hover:text-red-500 transition-colors" />
+                </div>
+                <span className="text-zinc-500 font-bold uppercase tracking-widest text-xs group-hover:text-white transition-colors relative z-10">Criar Novo Projeto</span>
+              </div>
+            </motion.div>
           </motion.div>
         ) : (
           <div className="flex flex-col">
@@ -598,6 +619,25 @@ function ProjectsPage() {
                   <ProjectListItem project={project} onProjectUpdate={fetchProjects} />
                 </motion.div>
               ))}
+              {/* New Project Row */}
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, x: -10 },
+                  show: { opacity: 1, x: 0 }
+                }}
+              >
+                <div 
+                  onClick={() => setIsDialogOpen(true)}
+                  className="group flex items-center px-6 py-4 hover:bg-zinc-900/30 transition-all cursor-pointer border-l-2 border-transparent hover:border-l-red-600/50"
+                >
+                  <div className="flex-1 flex items-center gap-4">
+                    <div className="w-12 h-8 border border-dashed border-zinc-700 bg-zinc-900/50 flex items-center justify-center rounded-sm group-hover:border-red-600/50 transition-colors">
+                      <Plus className="w-4 h-4 text-zinc-600 group-hover:text-red-500" />
+                    </div>
+                    <span className="text-sm font-bold text-zinc-500 group-hover:text-white uppercase tracking-wider transition-colors">Criar Novo Projeto</span>
+                  </div>
+                </div>
+              </motion.div>
             </motion.div>
           </div>
         )}
