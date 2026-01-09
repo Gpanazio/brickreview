@@ -17,6 +17,7 @@ import {
 import './App.css'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { LoginPage } from './components/LoginPage'
+import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
 
 function App() {
   return (
@@ -60,6 +61,7 @@ function AppContent() {
       <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen">
         <Routes>
           <Route path="/" element={<ProjectsPage />} />
+          <Route path="/project/:id" element={<ProjectDetailPage />} />
           <Route path="/recent" element={<RecentPage />} />
           <Route path="/starred" element={<StarredPage />} />
           <Route path="/archived" element={<ArchivedPage />} />
@@ -400,10 +402,10 @@ function ProjectsPage() {
 
 function ProjectCard({ project }) {
   return (
-    <div className="group cursor-pointer glass-card p-3 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-300">
+    <Link to={`/project/${project.id}`} className="group cursor-pointer glass-card p-3 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-300 block">
       <div className="relative aspect-[4/3] rounded-none overflow-hidden mb-3 bg-zinc-900/50">
         <img
-          src={project.thumbnail}
+          src={project.thumbnail_url || project.thumbnail || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
           alt={project.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
         />
@@ -417,17 +419,19 @@ function ProjectCard({ project }) {
         {/* Project name overlay */}
         <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-0 transition-all duration-500">
           <p className="brick-title text-base text-white drop-shadow-2xl mb-0.5 uppercase tracking-tighter">{project.name}</p>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold opacity-80">{project.team}</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold opacity-80">{project.team || project.client_name || "Brick's Team"}</p>
         </div>
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs text-zinc-500">Updated {project.updatedAt}</span>
+        <span className="text-xs text-zinc-500">
+          {project.updated_at ? new Date(project.updated_at).toLocaleDateString() : project.updatedAt}
+        </span>
         <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="text-zinc-400">⋯</span>
         </Button>
       </div>
-    </div>
+    </Link>
   )
 }
 
