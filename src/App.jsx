@@ -4,6 +4,7 @@ import {
   Home, Film, Upload, FolderOpen, Settings, User, Search,
   Grid, List, SlidersHorizontal, Plus, Clock, Star, Archive, ChevronLeft, ChevronRight, LogOut
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -35,43 +36,86 @@ function App() {
 function AppContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { user, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-red-600 border-t-transparent animate-spin" />
+        <motion.div 
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-12 h-12 border-2 border-red-600 border-t-transparent" 
+        />
       </div>
     )
   }
 
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    )
-  }
-
   return (
-    <div className="flex min-h-screen bg-[#050505] text-white relative overflow-hidden">
-      {/* Background Accents for Glassmorphism */}
-      <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[150px] rounded-full animate-pulse" />
-      <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-blue-600/5 blur-[150px] rounded-full" />
-      <div className="absolute top-[30%] left-[40%] w-[30%] h-[30%] bg-purple-600/5 blur-[130px] rounded-full" />
-      
-      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
-      <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen">
-        <Routes>
-          <Route path="/" element={<ProjectsPage />} />
-          <Route path="/project/:id" element={<ProjectDetailPage />} />
-          <Route path="/recent" element={<RecentPage />} />
-          <Route path="/starred" element={<StarredPage />} />
-          <Route path="/archived" element={<ArchivedPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+    <AnimatePresence mode="wait">
+      {!user ? (
+        <motion.div
+          key="login"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Routes location={location} key={location.pathname}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="app"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex min-h-screen bg-[#050505] text-white relative overflow-hidden font-sans"
+        >
+          {/* Background Accents for Glassmorphism */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              opacity: [0.08, 0.12, 0.08],
+            }}
+            transition={{ duration: 15, repeat: Infinity }}
+            className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-red-600/10 blur-[120px] rounded-full" 
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.3, 1],
+              opacity: [0.03, 0.06, 0.03],
+            }}
+            transition={{ duration: 20, repeat: Infinity }}
+            className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full" 
+          />
+          
+          <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+          
+          <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen bg-black/20">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                className="h-full"
+              >
+                <Routes location={location}>
+                  <Route path="/" element={<ProjectsPage />} />
+                  <Route path="/project/:id" element={<ProjectDetailPage />} />
+                  <Route path="/recent" element={<RecentPage />} />
+                  <Route path="/starred" element={<StarredPage />} />
+                  <Route path="/archived" element={<ArchivedPage />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -93,13 +137,17 @@ function Sidebar({ collapsed, setCollapsed }) {
       collapsed ? 'w-20' : 'w-64'
     }`}>
       {/* Logo */}
-      <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-red-600 flex items-center justify-center flex-shrink-0">
-            <Film className="w-6 h-6 text-white" />
+      <div className="p-8 border-b border-zinc-900/50 flex items-center justify-between bg-zinc-950/20">
+        <Link to="/" className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-red-600 flex items-center justify-center flex-shrink-0 relative">
+            <div className="absolute inset-0 bg-red-600 blur-[10px] opacity-20" />
+            <Film className="w-5 h-5 text-white relative z-10" />
           </div>
           {!collapsed && (
-            <h1 className="brick-title text-xl text-white whitespace-nowrap">BRICKREVIEW</h1>
+            <div className="flex flex-col">
+              <h1 className="brick-title text-xl text-white whitespace-nowrap leading-none">BRICK</h1>
+              <span className="brick-tech text-[8px] text-zinc-500 uppercase tracking-[0.4em] mt-1">Review</span>
+            </div>
           )}
         </Link>
       </div>
@@ -124,20 +172,20 @@ function Sidebar({ collapsed, setCollapsed }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-6 space-y-2">
         {navItems.map((item) => (
           <Link
             key={item.path}
             to={item.path}
-            className={`flex items-center gap-3 px-3 py-2 rounded transition-colors ${
+            className={`flex items-center gap-4 px-4 py-3 border-l-2 transition-all group ${
               isActive(item.path)
-                ? 'bg-red-600 text-white'
-                : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                ? 'bg-red-600/10 border-red-600 text-white shadow-[inset_10px_0_20px_rgba(220,38,38,0.05)]'
+                : 'border-transparent text-zinc-500 hover:text-white hover:bg-zinc-900/50'
             } ${collapsed ? 'justify-center' : ''}`}
             title={collapsed ? item.label : ''}
           >
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive(item.path) ? 'text-red-500' : 'group-hover:text-red-400'} transition-colors`} />
+            {!collapsed && <span className="brick-tech text-[10px] uppercase tracking-widest">{item.label}</span>}
           </Link>
         ))}
       </nav>
@@ -384,24 +432,26 @@ function ProjectsPage() {
       </header>
 
       {/* Recent Projects Section */}
-      <div className="px-8 py-6 border-b border-zinc-900">
-        <h2 className="text-sm text-zinc-500 mb-4">Projetos Recentes</h2>
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {projects.slice(0, 4).map((project) => (
-            <div
+      <div className="px-8 py-8 border-b border-zinc-900/50 bg-zinc-950/20">
+        <h2 className="brick-tech text-[10px] text-zinc-500 mb-6 uppercase tracking-[0.3em]">Projetos Recentes</h2>
+        <div className="flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
+          {projects.slice(0, 5).map((project) => (
+            <Link
               key={project.id}
-              className="flex-shrink-0 w-48 cursor-pointer group"
+              to={`/project/${project.id}`}
+              className="flex-shrink-0 w-64 group"
             >
-              <div className="relative aspect-video rounded overflow-hidden mb-2">
+              <div className="relative aspect-video overflow-hidden mb-3 border border-zinc-800/50 group-hover:border-red-600/30 transition-colors">
                 <img
-                  src={project.thumbnail}
+                  src={project.thumbnail || project.cover_image_url || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
                   alt={project.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
                 />
-                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
+                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors" />
+                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-red-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500" />
               </div>
-              <p className="text-sm font-medium truncate">{project.name}</p>
-            </div>
+              <p className="brick-title text-xs text-zinc-400 group-hover:text-white transition-colors truncate">{project.name}</p>
+            </Link>
           ))}
         </div>
       </div>
@@ -459,27 +509,52 @@ function ProjectsPage() {
       <div className="flex-1 overflow-y-auto p-8 h-full">
         {loading ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {[1, 2, 3, 4].map(i => (
+            {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="aspect-[4/3] bg-white/5 animate-pulse" />
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-800">
-            <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">Nenhum projeto encontrado</p>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center justify-center h-64 border border-zinc-900 bg-zinc-950/20"
+          >
+            <p className="text-zinc-500 uppercase tracking-[0.3em] font-black text-[10px]">Nenhum projeto encontrado</p>
             <Button 
               size="sm" 
               onClick={() => setIsDialogOpen(true)}
-              className="mt-4 glass-button-primary border-none rounded-none"
+              className="mt-6 glass-button-primary border-none rounded-none px-8 py-6 h-auto"
             >
               Criar seu primeiro projeto
             </Button>
-          </div>
+          </motion.div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <motion.div 
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.05
+                }
+              }
+            }}
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
+          >
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} onProjectUpdate={fetchProjects} />
+              <motion.div
+                key={project.id}
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  show: { opacity: 1, y: 0 }
+                }}
+              >
+                <ProjectCard project={project} onProjectUpdate={fetchProjects} />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>
@@ -492,44 +567,53 @@ function ProjectCard({ project, onProjectUpdate }) {
 
   return (
     <>
-      <div className="group cursor-pointer glass-card p-3 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-300 block relative">
-        <Link to={`/project/${project.id}`}>
-          <div className="relative aspect-[4/3] rounded-none overflow-hidden mb-3 bg-zinc-900/50">
+      <div className="group cursor-pointer glass-card p-4 border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-500 block relative flex flex-col h-full">
+        <Link to={`/project/${project.id}`} className="flex-1 flex flex-col">
+          <div className="relative aspect-[4/3] overflow-hidden mb-5 bg-zinc-900 border border-zinc-800/30">
             <img
               src={project.cover_image_url || project.thumbnail_url || project.thumbnail || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
               alt={project.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out grayscale group-hover:grayscale-0"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/90 via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
-            {/* Lock badge (como no Frame.io) */}
-            <div className="absolute top-0 right-0 w-10 h-10 bg-red-600/20 backdrop-blur-xl border-l border-b border-red-600/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-              <div className="w-2 h-2 bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]" />
+            {/* Status indicator */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 px-2 py-1 bg-black/80 backdrop-blur-md border border-white/10">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+              <span className="brick-tech text-[8px] text-white uppercase tracking-tighter">Active</span>
             </div>
+          </div>
 
-            {/* Project name overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-0 transition-all duration-500">
-              <p className="brick-title text-base text-white drop-shadow-2xl mb-0.5 uppercase tracking-tighter">{project.name}</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold opacity-80">{project.team || project.client_name || "Brick's Team"}</p>
-            </div>
+          <div className="flex-1 flex flex-col">
+            <h3 className="brick-title text-lg text-white mb-1 group-hover:text-red-500 transition-colors leading-tight">
+              {project.name}
+            </h3>
+            <p className="brick-manifesto text-[10px] text-zinc-500 uppercase tracking-[0.2em] mb-4">
+              {project.client_name || "Brick Production"}
+            </p>
           </div>
         </Link>
 
-        <div className="flex items-center justify-between px-1">
-          <span className="text-xs text-zinc-500">
-            {project.updated_at ? new Date(project.updated_at).toLocaleDateString() : project.updatedAt}
-          </span>
+        <div className="flex items-center justify-between pt-4 border-t border-zinc-900/50">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+              <span className="brick-tech text-[8px] text-zinc-500">v1</span>
+            </div>
+            <span className="brick-tech text-[9px] text-zinc-600 uppercase">
+              {project.updated_at ? new Date(project.updated_at).toLocaleDateString() : project.updatedAt}
+            </span>
+          </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="h-8 w-8 hover:bg-zinc-900 rounded-none transition-colors"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               setShowSettings(true);
             }}
           >
-            <span className="text-zinc-400">⋯</span>
+            <Settings className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
           </Button>
         </div>
       </div>
