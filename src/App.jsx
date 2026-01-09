@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import {
   Home, Film, Upload, FolderOpen, Settings, User, Search,
-  Grid, List, SlidersHorizontal, Plus, Clock, Star, Archive
+  Grid, List, SlidersHorizontal, Plus, Clock, Star, Archive, ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,11 +17,18 @@ import {
 import './App.css'
 
 function App() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
   return (
     <BrowserRouter>
-      <div className="flex min-h-screen bg-black text-white">
-        <Sidebar />
-        <main className="flex-1">
+      <div className="flex min-h-screen bg-[#050505] text-white relative overflow-hidden">
+        {/* Background Accents for Glassmorphism */}
+        <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[150px] rounded-full animate-pulse" />
+        <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-blue-600/5 blur-[150px] rounded-full" />
+        <div className="absolute top-[30%] left-[40%] w-[30%] h-[30%] bg-purple-600/5 blur-[130px] rounded-full" />
+        
+        <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+        <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden">
           <Routes>
             <Route path="/" element={<ProjectsPage />} />
             <Route path="/recent" element={<RecentPage />} />
@@ -34,7 +41,7 @@ function App() {
   )
 }
 
-function Sidebar() {
+function Sidebar({ collapsed, setCollapsed }) {
   const location = useLocation()
 
   const isActive = (path) => location.pathname === path
@@ -47,15 +54,38 @@ function Sidebar() {
   ]
 
   return (
-    <aside className="w-64 bg-zinc-950 border-r border-zinc-900 flex flex-col">
+    <aside className={`glass-panel border-r border-zinc-800/50 flex flex-col transition-all duration-300 relative z-20 ${
+      collapsed ? 'w-20' : 'w-64'
+    }`}>
       {/* Logo */}
-      <div className="p-6 border-b border-zinc-900">
+      <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-red-600 flex items-center justify-center">
+          <div className="w-10 h-10 bg-red-600 flex items-center justify-center flex-shrink-0">
             <Film className="w-6 h-6 text-white" />
           </div>
-          <h1 className="brick-title text-xl text-white">BRICKREVIEW</h1>
+          {!collapsed && (
+            <h1 className="brick-title text-xl text-white whitespace-nowrap">BRICKREVIEW</h1>
+          )}
         </Link>
+      </div>
+
+      {/* Collapse Toggle */}
+      <div className="px-4 py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setCollapsed(!collapsed)}
+          className="w-full justify-start text-zinc-400 hover:text-white hover:bg-zinc-900"
+        >
+          {collapsed ? (
+            <ChevronRight className="w-4 h-4" />
+          ) : (
+            <>
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              <span className="text-sm">Collapse</span>
+            </>
+          )}
+        </Button>
       </div>
 
       {/* Navigation */}
@@ -68,25 +98,30 @@ function Sidebar() {
               isActive(item.path)
                 ? 'bg-red-600 text-white'
                 : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
-            }`}
+            } ${collapsed ? 'justify-center' : ''}`}
+            title={collapsed ? item.label : ''}
           >
-            <item.icon className="w-5 h-5" />
-            <span>{item.label}</span>
+            <item.icon className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && <span>{item.label}</span>}
           </Link>
         ))}
       </nav>
 
       {/* User */}
       <div className="p-4 border-t border-zinc-900">
-        <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center">
+        <div className={`flex items-center gap-3 px-3 py-2 ${collapsed ? 'justify-center' : ''}`}>
+          <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center flex-shrink-0">
             <User className="w-4 h-4 text-zinc-400" />
           </div>
-          <div className="flex-1">
-            <p className="text-sm text-white">Brick Team</p>
-            <p className="text-xs text-zinc-500">Admin</p>
-          </div>
-          <Settings className="w-4 h-4 text-zinc-400 cursor-pointer hover:text-white" />
+          {!collapsed && (
+            <>
+              <div className="flex-1">
+                <p className="text-sm text-white">Brick Team</p>
+                <p className="text-xs text-zinc-500">Admin</p>
+              </div>
+              <Settings className="w-4 h-4 text-zinc-400 cursor-pointer hover:text-white" />
+            </>
+          )}
         </div>
       </div>
     </aside>
@@ -167,11 +202,11 @@ function ProjectsPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <header className="border-b border-zinc-900 bg-black px-8 py-4">
+      <header className="border-b border-zinc-800/50 glass-panel sticky top-0 z-30 px-8 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
-            <h1 className="brick-title text-2xl">Brick's Account</h1>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <h1 className="brick-title text-2xl tracking-tighter">Brick's Account</h1>
+            <Button size="sm" className="glass-button-primary border-none">
               <Plus className="w-4 h-4 mr-2" />
               New Project
             </Button>
@@ -181,8 +216,8 @@ function ProjectsPage() {
           <div className="relative w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <Input
-              placeholder="Search"
-              className="pl-10 bg-zinc-900 border-zinc-800 text-white"
+              placeholder="Search projects..."
+              className="pl-10 glass-input border-none h-10"
             />
           </div>
 
@@ -280,28 +315,28 @@ function ProjectsPage() {
 
 function ProjectCard({ project }) {
   return (
-    <div className="group cursor-pointer">
-      <div className="relative aspect-[4/3] rounded overflow-hidden mb-3 bg-zinc-900">
+    <div className="group cursor-pointer glass-card p-3 rounded-xl">
+      <div className="relative aspect-[4/3] rounded-lg overflow-hidden mb-3 bg-zinc-900/50">
         <img
           src={project.thumbnail}
           alt={project.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/90 via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
 
         {/* Lock badge (como no Frame.io) */}
-        <div className="absolute top-2 right-2 w-6 h-6 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
-          <div className="w-3 h-3 bg-zinc-700 rounded-full" />
+        <div className="absolute top-3 right-3 w-8 h-8 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-[-10px] group-hover:translate-y-0">
+          <div className="w-3 h-3 bg-red-600 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.8)]" />
         </div>
 
         {/* Project name overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-3">
-          <p className="brick-title text-sm text-white">{project.name}</p>
-          <p className="text-xs text-zinc-400">{project.team}</p>
+        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
+          <p className="brick-title text-base text-white drop-shadow-2xl mb-0.5">{project.name}</p>
+          <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold opacity-80">{project.team}</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-1">
         <span className="text-xs text-zinc-500">Updated {project.updatedAt}</span>
         <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
           <span className="text-zinc-400">⋯</span>
