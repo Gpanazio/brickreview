@@ -20,6 +20,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import { LoginPage } from './components/LoginPage'
 import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
 import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal'
+import { ProjectListItem } from './components/projects/ProjectListItem'
 import { Toaster } from './components/ui/sonner'
 
 function App() {
@@ -153,21 +154,18 @@ function Sidebar({ collapsed, setCollapsed }) {
       </div>
 
       {/* Collapse Toggle */}
-      <div className="px-4 py-2">
+      <div className="px-4 py-2 flex justify-end">
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => setCollapsed(!collapsed)}
-          className="w-full justify-start text-zinc-400 hover:text-white hover:bg-zinc-900"
+          className="text-zinc-400 hover:text-white hover:bg-zinc-900"
         >
-              {collapsed ? (
-                <ChevronRight className="w-4 h-4" />
-              ) : (
-                <>
-                  <ChevronLeft className="w-4 h-4 mr-2" />
-                  <span className="text-sm">Recolher</span>
-                </>
-              )}
+          {collapsed ? (
+            <ChevronRight className="w-4 h-4" />
+          ) : (
+            <ChevronLeft className="w-4 h-4" />
+          )}
         </Button>
       </div>
 
@@ -441,11 +439,15 @@ function ProjectsPage() {
               to={`/project/${project.id}`}
               className="flex-shrink-0 w-64 group"
             >
-              <div className="relative aspect-video overflow-hidden mb-3 border border-zinc-800/50 group-hover:border-red-600/30 transition-colors">
+              <div className="relative aspect-video overflow-hidden mb-3 border border-zinc-800/50 group-hover:border-red-600/30 transition-colors bg-zinc-900">
                 <img
-                  src={project.thumbnail || project.cover_image_url || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
+                  src={project.cover_image_url || project.thumbnail_url || project.thumbnail || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
                   alt={project.name}
                   className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400';
+                  }}
                 />
                 <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors" />
                 <div className="absolute bottom-0 left-0 w-full h-[2px] bg-red-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500" />
@@ -505,14 +507,22 @@ function ProjectsPage() {
         </div>
       </div>
 
-      {/* Projects Grid */}
+      {/* Projects Grid/List */}
       <div className="flex-1 overflow-y-auto p-8 h-full">
         {loading ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="aspect-[4/3] bg-white/5 animate-pulse" />
-            ))}
-          </div>
+          viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="aspect-[4/3] bg-white/5 animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-16 bg-white/5 animate-pulse" />
+              ))}
+            </div>
+          )
         ) : projects.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
@@ -528,7 +538,7 @@ function ProjectsPage() {
               Criar seu primeiro projeto
             </Button>
           </motion.div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <motion.div 
             initial="hidden"
             animate="show"
@@ -555,6 +565,40 @@ function ProjectsPage() {
               </motion.div>
             ))}
           </motion.div>
+        ) : (
+          <div className="flex flex-col">
+            <div className="grid grid-cols-12 px-6 py-3 text-[10px] uppercase tracking-widest text-zinc-500 font-bold border-b border-zinc-900">
+              <div className="col-span-6">Nome do Projeto</div>
+              <div className="col-span-3">Última Atualização</div>
+              <div className="col-span-3">Data de Criação</div>
+            </div>
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.03
+                  }
+                }
+              }}
+              className="divide-y divide-zinc-900"
+            >
+              {projects.map((project) => (
+                <motion.div
+                  key={project.id}
+                  variants={{
+                    hidden: { opacity: 0, x: -10 },
+                    show: { opacity: 1, x: 0 }
+                  }}
+                >
+                  <ProjectListItem project={project} onProjectUpdate={fetchProjects} />
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
         )}
       </div>
     </div>
