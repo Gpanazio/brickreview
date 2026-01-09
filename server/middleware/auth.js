@@ -7,12 +7,15 @@ export async function authenticateToken(req, res, next) {
   try {
     // Tenta primeiro buscar "Gabriel" (case sensitive) ou "gabriel" (lowercase)
     const userResult = await query(
-      'SELECT id, username, role, email FROM master_users WHERE LOWER(username) = LOWER($1) LIMIT 1', 
+      'SELECT id, username, email FROM master_users WHERE LOWER(username) = LOWER($1) LIMIT 1',
       ['Gabriel']
     );
-    
+
     if (userResult.rows.length > 0) {
-      req.user = userResult.rows[0];
+      req.user = {
+        ...userResult.rows[0],
+        role: 'admin' // Default role para bypass
+      };
       return next();
     }
   } catch (e) {

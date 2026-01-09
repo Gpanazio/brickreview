@@ -1,8 +1,43 @@
 import express from 'express';
+import multer from 'multer';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
+import r2Client from '../utils/r2.js';
+import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
+
+// Configuração do Multer para upload de imagens
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = 'temp-uploads/';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'cover-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadImage = multer({
+  storage: imageStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Apenas imagens (JPEG, PNG, WebP) são permitidas'));
+  }
+});
 
 /**
  * @route GET /api/projects
@@ -148,6 +183,101 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Erro ao remover projeto:', error);
     res.status(500).json({ error: 'Erro ao remover projeto' });
+  }
+});
+
+/**
+ * @route POST /api/projects/:id/cover
+ * @desc Upload cover image for project
+ */
+router.post('/:id/cover', authenticateToken, uploadImage.single('cover'), async (req, res) => {
+  const projectId = req.params.id;
+  const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({ error: 'Nenhuma imagem foi enviada' });
+  }
+
+  try {
+    // Verifica se o projeto existe
+    const projectCheck = await query(
+      'SELECT id FROM brickreview_projects WHERE id = $1',
+      [projectId]
+    );
+
+    if (projectCheck.rows.length === 0) {
+      fs.unlinkSync(file.path); // Remove arquivo temporário
+      return res.status(404).json({ error: 'Projeto não encontrado' });
+    }
+
+    // Upload para R2
+    const r2Key = `project-covers/${projectId}/${Date.now()}-${file.originalname}`;
+    const fileContent = fs.readFileSync(file.path);
+
+    await r2Client.send(new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: r2Key,
+      Body: fileContent,
+      ContentType: file.mimetype
+    }));
+
+    const coverUrl = `${process.env.R2_PUBLIC_URL}/${r2Key}`;
+
+    // Atualiza o banco de dados
+    const result = await query(
+      `UPDATE brickreview_projects
+       SET cover_image_r2_key = $1, cover_image_url = $2
+       WHERE id = $3
+       RETURNING *`,
+      [r2Key, coverUrl, projectId]
+    );
+
+    // Remove arquivo temporário
+    fs.unlinkSync(file.path);
+
+    res.json({
+      message: 'Imagem de capa atualizada com sucesso',
+      project: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Erro ao fazer upload da imagem de capa:', error);
+    // Tenta remover arquivo temporário em caso de erro
+    if (file && file.path && fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+    res.status(500).json({ error: 'Erro ao fazer upload da imagem de capa' });
+  }
+});
+
+/**
+ * @route DELETE /api/projects/:id/cover
+ * @desc Remove cover image from project
+ */
+router.delete('/:id/cover', authenticateToken, async (req, res) => {
+  const projectId = req.params.id;
+
+  try {
+    const result = await query(
+      `UPDATE brickreview_projects
+       SET cover_image_r2_key = NULL, cover_image_url = NULL
+       WHERE id = $1
+       RETURNING *`,
+      [projectId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Projeto não encontrado' });
+    }
+
+    res.json({
+      message: 'Imagem de capa removida com sucesso',
+      project: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Erro ao remover imagem de capa:', error);
+    res.status(500).json({ error: 'Erro ao remover imagem de capa' });
   }
 });
 

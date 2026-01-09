@@ -119,7 +119,7 @@ export function ProjectDetailPage() {
               onChange={handleFileUpload}
               disabled={uploading}
             />
-            <Button 
+            <Button
               asChild
               className="glass-button-primary border-none rounded-none"
               disabled={uploading}

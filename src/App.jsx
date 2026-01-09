@@ -474,7 +474,7 @@ function ProjectsPage() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard key={project.id} project={project} onProjectUpdate={fetchProjects} />
             ))}
           </div>
         )}
@@ -483,38 +483,211 @@ function ProjectsPage() {
   )
 }
 
-function ProjectCard({ project }) {
+function ProjectCard({ project, onProjectUpdate }) {
+  const [showSettings, setShowSettings] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const { token } = useAuth();
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewImage(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCoverUpload = async () => {
+    if (!selectedFile) return;
+
+    setUploadingCover(true);
+    const formData = new FormData();
+    formData.append('cover', selectedFile);
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/cover`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (response.ok) {
+        onProjectUpdate();
+        setShowSettings(false);
+        setPreviewImage(null);
+        setSelectedFile(null);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Erro ao fazer upload da imagem de capa');
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload da imagem de capa:', error);
+      alert('Erro ao fazer upload da imagem de capa');
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const handleCancelPreview = () => {
+    setPreviewImage(null);
+    setSelectedFile(null);
+  };
+
   return (
-    <Link to={`/project/${project.id}`} className="group cursor-pointer glass-card p-3 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-300 block">
-      <div className="relative aspect-[4/3] rounded-none overflow-hidden mb-3 bg-zinc-900/50">
-        <img
-          src={project.thumbnail_url || project.thumbnail || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
-          alt={project.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/90 via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
+    <>
+      <div className="group cursor-pointer glass-card p-3 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-300 block relative">
+        <Link to={`/project/${project.id}`}>
+          <div className="relative aspect-[4/3] rounded-none overflow-hidden mb-3 bg-zinc-900/50">
+            <img
+              src={project.cover_image_url || project.thumbnail_url || project.thumbnail || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
+              alt={project.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/90 via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
 
-        {/* Lock badge (como no Frame.io) */}
-        <div className="absolute top-0 right-0 w-10 h-10 bg-red-600/20 backdrop-blur-xl border-l border-b border-red-600/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-          <div className="w-2 h-2 bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]" />
-        </div>
+            {/* Lock badge (como no Frame.io) */}
+            <div className="absolute top-0 right-0 w-10 h-10 bg-red-600/20 backdrop-blur-xl border-l border-b border-red-600/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+              <div className="w-2 h-2 bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]" />
+            </div>
 
-        {/* Project name overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-0 transition-all duration-500">
-          <p className="brick-title text-base text-white drop-shadow-2xl mb-0.5 uppercase tracking-tighter">{project.name}</p>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold opacity-80">{project.team || project.client_name || "Brick's Team"}</p>
+            {/* Project name overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-0 transition-all duration-500">
+              <p className="brick-title text-base text-white drop-shadow-2xl mb-0.5 uppercase tracking-tighter">{project.name}</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold opacity-80">{project.team || project.client_name || "Brick's Team"}</p>
+            </div>
+          </div>
+        </Link>
+
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs text-zinc-500">
+            {project.updated_at ? new Date(project.updated_at).toLocaleDateString() : project.updatedAt}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowSettings(true);
+            }}
+          >
+            <span className="text-zinc-400">⋯</span>
+          </Button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-1">
-        <span className="text-xs text-zinc-500">
-          {project.updated_at ? new Date(project.updated_at).toLocaleDateString() : project.updatedAt}
-        </span>
-        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-          <span className="text-zinc-400">⋯</span>
-        </Button>
-      </div>
-    </Link>
+      {/* Modal de Configurações */}
+      {showSettings && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setShowSettings(false)}
+        >
+          <div
+            className="glass-panel p-6 max-w-md w-full mx-4 rounded-none border border-zinc-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="brick-title text-xl uppercase tracking-tighter mb-6">Configurações do Projeto</h2>
+
+            <div className="space-y-4">
+              {/* Preview da imagem selecionada ou atual */}
+              <div>
+                <label className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-2 block">
+                  Imagem de Capa
+                </label>
+
+                {previewImage || project.cover_image_url ? (
+                  <div className="relative aspect-[4/3] rounded-none overflow-hidden border border-zinc-800 mb-3">
+                    <img
+                      src={previewImage || project.cover_image_url}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    {previewImage && (
+                      <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest">
+                        Nova Imagem
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="aspect-[4/3] rounded-none border-2 border-dashed border-zinc-800 flex items-center justify-center mb-3">
+                    <p className="text-zinc-600 text-xs uppercase tracking-widest">Nenhuma imagem</p>
+                  </div>
+                )}
+
+                {!previewImage ? (
+                  <>
+                    <input
+                      type="file"
+                      id={`cover-upload-${project.id}`}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      disabled={uploadingCover}
+                    />
+                    <Button
+                      asChild
+                      className="w-full glass-button border border-zinc-800 rounded-none"
+                      disabled={uploadingCover}
+                    >
+                      <label htmlFor={`cover-upload-${project.id}`} className="cursor-pointer flex items-center justify-center">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Selecionar Imagem
+                      </label>
+                    </Button>
+                  </>
+                ) : (
+                  <div className="flex gap-3">
+                    <Button
+                      variant="ghost"
+                      className="flex-1 glass-button border border-zinc-800 rounded-none"
+                      onClick={handleCancelPreview}
+                      disabled={uploadingCover}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      className="flex-1 glass-button-primary border-none rounded-none"
+                      onClick={handleCoverUpload}
+                      disabled={uploadingCover}
+                    >
+                      {uploadingCover ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin mr-2" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Confirmar Upload
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {!previewImage && (
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="ghost"
+                  className="flex-1 glass-button border border-zinc-800 rounded-none"
+                  onClick={() => setShowSettings(false)}
+                >
+                  Fechar
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

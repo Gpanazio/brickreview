@@ -44,12 +44,23 @@ export const getVideoMetadata = (videoPath) => {
       
       const videoStream = metadata.streams.find(s => s.codec_type === 'video');
       
+      // Parse FPS from fraction format (e.g., "30000/1001")
+      let fps = 30; // default
+      if (videoStream && videoStream.avg_frame_rate) {
+        const fpsString = videoStream.avg_frame_rate;
+        if (fpsString.includes('/')) {
+          const [numerator, denominator] = fpsString.split('/').map(Number);
+          fps = Math.round(numerator / denominator);
+        } else {
+          fps = Math.round(parseFloat(fpsString));
+        }
+      }
+
       resolve({
         duration: metadata.format.duration,
         width: videoStream ? videoStream.width : null,
         height: videoStream ? videoStream.height : null,
-        fps: videoStream && videoStream.avg_frame_rate ? 
-             eval(videoStream.avg_frame_rate) : 30
+        fps: fps
       });
     });
   });
