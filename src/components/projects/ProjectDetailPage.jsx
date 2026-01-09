@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { VideoPlayer } from '../player/VideoPlayer';
 import { Button } from '@/components/ui/button';
 import { 
   ChevronLeft, Upload, Play, Clock, MessageSquare, 
@@ -18,6 +19,7 @@ export function ProjectDetailPage() {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState(null);
   const { token } = useAuth();
 
   useEffect(() => {
@@ -77,6 +79,18 @@ export function ProjectDetailPage() {
 
   if (!project) return <div className="p-8 text-white">Projeto não encontrado</div>;
 
+  if (selectedVideo) {
+    return (
+      <VideoPlayer 
+        video={selectedVideo} 
+        onBack={() => {
+          setSelectedVideo(null);
+          fetchProjectDetails();
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-[#050505]">
       {/* Header do Projeto */}
@@ -128,7 +142,11 @@ export function ProjectDetailPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {project.videos.map((video) => (
-              <VideoCard key={video.id} video={video} />
+              <VideoCard 
+                key={video.id} 
+                video={video} 
+                onClick={() => setSelectedVideo(video)} 
+              />
             ))}
           </div>
         )}
@@ -137,9 +155,12 @@ export function ProjectDetailPage() {
   );
 }
 
-function VideoCard({ video }) {
+function VideoCard({ video, onClick }) {
   return (
-    <div className="group glass-card border-none rounded-none overflow-hidden cursor-pointer relative">
+    <div 
+      onClick={onClick}
+      className="group glass-card border-none rounded-none overflow-hidden cursor-pointer relative"
+    >
       <div className="aspect-video bg-zinc-900 relative overflow-hidden">
         <img 
           src={video.thumbnail_url || 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=400'} 

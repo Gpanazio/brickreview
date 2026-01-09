@@ -1,6 +1,6 @@
 import express from 'express';
 import { query } from '../db.js';
-import auth from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -8,7 +8,7 @@ const router = express.Router();
  * @route GET /api/projects
  * @desc Get all projects for the current user
  */
-router.get('/', auth, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     // Se for admin, vê todos. Se for cliente, vê apenas onde é membro.
     let projects;
@@ -37,7 +37,7 @@ router.get('/', auth, async (req, res) => {
  * @route POST /api/projects
  * @desc Create a new project
  */
-router.post('/', auth, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   const { name, description, client_name } = req.body;
 
   if (!name) {
@@ -70,7 +70,7 @@ router.post('/', auth, async (req, res) => {
  * @route GET /api/projects/:id
  * @desc Get project details and its videos
  */
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const projectResult = await query(
       'SELECT * FROM brickreview_projects_with_stats WHERE id = $1',
@@ -104,7 +104,7 @@ router.get('/:id', auth, async (req, res) => {
  * @route PATCH /api/projects/:id
  * @desc Update project details
  */
-router.patch('/:id', auth, async (req, res) => {
+router.patch('/:id', authenticateToken, async (req, res) => {
   const { name, description, client_name, status } = req.body;
 
   try {
@@ -133,7 +133,7 @@ router.patch('/:id', auth, async (req, res) => {
  * @route DELETE /api/projects/:id
  * @desc Delete project
  */
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const result = await query(
       'DELETE FROM brickreview_projects WHERE id = $1 RETURNING id',

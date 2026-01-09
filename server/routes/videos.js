@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
-import auth from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
 import r2Client from '../utils/r2.js';
 import { generateThumbnail, getVideoMetadata } from '../utils/video.js';
 import path from 'path';
@@ -32,7 +32,7 @@ const upload = multer({ storage });
  * @route POST /api/videos/upload
  * @desc Upload a video to R2 and save metadata
  */
-router.post('/upload', auth, upload.single('video'), async (req, res) => {
+router.post('/upload', authenticateToken, upload.single('video'), async (req, res) => {
   const { project_id, title, description } = req.body;
   const file = req.file;
 
@@ -110,7 +110,7 @@ router.post('/upload', auth, upload.single('video'), async (req, res) => {
  * @route GET /api/videos/:id
  * @desc Get video details and its comments
  */
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const videoResult = await query(
       'SELECT * FROM brickreview_videos_with_stats WHERE id = $1',

@@ -1,6 +1,6 @@
 import express from 'express';
 import { query } from '../db.js';
-import auth from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -8,7 +8,7 @@ const router = express.Router();
  * @route POST /api/comments
  * @desc Add a comment to a video
  */
-router.post('/', auth, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   const { video_id, parent_comment_id, content, timestamp } = req.body;
 
   if (!video_id || !content) {
@@ -39,7 +39,7 @@ router.post('/', auth, async (req, res) => {
  * @route PATCH /api/comments/:id
  * @desc Update comment status or content
  */
-router.patch('/:id', auth, async (req, res) => {
+router.patch('/:id', authenticateToken, async (req, res) => {
   const { content, status } = req.body;
 
   try {
@@ -67,7 +67,7 @@ router.patch('/:id', auth, async (req, res) => {
  * @route DELETE /api/comments/:id
  * @desc Delete comment
  */
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const result = await query(
       "DELETE FROM brickreview_comments WHERE id = $1 AND (user_id = $2 OR $3 = 'admin') RETURNING id",
