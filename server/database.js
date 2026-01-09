@@ -14,9 +14,25 @@ export async function initDatabase() {
   }
 
   try {
+    // Verifica se as tabelas principais já existem
+    const tableCheck = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'brickreview_projects'
+      ) as exists
+    `)
+
+    const tablesExist = tableCheck.rows[0].exists
+
+    // Se as tabelas existem e NÃO pedimos reset, apenas saímos
+    if (tablesExist && process.env.RESET_DB !== 'true') {
+      console.log('✅ Database schema already initialized. Skipping setup.')
+      return
+    }
+
     console.log('🔄 Initializing database schema...')
 
-    // Check if master_users table exists (compartilhada com outros projetos BRICK)
+    // Check if master_users table exists
     const masterUsersCheck = await query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables
@@ -25,49 +41,16 @@ export async function initDatabase() {
     `)
 
     if (!masterUsersCheck.rows[0].exists) {
-      console.warn('⚠️  WARNING: master_users table not found!')
-      console.warn('   BrickReview requires the master_users table from brickprojects/BrickAI')
-      console.warn('   Please ensure you are using the same database as other BRICK projects')
-      console.warn('   or create the master_users table first.')
       throw new Error('master_users table not found')
     }
 
-    console.log('✅ master_users table found (shared with other BRICK projects)')
-
-    // Read and execute SQL schema
     const sqlFile = path.join(__dirname, 'database.sql')
-
-    if (!fs.existsSync(sqlFile)) {
-      console.error('❌ database.sql file not found')
-      return
-    }
+    if (!fs.existsSync(sqlFile)) return
 
     const sql = fs.readFileSync(sqlFile, 'utf8')
 
-    // Drop views first because they depend on tables we might want to modify
-    await query(`
-      DROP VIEW IF EXISTS brickreview_projects_with_stats CASCADE;
-      DROP VIEW IF EXISTS brickreview_comments_with_user CASCADE;
-      DROP VIEW IF EXISTS brickreview_videos_with_stats CASCADE;
-    `)
-
-    // Se estiver em desenvolvimento ou o usuário solicitou reset via env
-    if (process.env.RESET_DB === 'true') {
-      console.log('🗑  Resetting database tables...')
-      await query(`
-        DROP TABLE IF EXISTS brickreview_notifications CASCADE;
-        DROP TABLE IF EXISTS brickreview_project_members CASCADE;
-        DROP TABLE IF EXISTS brickreview_approvals CASCADE;
-        DROP TABLE IF EXISTS brickreview_comments CASCADE;
-        DROP TABLE IF EXISTS brickreview_videos CASCADE;
-        DROP TABLE IF EXISTS brickreview_folders CASCADE;
-        DROP TABLE IF EXISTS brickreview_projects CASCADE;
-      `)
-    }
-
-    // Execute SQL (já tem CREATE TABLE IF NOT EXISTS, então é idempotente)
+    // Execute setup
     await query(sql)
-
     console.log('✅ Database schema initialized successfully')
 
     // Log table statistics
@@ -127,3 +110,4 @@ export async function isDatabaseReady() {
 }
 
 export default { initDatabase, isDatabaseReady }
+  if (!pool) return false
