@@ -2,6 +2,16 @@ import jwt from 'jsonwebtoken'
 
 // Middleware para verificar token JWT
 export function authenticateToken(req, res, next) {
+  // BYPASS LOGIN - Admin Default
+  req.user = {
+    id: '00000000-0000-0000-0000-000000000000', // Mock UUID
+    username: 'Brick Admin',
+    role: 'admin',
+    email: 'admin@brick.com'
+  };
+  return next();
+
+  /*
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1] // Bearer TOKEN
 
@@ -20,6 +30,7 @@ export function authenticateToken(req, res, next) {
       error: 'Token inválido ou expirado',
     })
   }
+  */
 }
 
 // Middleware para verificar se usuário é admin

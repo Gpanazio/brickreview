@@ -3,6 +3,17 @@ import { useState, createContext, useContext, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  // BYPASS LOGIN - Admin Default
+  const [user, setUser] = useState({
+    id: '00000000-0000-0000-0000-000000000000',
+    username: 'Brick Admin',
+    role: 'admin',
+    email: 'admin@brick.com'
+  });
+  const [token, setToken] = useState('bypass-token');
+  const [loading, setLoading] = useState(false);
+
+  /*
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('brickreview_token'));
   const [loading, setLoading] = useState(true);
@@ -35,6 +46,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   };
+  */
 
   const login = async (username, password) => {
     const response = await fetch('/api/auth/login', {
