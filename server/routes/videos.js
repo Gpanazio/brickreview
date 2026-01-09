@@ -36,6 +36,21 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
   const { project_id, title, description } = req.body;
   const file = req.file;
 
+  const missingR2Config = [
+    'R2_ACCOUNT_ID',
+    'R2_ACCESS_KEY_ID',
+    'R2_SECRET_ACCESS_KEY',
+    'R2_BUCKET_NAME',
+    'R2_PUBLIC_URL'
+  ].filter((key) => !process.env[key]);
+
+  if (missingR2Config.length > 0) {
+    return res.status(500).json({
+      error: 'Configuração do R2 ausente',
+      missing: missingR2Config
+    });
+  }
+
   if (!file || !project_id || !title) {
     return res.status(400).json({ error: 'Dados insuficientes para o upload' });
   }
