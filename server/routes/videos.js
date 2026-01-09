@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 import r2Client from '../utils/r2.js';
@@ -36,6 +37,21 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
   const { project_id, title, description } = req.body;
   const file = req.file;
 
+  const missingR2Config = [
+    'R2_ACCOUNT_ID',
+    'R2_ACCESS_KEY_ID',
+    'R2_SECRET_ACCESS_KEY',
+    'R2_BUCKET_NAME',
+    'R2_PUBLIC_URL'
+  ].filter((key) => !process.env[key]);
+
+  if (missingR2Config.length > 0) {
+    return res.status(500).json({
+      error: 'Configuração do R2 ausente',
+      missing: missingR2Config
+    });
+  }
+
   if (!file || !project_id || !title) {
     return res.status(400).json({ error: 'Dados insuficientes para o upload' });
   }
@@ -43,15 +59,41 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
   const thumbDir = 'thumbnails/';
   const thumbFilename = `thumb-${uuidv4()}.jpg`;
   let thumbPath = '';
+  let thumbKey = null;
+  let thumbUrl = null;
+  let metadata = {
+    duration: null,
+    fps: 30,
+    width: null,
+    height: null
+  };
 
   try {
     // 1. Obter metadados
-    const metadata = await getVideoMetadata(file.path);
+    try {
+      metadata = await getVideoMetadata(file.path);
+    } catch (metadataError) {
+      console.warn('Falha ao obter metadados do vídeo, seguindo com valores padrão:', metadataError);
+    }
 
     // 2. Gerar thumbnail
-    thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
-    const thumbContent = fs.readFileSync(thumbPath);
-    const thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
+    try {
+      thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
+      const thumbContent = fs.readFileSync(thumbPath);
+      thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
+
+      // 4. Upload Thumbnail para R2
+      await r2Client.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: thumbKey,
+        Body: thumbContent,
+        ContentType: 'image/jpeg',
+      }));
+
+      thumbUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
+    } catch (thumbnailError) {
+      console.warn('Falha ao gerar thumbnail, seguindo sem thumbnail:', thumbnailError);
+    }
 
     // 3. Upload Vídeo para R2
     const fileContent = fs.readFileSync(file.path);
@@ -64,16 +106,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       ContentType: file.mimetype,
     }));
 
-    // 4. Upload Thumbnail para R2
-    await r2Client.send(new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
-      Key: thumbKey,
-      Body: thumbContent,
-      ContentType: 'image/jpeg',
-    }));
-
     const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
-    const thumbUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
 
     // 5. Salva no banco
     const result = await query(`
@@ -103,6 +136,43 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       fs.unlinkSync(file.path);
     }
     res.status(500).json({ error: 'Erro ao processar upload' });
+  }
+});
+
+/**
+ * @route GET /api/videos/:id/stream
+ * @desc Get a signed streaming URL for a video
+ */
+router.get('/:id/stream', authenticateToken, async (req, res) => {
+  try {
+    const videoResult = await query(
+      'SELECT r2_key FROM brickreview_videos WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (videoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' });
+    }
+
+    const { r2_key: r2Key } = videoResult.rows[0];
+
+    if (!process.env.R2_BUCKET_NAME) {
+      return res.status(500).json({ error: 'Configuração do R2 ausente' });
+    }
+
+    const signedUrl = await getSignedUrl(
+      r2Client,
+      new GetObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: r2Key,
+      }),
+      { expiresIn: 60 * 60 }
+    );
+
+    res.json({ url: signedUrl });
+  } catch (error) {
+    console.error('Erro ao gerar URL assinada:', error);
+    res.status(500).json({ error: 'Erro ao gerar URL de streaming' });
   }
 });
 
