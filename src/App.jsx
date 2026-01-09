@@ -181,15 +181,46 @@ function Sidebar({ collapsed, setCollapsed }) {
   )
 }
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+
 function ProjectsPage() {
   const [viewMode, setViewMode] = useState('grid')
   const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [newProject, setNewProject] = useState({ name: '', description: '', client_name: '' })
+  const [isCreating, setIsCreating] = useState(false)
   const { token } = useAuth()
 
   useEffect(() => {
     fetchProjects()
   }, [])
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault()
+    setIsCreating(true)
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newProject)
+      })
+
+      if (response.ok) {
+        setIsDialogOpen(false)
+        setNewProject({ name: '', description: '', client_name: '' })
+        fetchProjects()
+      }
+    } catch (error) {
+      console.error('Erro ao criar projeto:', error)
+    } finally {
+      setIsCreating(false)
+    }
+  }
 
   const fetchProjects = async () => {
     try {
@@ -280,10 +311,56 @@ function ProjectsPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <h1 className="brick-title text-2xl tracking-tighter">Brick's Account</h1>
-            <Button size="sm" className="glass-button-primary border-none">
-              <Plus className="w-4 h-4 mr-2" />
-              New Project
-            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="glass-button-primary border-none rounded-none">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Project
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white">
+                <DialogHeader>
+                  <DialogTitle className="brick-title text-2xl tracking-tighter uppercase">New Project</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateProject} className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Project Name</Label>
+                    <Input 
+                      required
+                      value={newProject.name}
+                      onChange={(e) => setNewProject({...newProject, name: e.target.value})}
+                      className="glass-input border-none rounded-none h-12" 
+                      placeholder="Ex: KEETA CAMPAIGN" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Client Name</Label>
+                    <Input 
+                      value={newProject.client_name}
+                      onChange={(e) => setNewProject({...newProject, client_name: e.target.value})}
+                      className="glass-input border-none rounded-none h-12" 
+                      placeholder="Ex: Brick Produtora" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Description</Label>
+                    <Input 
+                      value={newProject.description}
+                      onChange={(e) => setNewProject({...newProject, description: e.target.value})}
+                      className="glass-input border-none rounded-none h-12" 
+                      placeholder="Optional details..." 
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    disabled={isCreating}
+                    className="w-full glass-button-primary border-none rounded-none h-12 font-black uppercase tracking-widest"
+                  >
+                    {isCreating ? 'Creating...' : 'Create Project'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Search */}
@@ -386,7 +463,13 @@ function ProjectsPage() {
         ) : projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-800">
             <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">No projects found</p>
-            <Button size="sm" className="mt-4 glass-button-primary border-none">Create your first project</Button>
+            <Button 
+              size="sm" 
+              onClick={() => setIsDialogOpen(true)}
+              className="mt-4 glass-button-primary border-none rounded-none"
+            >
+              Create your first project
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
