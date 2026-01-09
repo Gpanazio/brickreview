@@ -79,14 +79,14 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
     // 2. Gerar thumbnail
     try {
       thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
-      const thumbContent = await fs.promises.readFile(thumbPath);
       thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
 
-      // 4. Upload Thumbnail para R2
+      // 4. Upload Thumbnail para R2 (usando stream)
+      const thumbStream = fs.createReadStream(thumbPath);
       await r2Client.send(new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
         Key: thumbKey,
-        Body: thumbContent,
+        Body: thumbStream,
         ContentType: 'image/jpeg',
       }));
 
@@ -95,14 +95,14 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       console.warn('Falha ao gerar thumbnail, seguindo sem thumbnail:', thumbnailError);
     }
 
-    // 3. Upload Vídeo para R2
-    const fileContent = fs.readFileSync(file.path);
+    // 3. Upload Vídeo para R2 (usando stream para reduzir uso de memória)
     const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
+    const fileStream = fs.createReadStream(file.path);
 
     await r2Client.send(new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: fileKey,
-      Body: fileContent,
+      Body: fileStream,
       ContentType: file.mimetype,
     }));
 

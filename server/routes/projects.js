@@ -210,14 +210,14 @@ router.post('/:id/cover', authenticateToken, uploadImage.single('cover'), async 
       return res.status(404).json({ error: 'Projeto não encontrado' });
     }
 
-    // Upload para R2
+    // Upload para R2 (usando stream para reduzir uso de memória)
     const r2Key = `project-covers/${projectId}/${Date.now()}-${file.originalname}`;
-    const fileContent = fs.readFileSync(file.path);
+    const fileStream = fs.createReadStream(file.path);
 
     await r2Client.send(new PutObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME,
       Key: r2Key,
-      Body: fileContent,
+      Body: fileStream,
       ContentType: file.mimetype
     }));
 

@@ -26,6 +26,10 @@ export function VideoPlayer({ video, onBack }) {
   const playerRef = useRef(null);
   const { token } = useAuth();
 
+  // Use precise FPS from metadata, fallback to 30 if not available
+  const videoFPS = video.fps || 30;
+  const frameTime = 1 / videoFPS;
+
   const plyrOptions = {
     controls: [
       'play-large', 'play', 'progress', 'current-time', 
@@ -233,22 +237,25 @@ export function VideoPlayer({ video, onBack }) {
 
         {/* Barra de Controles Customizados (Frame by Frame) */}
         <div className="p-4 border-t border-zinc-800/50 glass-panel flex items-center justify-center gap-8">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="text-zinc-500 hover:text-white"
-            onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= 1/video.fps }}
+            onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime }}
           >
             <ChevronLeft className="w-4 h-4 mr-2" /> -1 FRAME
           </Button>
           <div className="brick-tech text-red-600 font-bold text-xl tabular-nums">
             {formatTime(currentTime)}
+            <div className="text-[10px] text-zinc-600 tracking-widest font-bold uppercase text-center mt-1">
+              {videoFPS} FPS
+            </div>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="text-zinc-500 hover:text-white"
-            onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += 1/video.fps }}
+            onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime }}
           >
             +1 FRAME <ChevronRight className="w-4 h-4 ml-2" />
           </Button>

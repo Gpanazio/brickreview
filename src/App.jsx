@@ -19,12 +19,14 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import { LoginPage } from './components/LoginPage'
 import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
 import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal'
+import { Toaster } from './components/ui/sonner'
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <AppContent />
+        <Toaster position="top-right" />
       </BrowserRouter>
     </AuthProvider>
   )

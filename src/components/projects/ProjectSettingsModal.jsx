@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Upload, Copy, Archive, Trash2, Image as ImageIcon, ZoomIn, ZoomOut, Move } from 'lucide-react';
 
 export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token }) {
@@ -69,6 +70,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!selectedFile) return;
 
     setUploadingCover(true);
+    const uploadToast = toast.loading('Enviando imagem de capa...');
     const formData = new FormData();
     formData.append('cover', selectedFile);
 
@@ -80,6 +82,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       });
 
       if (response.ok) {
+        toast.success('Imagem de capa atualizada!', { id: uploadToast });
         onProjectUpdate();
         setShowCoverEditor(false);
         setPreviewImage(null);
@@ -87,11 +90,11 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         onClose();
       } else {
         const errorData = await response.json();
-        alert(errorData.error || 'Erro ao fazer upload da imagem de capa');
+        toast.error(errorData.error || 'Erro ao fazer upload da imagem de capa', { id: uploadToast });
       }
     } catch (error) {
       console.error('Erro ao fazer upload da imagem de capa:', error);
-      alert('Erro ao fazer upload da imagem de capa');
+      toast.error('Erro ao fazer upload da imagem de capa', { id: uploadToast });
     } finally {
       setUploadingCover(false);
     }
@@ -106,12 +109,13 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   };
 
   const handleDuplicateProject = async () => {
-    alert('Funcionalidade de duplicar projeto em desenvolvimento');
+    toast.info('Funcionalidade de duplicar projeto em desenvolvimento');
   };
 
   const handleToggleStatus = async () => {
     try {
       const newStatus = project.status === 'active' ? 'inactive' : 'active';
+      const statusToast = toast.loading('Alterando status...');
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
         headers: {
@@ -122,20 +126,22 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       });
 
       if (response.ok) {
+        toast.success(`Projeto marcado como ${newStatus === 'active' ? 'ativo' : 'inativo'}`, { id: statusToast });
         onProjectUpdate();
         onClose();
       } else {
-        alert('Erro ao alterar status do projeto');
+        toast.error('Erro ao alterar status do projeto', { id: statusToast });
       }
     } catch (error) {
       console.error('Erro ao alterar status:', error);
-      alert('Erro ao alterar status do projeto');
+      toast.error('Erro ao alterar status do projeto');
     }
   };
 
   const handleDeleteProject = async () => {
     if (!confirm(`Tem certeza que deseja excluir o projeto "${project.name}"? Esta ação não pode ser desfeita.`)) return;
 
+    const deleteToast = toast.loading('Excluindo projeto...');
     try {
       const response = await fetch(`/api/projects/${project.id}`, {
         method: 'DELETE',
@@ -143,14 +149,15 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       });
 
       if (response.ok) {
+        toast.success('Projeto excluído com sucesso', { id: deleteToast });
         onProjectUpdate();
         onClose();
       } else {
-        alert('Erro ao excluir projeto');
+        toast.error('Erro ao excluir projeto', { id: deleteToast });
       }
     } catch (error) {
       console.error('Erro ao excluir projeto:', error);
-      alert('Erro ao excluir projeto');
+      toast.error('Erro ao excluir projeto', { id: deleteToast });
     }
   };
 

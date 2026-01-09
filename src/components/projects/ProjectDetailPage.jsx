@@ -5,6 +5,7 @@ import { VideoPlayer } from '../player/VideoPlayer';
 import { FolderView } from './FolderView';
 import { Button } from '@/components/ui/button';
 import { formatVideoDuration } from '../../utils/time';
+import { toast } from 'sonner';
 import {
   ChevronLeft, Upload, Play, Clock, MessageSquare,
   CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree
@@ -86,6 +87,7 @@ export function ProjectDetailPage() {
     if (!file) return;
 
     setUploading(true);
+    const uploadToast = toast.loading('Enviando vídeo...');
     const formData = new FormData();
     formData.append('video', file);
     formData.append('project_id', id);
@@ -99,16 +101,18 @@ export function ProjectDetailPage() {
       });
 
       if (response.ok) {
+        toast.success('Vídeo enviado com sucesso!', { id: uploadToast });
         fetchProjectDetails();
       } else {
         const errorData = await response.json().catch((parseError) => {
           console.error('Error parsing server response:', parseError);
           return {};
         });
-        alert(errorData.error || 'Erro no upload');
+        toast.error(errorData.error || 'Erro no upload', { id: uploadToast });
       }
     } catch (error) {
       console.error('Erro no upload:', error);
+      toast.error('Erro ao enviar vídeo', { id: uploadToast });
     } finally {
       setUploading(false);
       e.target.value = '';
