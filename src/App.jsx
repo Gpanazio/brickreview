@@ -315,24 +315,24 @@ function ProjectsPage() {
 
 function ProjectCard({ project }) {
   return (
-    <div className="group cursor-pointer glass-card p-3 rounded-xl">
-      <div className="relative aspect-[4/3] rounded-lg overflow-hidden mb-3 bg-zinc-900/50">
+    <div className="group cursor-pointer glass-card p-3 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-300">
+      <div className="relative aspect-[4/3] rounded-none overflow-hidden mb-3 bg-zinc-900/50">
         <img
           src={project.thumbnail}
           alt={project.name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505]/90 via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
 
         {/* Lock badge (como no Frame.io) */}
-        <div className="absolute top-3 right-3 w-8 h-8 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-[-10px] group-hover:translate-y-0">
-          <div className="w-3 h-3 bg-red-600 rounded-full shadow-[0_0_10px_rgba(220,38,38,0.8)]" />
+        <div className="absolute top-0 right-0 w-10 h-10 bg-red-600/20 backdrop-blur-xl border-l border-b border-red-600/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+          <div className="w-2 h-2 bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.8)]" />
         </div>
 
         {/* Project name overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-2 group-hover:translate-y-0 transition-all duration-500">
-          <p className="brick-title text-base text-white drop-shadow-2xl mb-0.5">{project.name}</p>
-          <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold opacity-80">{project.team}</p>
+        <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-0 transition-all duration-500">
+          <p className="brick-title text-base text-white drop-shadow-2xl mb-0.5 uppercase tracking-tighter">{project.name}</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold opacity-80">{project.team}</p>
         </div>
       </div>
 
