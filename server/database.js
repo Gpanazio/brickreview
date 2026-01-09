@@ -44,6 +44,27 @@ export async function initDatabase() {
 
     const sql = fs.readFileSync(sqlFile, 'utf8')
 
+    // Drop views first because they depend on tables we might want to modify
+    await query(`
+      DROP VIEW IF EXISTS brickreview_projects_with_stats CASCADE;
+      DROP VIEW IF EXISTS brickreview_comments_with_user CASCADE;
+      DROP VIEW IF EXISTS brickreview_videos_with_stats CASCADE;
+    `)
+
+    // Se estiver em desenvolvimento ou o usuário solicitou reset via env
+    if (process.env.RESET_DB === 'true') {
+      console.log('🗑  Resetting database tables...')
+      await query(`
+        DROP TABLE IF EXISTS brickreview_notifications CASCADE;
+        DROP TABLE IF EXISTS brickreview_project_members CASCADE;
+        DROP TABLE IF EXISTS brickreview_approvals CASCADE;
+        DROP TABLE IF EXISTS brickreview_comments CASCADE;
+        DROP TABLE IF EXISTS brickreview_videos CASCADE;
+        DROP TABLE IF EXISTS brickreview_folders CASCADE;
+        DROP TABLE IF EXISTS brickreview_projects CASCADE;
+      `)
+    }
+
     // Execute SQL (já tem CREATE TABLE IF NOT EXISTS, então é idempotente)
     await query(sql)
 
