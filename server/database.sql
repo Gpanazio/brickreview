@@ -26,6 +26,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_brickreview_projects_updated_at ON brickreview_projects;
 CREATE TRIGGER update_brickreview_projects_updated_at
   BEFORE UPDATE ON brickreview_projects
   FOR EACH ROW
@@ -70,6 +71,7 @@ CREATE TABLE IF NOT EXISTS brickreview_videos (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+DROP TRIGGER IF EXISTS update_brickreview_videos_updated_at ON brickreview_videos;
 CREATE TRIGGER update_brickreview_videos_updated_at
   BEFORE UPDATE ON brickreview_videos
   FOR EACH ROW
@@ -91,6 +93,7 @@ CREATE TABLE IF NOT EXISTS brickreview_comments (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+DROP TRIGGER IF EXISTS update_brickreview_comments_updated_at ON brickreview_comments;
 CREATE TRIGGER update_brickreview_comments_updated_at
   BEFORE UPDATE ON brickreview_comments
   FOR EACH ROW
