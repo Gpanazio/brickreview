@@ -4,6 +4,7 @@ import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '../../hooks/useAuth';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
+import { DEFAULT_PROJECT_COVER_URL } from '../../constants/images';
 
 export function ProjectListItem({ project, onProjectUpdate }) {
   const [showSettings, setShowSettings] = useState(false);
@@ -19,12 +20,12 @@ export function ProjectListItem({ project, onProjectUpdate }) {
           <div className="col-span-6 flex items-center gap-4">
             <div className="relative w-12 h-8 bg-zinc-900 overflow-hidden flex-shrink-0 border border-zinc-800">
               <img
-                src={project.cover_image_url || project.thumbnail_url || project.thumbnail || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
+                src={project.cover_image_url || project.thumbnail_url || project.thumbnail || DEFAULT_PROJECT_COVER_URL}
                 alt={project.name}
                 className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
                 onError={(e) => {
                   e.target.onerror = null;
-                  e.target.src = 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400';
+                  e.target.src = DEFAULT_PROJECT_COVER_URL;
                 }}
               />
             </div>

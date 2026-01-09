@@ -206,7 +206,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
               <img
                 src={previewImage}
                 alt="Preview"
-                className="absolute inset-0 w-full h-full object-cover select-none"
+                className="absolute inset-0 w-full h-full object-contain select-none"
                 style={{
                   transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
                   transition: isDragging ? 'none' : 'transform 0.1s'
