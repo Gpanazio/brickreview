@@ -42,6 +42,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 import authRoutes from './routes/auth.js'
 import projectsRoutes from './routes/projects.js'
+import foldersRoutes from './routes/folders.js'
 import videosRoutes from './routes/videos.js'
 import commentsRoutes from './routes/comments.js'
 import reviewsRoutes from './routes/reviews.js'
@@ -50,6 +51,7 @@ import reviewsRoutes from './routes/reviews.js'
 
 app.use('/api/auth', authRoutes)
 app.use('/api/projects', projectsRoutes)
+app.use('/api/folders', foldersRoutes)
 app.use('/api/videos', videosRoutes)
 app.use('/api/comments', commentsRoutes)
 app.use('/api/reviews', reviewsRoutes)

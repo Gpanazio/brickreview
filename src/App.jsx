@@ -18,6 +18,7 @@ import './App.css'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { LoginPage } from './components/LoginPage'
 import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
+import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal'
 
 function App() {
   return (
@@ -485,58 +486,7 @@ function ProjectsPage() {
 
 function ProjectCard({ project, onProjectUpdate }) {
   const [showSettings, setShowSettings] = useState(false);
-  const [uploadingCover, setUploadingCover] = useState(false);
-  const [previewImage, setPreviewImage] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
   const { token } = useAuth();
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreviewImage(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleCoverUpload = async () => {
-    if (!selectedFile) return;
-
-    setUploadingCover(true);
-    const formData = new FormData();
-    formData.append('cover', selectedFile);
-
-    try {
-      const response = await fetch(`/api/projects/${project.id}/cover`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-
-      if (response.ok) {
-        onProjectUpdate();
-        setShowSettings(false);
-        setPreviewImage(null);
-        setSelectedFile(null);
-      } else {
-        const errorData = await response.json();
-        alert(errorData.error || 'Erro ao fazer upload da imagem de capa');
-      }
-    } catch (error) {
-      console.error('Erro ao fazer upload da imagem de capa:', error);
-      alert('Erro ao fazer upload da imagem de capa');
-    } finally {
-      setUploadingCover(false);
-    }
-  };
-
-  const handleCancelPreview = () => {
-    setPreviewImage(null);
-    setSelectedFile(null);
-  };
 
   return (
     <>
@@ -584,108 +534,12 @@ function ProjectCard({ project, onProjectUpdate }) {
 
       {/* Modal de Configurações */}
       {showSettings && (
-        <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
-          onClick={() => setShowSettings(false)}
-        >
-          <div
-            className="glass-panel p-6 max-w-md w-full mx-4 rounded-none border border-zinc-800"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="brick-title text-xl uppercase tracking-tighter mb-6">Configurações do Projeto</h2>
-
-            <div className="space-y-4">
-              {/* Preview da imagem selecionada ou atual */}
-              <div>
-                <label className="text-sm text-zinc-400 uppercase tracking-widest font-bold mb-2 block">
-                  Imagem de Capa
-                </label>
-
-                {previewImage || project.cover_image_url ? (
-                  <div className="relative aspect-[4/3] rounded-none overflow-hidden border border-zinc-800 mb-3">
-                    <img
-                      src={previewImage || project.cover_image_url}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
-                    {previewImage && (
-                      <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest">
-                        Nova Imagem
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="aspect-[4/3] rounded-none border-2 border-dashed border-zinc-800 flex items-center justify-center mb-3">
-                    <p className="text-zinc-600 text-xs uppercase tracking-widest">Nenhuma imagem</p>
-                  </div>
-                )}
-
-                {!previewImage ? (
-                  <>
-                    <input
-                      type="file"
-                      id={`cover-upload-${project.id}`}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleFileSelect}
-                      disabled={uploadingCover}
-                    />
-                    <Button
-                      asChild
-                      className="w-full glass-button border border-zinc-800 rounded-none"
-                      disabled={uploadingCover}
-                    >
-                      <label htmlFor={`cover-upload-${project.id}`} className="cursor-pointer flex items-center justify-center">
-                        <Upload className="w-4 h-4 mr-2" />
-                        Selecionar Imagem
-                      </label>
-                    </Button>
-                  </>
-                ) : (
-                  <div className="flex gap-3">
-                    <Button
-                      variant="ghost"
-                      className="flex-1 glass-button border border-zinc-800 rounded-none"
-                      onClick={handleCancelPreview}
-                      disabled={uploadingCover}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      className="flex-1 glass-button-primary border-none rounded-none"
-                      onClick={handleCoverUpload}
-                      disabled={uploadingCover}
-                    >
-                      {uploadingCover ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin mr-2" />
-                          Enviando...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Confirmar Upload
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {!previewImage && (
-              <div className="flex gap-3 mt-6">
-                <Button
-                  variant="ghost"
-                  className="flex-1 glass-button border border-zinc-800 rounded-none"
-                  onClick={() => setShowSettings(false)}
-                >
-                  Fechar
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
+        <ProjectSettingsModal
+          project={project}
+          onClose={() => setShowSettings(false)}
+          onProjectUpdate={onProjectUpdate}
+          token={token}
+        />
       )}
     </>
   )

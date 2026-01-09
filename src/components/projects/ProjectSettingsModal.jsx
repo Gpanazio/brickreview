@@ -1,0 +1,354 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Upload, Copy, Archive, Trash2, Image as ImageIcon, ZoomIn, ZoomOut, Move } from 'lucide-react';
+
+export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token }) {
+  const [showCoverEditor, setShowCoverEditor] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const projectSize = project.videos?.reduce((acc, v) => acc + (v.file_size || 0), 0) || 0;
+  const projectSizeGB = (projectSize / (1024 * 1024 * 1024)).toFixed(2);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewImage(reader.result);
+      setZoom(1);
+      setPosition({ x: 0, y: 0 });
+      setShowCoverEditor(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleMouseDown = (e) => {
+    if (e.target.tagName === 'IMG') {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 0.1, 3));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 0.1, 0.5));
+  };
+
+  const handleResetTransform = () => {
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleCoverUpload = async () => {
+    if (!selectedFile) return;
+
+    setUploadingCover(true);
+    const formData = new FormData();
+    formData.append('cover', selectedFile);
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/cover`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (response.ok) {
+        onProjectUpdate();
+        setShowCoverEditor(false);
+        setPreviewImage(null);
+        setSelectedFile(null);
+        onClose();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || 'Erro ao fazer upload da imagem de capa');
+      }
+    } catch (error) {
+      console.error('Erro ao fazer upload da imagem de capa:', error);
+      alert('Erro ao fazer upload da imagem de capa');
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const handleCancelEditor = () => {
+    setShowCoverEditor(false);
+    setPreviewImage(null);
+    setSelectedFile(null);
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handleDuplicateProject = async () => {
+    alert('Funcionalidade de duplicar projeto em desenvolvimento');
+  };
+
+  const handleToggleStatus = async () => {
+    try {
+      const newStatus = project.status === 'active' ? 'inactive' : 'active';
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        onProjectUpdate();
+        onClose();
+      } else {
+        alert('Erro ao alterar status do projeto');
+      }
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      alert('Erro ao alterar status do projeto');
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!confirm(`Tem certeza que deseja excluir o projeto "${project.name}"? Esta ação não pode ser desfeita.`)) return;
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        onProjectUpdate();
+        onClose();
+      } else {
+        alert('Erro ao excluir projeto');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir projeto:', error);
+      alert('Erro ao excluir projeto');
+    }
+  };
+
+  if (showCoverEditor) {
+    return (
+      <div
+        className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50"
+        onClick={handleCancelEditor}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      >
+        <div
+          className="glass-panel p-6 max-w-2xl w-full mx-4 rounded-none border border-zinc-800"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="brick-title text-xl uppercase tracking-tighter mb-4">Editor de Imagem de Capa</h2>
+
+          {/* Preview com controles de zoom e posição */}
+          <div
+            className="relative aspect-[4/3] rounded-none overflow-hidden border border-zinc-800 mb-4 bg-zinc-950 cursor-move"
+            onMouseDown={handleMouseDown}
+          >
+            {previewImage && (
+              <img
+                src={previewImage}
+                alt="Preview"
+                className="absolute inset-0 w-full h-full object-cover select-none"
+                style={{
+                  transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+                  transition: isDragging ? 'none' : 'transform 0.1s'
+                }}
+                draggable={false}
+              />
+            )}
+            <div className="absolute top-2 left-2 bg-black/80 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest flex items-center gap-2">
+              <Move className="w-3 h-3" />
+              Arraste para posicionar
+            </div>
+          </div>
+
+          {/* Controles */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="glass-button border border-zinc-800 rounded-none h-8 w-8"
+                onClick={handleZoomOut}
+                disabled={zoom <= 0.5}
+              >
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <span className="text-xs text-zinc-400 font-mono min-w-[60px] text-center">
+                {Math.round(zoom * 100)}%
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="glass-button border border-zinc-800 rounded-none h-8 w-8"
+                onClick={handleZoomIn}
+                disabled={zoom >= 3}
+              >
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="glass-button border border-zinc-800 rounded-none h-8 text-xs"
+                onClick={handleResetTransform}
+              >
+                Resetar
+              </Button>
+            </div>
+          </div>
+
+          {/* Botões de ação */}
+          <div className="flex gap-3">
+            <Button
+              variant="ghost"
+              className="flex-1 glass-button border border-zinc-800 rounded-none"
+              onClick={handleCancelEditor}
+              disabled={uploadingCover}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1 glass-button-primary border-none rounded-none"
+              onClick={handleCoverUpload}
+              disabled={uploadingCover}
+            >
+              {uploadingCover ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent animate-spin mr-2" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Confirmar Upload
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel p-6 max-w-md w-full mx-4 rounded-none border border-zinc-800"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="brick-title text-xl uppercase tracking-tighter mb-6">Configurações do Projeto</h2>
+
+        {/* Informações do Projeto */}
+        <div className="mb-6 p-4 glass-card rounded-none border border-zinc-800">
+          <h3 className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-3">Informações</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-zinc-400">Total de itens:</span>
+              <span className="text-white font-bold">{project.videos?.length || 0} vídeos</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-zinc-400">Tamanho total:</span>
+              <span className="text-white font-bold">{projectSizeGB} GB</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-zinc-400">Status:</span>
+              <span className={`font-bold uppercase text-xs ${project.status === 'active' ? 'text-green-500' : 'text-zinc-500'}`}>
+                {project.status === 'active' ? 'Ativo' : 'Inativo'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Ações */}
+        <div className="space-y-2">
+          <input
+            type="file"
+            id={`cover-upload-${project.id}`}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileSelect}
+          />
+          <Button
+            asChild
+            variant="ghost"
+            className="w-full justify-start glass-button border border-zinc-800 rounded-none"
+          >
+            <label htmlFor={`cover-upload-${project.id}`} className="cursor-pointer flex items-center">
+              <ImageIcon className="w-4 h-4 mr-3" />
+              Alterar Imagem de Capa
+            </label>
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full justify-start glass-button border border-zinc-800 rounded-none"
+            onClick={handleDuplicateProject}
+          >
+            <Copy className="w-4 h-4 mr-3" />
+            Duplicar Projeto
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full justify-start glass-button border border-zinc-800 rounded-none"
+            onClick={handleToggleStatus}
+          >
+            <Archive className="w-4 h-4 mr-3" />
+            {project.status === 'active' ? 'Marcar como Inativo' : 'Marcar como Ativo'}
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full justify-start glass-button border border-red-900/50 text-red-500 hover:bg-red-500/10 rounded-none"
+            onClick={handleDeleteProject}
+          >
+            <Trash2 className="w-4 h-4 mr-3" />
+            Excluir Projeto
+          </Button>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <Button
+            variant="ghost"
+            className="flex-1 glass-button border border-zinc-800 rounded-none"
+            onClick={onClose}
+          >
+            Fechar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

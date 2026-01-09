@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { VideoPlayer } from '../player/VideoPlayer';
+import { FolderView } from './FolderView';
 import { Button } from '@/components/ui/button';
-import { 
-  ChevronLeft, Upload, Play, Clock, MessageSquare, 
-  CheckCircle2, Plus, MoreVertical, FileVideo 
+import { formatVideoDuration } from '../../utils/time';
+import {
+  ChevronLeft, Upload, Play, Clock, MessageSquare,
+  CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -17,13 +19,17 @@ import {
 export function ProjectDetailPage() {
   const { id } = useParams();
   const [project, setProject] = useState(null);
+  const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'folders'
+  const [currentFolderId, setCurrentFolderId] = useState(null);
   const { token } = useAuth();
 
   useEffect(() => {
     fetchProjectDetails();
+    fetchFolders();
   }, [id]);
 
   const fetchProjectDetails = async () => {
@@ -37,6 +43,41 @@ export function ProjectDetailPage() {
       console.error('Erro ao buscar detalhes do projeto:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFolders = async () => {
+    try {
+      const response = await fetch(`/api/folders/project/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setFolders(data);
+    } catch (error) {
+      console.error('Erro ao buscar pastas:', error);
+    }
+  };
+
+  const handleCreateFolder = async (name, parentFolderId = null) => {
+    try {
+      const response = await fetch('/api/folders', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          project_id: parseInt(id),
+          parent_folder_id: parentFolderId,
+          name
+        })
+      });
+
+      if (response.ok) {
+        fetchFolders();
+      }
+    } catch (error) {
+      console.error('Erro ao criar pasta:', error);
     }
   };
 
@@ -111,6 +152,28 @@ export function ProjectDetailPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex gap-1 glass-panel border border-zinc-800 p-1 rounded-none">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 transition-colors rounded-none ${
+                  viewMode === 'grid' ? 'bg-red-600 text-white' : 'text-zinc-500 hover:text-white'
+                }`}
+                title="Visualização em grade"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('folders')}
+                className={`p-2 transition-colors rounded-none ${
+                  viewMode === 'folders' ? 'bg-red-600 text-white' : 'text-zinc-500 hover:text-white'
+                }`}
+                title="Visualização em pastas"
+              >
+                <FolderTree className="w-4 h-4" />
+              </button>
+            </div>
+
             <input
               type="file"
               id="video-upload"
@@ -139,21 +202,39 @@ export function ProjectDetailPage() {
 
       {/* Lista de Vídeos */}
       <div className="flex-1 overflow-y-auto p-8">
-        {!project.videos || project.videos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-800">
-            <FileVideo className="w-12 h-12 text-zinc-800 mb-4" />
-            <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">Nenhum vídeo neste projeto</p>
+        {viewMode === 'folders' ? (
+          <div className="glass-panel border border-zinc-800 rounded-none p-4">
+            <FolderView
+              folders={folders}
+              videos={project?.videos || []}
+              currentFolderId={currentFolderId}
+              onFolderClick={(folder) => setCurrentFolderId(folder.id)}
+              onVideoClick={(video) => setSelectedVideo(video)}
+              onCreateFolder={handleCreateFolder}
+              onRenameFolder={fetchFolders}
+              onDeleteFolder={fetchFolders}
+              token={token}
+            />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {project.videos.map((video) => (
-              <VideoCard 
-                key={video.id} 
-                video={video} 
-                onClick={() => setSelectedVideo(video)} 
-              />
-            ))}
-          </div>
+          <>
+            {!project.videos || project.videos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-800">
+                <FileVideo className="w-12 h-12 text-zinc-800 mb-4" />
+                <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">Nenhum vídeo neste projeto</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {project.videos.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    onClick={() => setSelectedVideo(video)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -201,7 +282,7 @@ function VideoCard({ video, onClick }) {
 
         {/* Duração Overlay */}
         <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[10px] font-black text-white uppercase tracking-tighter">
-          {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
+          {formatVideoDuration(video.duration)}
         </div>
       </div>
       

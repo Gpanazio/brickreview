@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS brickreview_projects (
   description TEXT,
   client_name VARCHAR(255),
   status VARCHAR(50) DEFAULT 'active', -- active, archived, completed
+  cover_image_r2_key VARCHAR(500),
+  cover_image_url TEXT,
   created_by UUID REFERENCES master_users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -163,6 +165,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON brickreview_notifications(u
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON brickreview_notifications(read);
 
 CREATE INDEX IF NOT EXISTS idx_folders_project ON brickreview_folders(project_id);
+CREATE INDEX IF NOT EXISTS idx_folders_parent ON brickreview_folders(parent_folder_id);
 
 -- ============================================
 -- VIEWS (queries úteis)
@@ -190,10 +193,34 @@ SELECT
 FROM brickreview_comments c
 JOIN master_users u ON c.user_id = u.id;
 
+-- View: Folders com estatísticas
+CREATE OR REPLACE VIEW brickreview_folders_with_stats AS
+SELECT
+  f.id,
+  f.project_id,
+  f.parent_folder_id,
+  f.name,
+  f.created_at,
+  COUNT(DISTINCT v.id) as videos_count,
+  COUNT(DISTINCT sf.id) as subfolders_count
+FROM brickreview_folders f
+LEFT JOIN brickreview_videos v ON v.folder_id = f.id
+LEFT JOIN brickreview_folders sf ON sf.parent_folder_id = f.id
+GROUP BY f.id, f.project_id, f.parent_folder_id, f.name, f.created_at;
+
 -- View: Projetos com estatísticas
 CREATE OR REPLACE VIEW brickreview_projects_with_stats AS
 SELECT
-  p.*,
+  p.id,
+  p.name,
+  p.description,
+  p.client_name,
+  p.status,
+  p.cover_image_r2_key,
+  p.cover_image_url,
+  p.created_by,
+  p.created_at,
+  p.updated_at,
   COUNT(DISTINCT v.id) as videos_count,
   COUNT(DISTINCT CASE WHEN v.version_number = 1 THEN v.id END) as unique_videos_count,
   COUNT(DISTINCT m.user_id) as members_count,
@@ -201,7 +228,7 @@ SELECT
 FROM brickreview_projects p
 LEFT JOIN brickreview_videos v ON v.project_id = p.id
 LEFT JOIN brickreview_project_members m ON m.project_id = p.id
-GROUP BY p.id;
+GROUP BY p.id, p.name, p.description, p.client_name, p.status, p.cover_image_r2_key, p.cover_image_url, p.created_by, p.created_at, p.updated_at;
 
 -- ============================================
 -- SAMPLE DATA (opcional para desenvolvimento)
