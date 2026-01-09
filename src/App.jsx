@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
 import {
   Home, Film, Upload, FolderOpen, Settings, User, Search,
-  Grid, List, SlidersHorizontal, Plus, Clock, Star, Archive, ChevronLeft, ChevronRight
+  Grid, List, SlidersHorizontal, Plus, Clock, Star, Archive, ChevronLeft, ChevronRight, LogOut
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -15,34 +15,64 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import './App.css'
+import { AuthProvider, useAuth } from './hooks/useAuth'
+import { LoginPage } from './components/LoginPage'
 
 function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </AuthProvider>
+  )
+}
+
+function AppContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-red-600 border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    )
+  }
 
   return (
-    <BrowserRouter>
-      <div className="flex min-h-screen bg-[#050505] text-white relative overflow-hidden">
-        {/* Background Accents for Glassmorphism */}
-        <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[150px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-blue-600/5 blur-[150px] rounded-full" />
-        <div className="absolute top-[30%] left-[40%] w-[30%] h-[30%] bg-purple-600/5 blur-[130px] rounded-full" />
-        
-        <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
-        <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden">
-          <Routes>
-            <Route path="/" element={<ProjectsPage />} />
-            <Route path="/recent" element={<RecentPage />} />
-            <Route path="/starred" element={<StarredPage />} />
-            <Route path="/archived" element={<ArchivedPage />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+    <div className="flex min-h-screen bg-[#050505] text-white relative overflow-hidden">
+      {/* Background Accents for Glassmorphism */}
+      <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[150px] rounded-full animate-pulse" />
+      <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-blue-600/5 blur-[150px] rounded-full" />
+      <div className="absolute top-[30%] left-[40%] w-[30%] h-[30%] bg-purple-600/5 blur-[130px] rounded-full" />
+      
+      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen">
+        <Routes>
+          <Route path="/" element={<ProjectsPage />} />
+          <Route path="/recent" element={<RecentPage />} />
+          <Route path="/starred" element={<StarredPage />} />
+          <Route path="/archived" element={<ArchivedPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
   )
 }
 
 function Sidebar({ collapsed, setCollapsed }) {
   const location = useLocation()
+  const { user, logout } = useAuth()
 
   const isActive = (path) => location.pathname === path
 
@@ -109,20 +139,41 @@ function Sidebar({ collapsed, setCollapsed }) {
 
       {/* User */}
       <div className="p-4 border-t border-zinc-900">
-        <div className={`flex items-center gap-3 px-3 py-2 ${collapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 bg-zinc-800 rounded-full flex items-center justify-center flex-shrink-0">
-            <User className="w-4 h-4 text-zinc-400" />
-          </div>
-          {!collapsed && (
-            <>
-              <div className="flex-1">
-                <p className="text-sm text-white">Brick Team</p>
-                <p className="text-xs text-zinc-500">Admin</p>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-white/5 transition-colors ${collapsed ? 'justify-center' : ''}`}>
+              <div className="w-8 h-8 bg-red-600 rounded-none flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-black text-white">{user.username.substring(0, 2).toUpperCase()}</span>
               </div>
-              <Settings className="w-4 h-4 text-zinc-400 cursor-pointer hover:text-white" />
-            </>
-          )}
-        </div>
+              {!collapsed && (
+                <>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="text-sm text-white truncate">{user.username}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">{user.role}</p>
+                  </div>
+                  <Settings className="w-4 h-4 text-zinc-400" />
+                </>
+              )}
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56 side-right">
+            <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
+              <User className="w-4 h-4 mr-2" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={logout}
+              className="text-red-500 focus:text-red-400 focus:bg-red-500/10 rounded-none cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   )
@@ -130,9 +181,30 @@ function Sidebar({ collapsed, setCollapsed }) {
 
 function ProjectsPage() {
   const [viewMode, setViewMode] = useState('grid')
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
+  const { token } = useAuth()
+
+  useEffect(() => {
+    fetchProjects()
+  }, [])
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      setProjects(data)
+    } catch (error) {
+      console.error('Erro ao buscar projetos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Mock projects (como Frame.io)
-  const projects = [
+  const mockProjects = [
     {
       id: 1,
       name: 'KEETA',
@@ -302,12 +374,25 @@ function ProjectsPage() {
       </div>
 
       {/* Projects Grid */}
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {projects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
-        </div>
+      <div className="flex-1 overflow-y-auto p-8 h-full">
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="aspect-[4/3] bg-white/5 animate-pulse" />
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-800">
+            <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">No projects found</p>
+            <Button size="sm" className="mt-4 glass-button-primary border-none">Create your first project</Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {projects.map((project) => (
+              <ProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -56,7 +56,7 @@ export async function initDatabase() {
         tablename,
         pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
       FROM pg_tables
-      WHERE tablename LIKE 'review_%' OR tablename = 'master_users'
+      WHERE tablename LIKE 'brickreview_%' OR tablename = 'master_users'
       ORDER BY tablename
     `)
 
@@ -96,7 +96,7 @@ export async function isDatabaseReady() {
     const result = await query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables
-        WHERE table_name = 'review_projects'
+        WHERE table_name = 'brickreview_projects'
       ) as exists
     `)
     return result.rows[0].exists
