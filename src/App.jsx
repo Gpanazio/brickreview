@@ -144,7 +144,7 @@ function HomePage() {
             <CardDescription className="text-zinc-400">
               Continue de onde parou nas revisões
             </CardDescription>
-          </CardContent>
+          </CardHeader>
           <CardContent>
             <Button variant="outline" className="w-full border-zinc-700 text-white hover:bg-zinc-900">
               Ver Recentes
