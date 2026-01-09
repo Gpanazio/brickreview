@@ -60,12 +60,14 @@ export function ProjectDetailPage() {
       if (response.ok) {
         fetchProjectDetails();
       } else {
-        alert('Erro no upload');
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.error || 'Erro no upload');
       }
     } catch (error) {
       console.error('Erro no upload:', error);
     } finally {
-      setLoading(false);
+      setUploading(false);
+      e.target.value = '';
     }
   };
 
