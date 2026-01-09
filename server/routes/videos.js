@@ -43,15 +43,41 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
   const thumbDir = 'thumbnails/';
   const thumbFilename = `thumb-${uuidv4()}.jpg`;
   let thumbPath = '';
+  let thumbKey = null;
+  let thumbUrl = null;
+  let metadata = {
+    duration: null,
+    fps: 30,
+    width: null,
+    height: null
+  };
 
   try {
     // 1. Obter metadados
-    const metadata = await getVideoMetadata(file.path);
+    try {
+      metadata = await getVideoMetadata(file.path);
+    } catch (metadataError) {
+      console.warn('Falha ao obter metadados do vídeo, seguindo com valores padrão:', metadataError);
+    }
 
     // 2. Gerar thumbnail
-    thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
-    const thumbContent = fs.readFileSync(thumbPath);
-    const thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
+    try {
+      thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
+      const thumbContent = fs.readFileSync(thumbPath);
+      thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
+
+      // 4. Upload Thumbnail para R2
+      await r2Client.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: thumbKey,
+        Body: thumbContent,
+        ContentType: 'image/jpeg',
+      }));
+
+      thumbUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
+    } catch (thumbnailError) {
+      console.warn('Falha ao gerar thumbnail, seguindo sem thumbnail:', thumbnailError);
+    }
 
     // 3. Upload Vídeo para R2
     const fileContent = fs.readFileSync(file.path);
@@ -64,16 +90,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       ContentType: file.mimetype,
     }));
 
-    // 4. Upload Thumbnail para R2
-    await r2Client.send(new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
-      Key: thumbKey,
-      Body: thumbContent,
-      ContentType: 'image/jpeg',
-    }));
-
     const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
-    const thumbUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
 
     // 5. Salva no banco
     const result = await query(`
