@@ -441,7 +441,7 @@ function ProjectsPage() {
             >
               <div className="relative aspect-video overflow-hidden mb-3 border border-zinc-800/50 group-hover:border-red-600/30 transition-colors bg-zinc-900">
                 <img
-                  src={project.cover_image_url || project.thumbnail_url || project.thumbnail || 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
+                  src={project.cover_image_url ?? project.thumbnail_url ?? project.thumbnail ?? 'https://images.unsplash.com/photo-1574267432644-f610a75d1c6d?w=400'}
                   alt={project.name}
                   className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
                   onError={(e) => {
