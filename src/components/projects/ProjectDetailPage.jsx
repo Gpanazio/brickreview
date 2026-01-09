@@ -60,7 +60,10 @@ export function ProjectDetailPage() {
       if (response.ok) {
         fetchProjectDetails();
       } else {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch((parseError) => {
+          console.error('Error parsing server response:', parseError);
+          return {};
+        });
         alert(errorData.error || 'Erro no upload');
       }
     } catch (error) {
