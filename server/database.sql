@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS brickreview_projects (
   description TEXT,
   client_name VARCHAR(255),
   status VARCHAR(50) DEFAULT 'active', -- active, archived, completed
-  created_by INTEGER REFERENCES master_users(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES master_users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS brickreview_videos (
   mime_type VARCHAR(100),
   version_number INTEGER DEFAULT 1,
   parent_video_id INTEGER REFERENCES brickreview_videos(id) ON DELETE SET NULL, -- Para versionamento
-  uploaded_by INTEGER REFERENCES master_users(id) ON DELETE SET NULL,
+  uploaded_by UUID REFERENCES master_users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS brickreview_comments (
   id SERIAL PRIMARY KEY,
   video_id INTEGER NOT NULL REFERENCES brickreview_videos(id) ON DELETE CASCADE,
   parent_comment_id INTEGER REFERENCES brickreview_comments(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   timestamp DECIMAL(10, 3), -- Timestamp do vídeo em segundos com milissegundos
   status VARCHAR(50) DEFAULT 'open', -- open, in_progress, resolved
@@ -103,7 +103,7 @@ CREATE TRIGGER update_brickreview_comments_updated_at
 CREATE TABLE IF NOT EXISTS brickreview_approvals (
   id SERIAL PRIMARY KEY,
   video_id INTEGER NOT NULL REFERENCES brickreview_videos(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
   status VARCHAR(50) NOT NULL, -- pending, approved, changes_requested
   notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS brickreview_approvals (
 CREATE TABLE IF NOT EXISTS brickreview_project_members (
   id SERIAL PRIMARY KEY,
   project_id INTEGER NOT NULL REFERENCES brickreview_projects(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
   role VARCHAR(50) DEFAULT 'viewer', -- admin, client
   added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(project_id, user_id)
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS brickreview_project_members (
 
 CREATE TABLE IF NOT EXISTS brickreview_notifications (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
   type VARCHAR(50) NOT NULL, -- comment, reply, approval, mention
   related_video_id INTEGER REFERENCES brickreview_videos(id) ON DELETE CASCADE,
   related_comment_id INTEGER REFERENCES brickreview_comments(id) ON DELETE CASCADE,
