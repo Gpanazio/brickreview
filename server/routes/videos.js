@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 import r2Client from '../utils/r2.js';
@@ -135,6 +136,43 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       fs.unlinkSync(file.path);
     }
     res.status(500).json({ error: 'Erro ao processar upload' });
+  }
+});
+
+/**
+ * @route GET /api/videos/:id/stream
+ * @desc Get a signed streaming URL for a video
+ */
+router.get('/:id/stream', authenticateToken, async (req, res) => {
+  try {
+    const videoResult = await query(
+      'SELECT r2_key FROM brickreview_videos WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (videoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' });
+    }
+
+    const { r2_key: r2Key } = videoResult.rows[0];
+
+    if (!process.env.R2_BUCKET_NAME) {
+      return res.status(500).json({ error: 'Configuração do R2 ausente' });
+    }
+
+    const signedUrl = await getSignedUrl(
+      r2Client,
+      new GetObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: r2Key,
+      }),
+      { expiresIn: 60 * 60 }
+    );
+
+    res.json({ url: signedUrl });
+  } catch (error) {
+    console.error('Erro ao gerar URL assinada:', error);
+    res.status(500).json({ error: 'Erro ao gerar URL de streaming' });
   }
 });
 

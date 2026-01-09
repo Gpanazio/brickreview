@@ -22,6 +22,7 @@ export function VideoPlayer({ video, onBack }) {
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
+  const [videoUrl, setVideoUrl] = useState(video.r2_url);
   const playerRef = useRef(null);
   const { token } = useAuth();
 
@@ -122,6 +123,26 @@ export function VideoPlayer({ video, onBack }) {
     if (showHistory) fetchHistory();
   }, [showHistory]);
 
+  useEffect(() => {
+    const fetchStreamUrl = async () => {
+      try {
+        const response = await fetch(`/api/videos/${video.id}/stream`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.url) {
+            setVideoUrl(data.url);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao obter URL de streaming:', error);
+      }
+    };
+
+    fetchStreamUrl();
+  }, [video.id, token]);
+
   return (
     <div className="flex h-full bg-[#050505] overflow-hidden">
       {/* Área do Player */}
@@ -187,7 +208,7 @@ export function VideoPlayer({ video, onBack }) {
               ref={playerRef}
               source={{
                 type: 'video',
-                sources: [{ src: video.r2_url, type: video.mime_type }]
+                sources: [{ src: videoUrl, type: video.mime_type }]
               }}
               options={plyrOptions}
               onTimeUpdate={handleTimeUpdate}
