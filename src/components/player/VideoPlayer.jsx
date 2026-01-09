@@ -22,7 +22,7 @@ export function VideoPlayer({ video, onBack }) {
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
-  const [videoUrl, setVideoUrl] = useState(video.r2_url);
+  const [videoUrl, setVideoUrl] = useState(null);
   const playerRef = useRef(null);
   const { token } = useAuth();
 
@@ -203,16 +203,23 @@ export function VideoPlayer({ video, onBack }) {
         </div>
 
         <div className="flex-1 bg-black flex items-center justify-center p-8">
-          <div className="w-full max-w-5xl aspect-video shadow-2xl ring-1 ring-white/10">
-            <Plyr
-              ref={playerRef}
-              source={{
-                type: 'video',
-                sources: [{ src: videoUrl, type: video.mime_type }]
-              }}
-              options={plyrOptions}
-              onTimeUpdate={handleTimeUpdate}
-            />
+          <div className="w-full max-w-5xl aspect-video shadow-2xl ring-1 ring-white/10 flex items-center justify-center">
+            {videoUrl ? (
+              <Plyr
+                ref={playerRef}
+                source={{
+                  type: 'video',
+                  sources: [{ src: videoUrl, type: video.mime_type }]
+                }}
+                options={plyrOptions}
+                onTimeUpdate={handleTimeUpdate}
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-3 text-zinc-400">
+                <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                <span className="text-xs font-bold uppercase tracking-[0.2em]">Carregando vídeo...</span>
+              </div>
+            )}
           </div>
         </div>
 
