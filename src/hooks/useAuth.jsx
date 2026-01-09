@@ -3,28 +3,36 @@ import { useState, createContext, useContext, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // BYPASS LOGIN - Admin Default
-  const [user, setUser] = useState({
-    id: '00000000-0000-0000-0000-000000000000',
-    username: 'Brick Admin',
-    role: 'admin',
-    email: 'admin@brick.com'
-  });
-  const [token, setToken] = useState('bypass-token');
-  const [loading, setLoading] = useState(false);
-
-  /*
+  // BYPASS LOGIN - Gabriel
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('brickreview_token'));
+  const [token, setToken] = useState(localStorage.getItem('brickreview_token') || 'bypass-token');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (token) {
-      verifyToken(token);
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
+    // Tenta forçar o login do Gabriel se estiver em modo bypass
+    const forceBypass = async () => {
+      try {
+        const response = await fetch('/api/auth/verify', {
+          headers: { 'Authorization': 'Bearer bypass-token' }
+        });
+        const data = await response.json();
+        if (data.valid) {
+          setUser(data.user);
+        } else {
+          // Se falhar o bypass, limpa para login real
+          localStorage.removeItem('brickreview_token');
+          setToken(null);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Erro no bypass Gabriel:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    forceBypass();
+  }, []);
 
   const verifyToken = async (authToken) => {
     try {
@@ -46,7 +54,6 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   };
-  */
 
   const login = async (username, password) => {
     const response = await fetch('/api/auth/login', {

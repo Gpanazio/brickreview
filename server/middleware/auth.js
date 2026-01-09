@@ -3,36 +3,17 @@ import { query } from '../db.js'
 
 // Middleware para verificar token JWT
 export async function authenticateToken(req, res, next) {
-    // BYPASS LOGIN - Admin Default
-    // Tenta buscar um usuário real no banco para evitar erro de FK
-    try {
-      const userResult = await query('SELECT id FROM master_users WHERE role = \'admin\' LIMIT 1');
-      if (userResult.rows.length > 0) {
-        req.user = {
-          id: userResult.rows[0].id,
-          username: 'Brick Admin',
-          role: 'admin',
-          email: 'admin@brick.com'
-        };
-      } else {
-        req.user = {
-          id: '00000000-0000-0000-0000-000000000000',
-          username: 'Brick Admin',
-          role: 'admin',
-          email: 'admin@brick.com'
-        };
-      }
-    } catch (e) {
-      req.user = {
-        id: '00000000-0000-0000-0000-000000000000',
-        username: 'Brick Admin',
-        role: 'admin',
-        email: 'admin@brick.com'
-      };
+  // BYPASS LOGIN - Gabriel
+  try {
+    const userResult = await query('SELECT id, username, role, email FROM master_users WHERE username = $1 LIMIT 1', ['Gabriel']);
+    if (userResult.rows.length > 0) {
+      req.user = userResult.rows[0];
+      return next();
     }
-  return next();
+  } catch (e) {
+    console.error('Erro no bypass Gabriel:', e);
+  }
 
-  /*
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1] // Bearer TOKEN
 
@@ -51,7 +32,6 @@ export async function authenticateToken(req, res, next) {
       error: 'Token inválido ou expirado',
     })
   }
-  */
 }
 
 // Middleware para verificar se usuário é admin
@@ -90,3 +70,4 @@ export function requireUser(req, res, next) {
 }
 
 export default { authenticateToken, requireAdmin, requireUser }
+
