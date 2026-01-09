@@ -63,7 +63,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
     // 2. Gerar thumbnail
     try {
       thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
-      const thumbContent = fs.readFileSync(thumbPath);
+      const thumbContent = await fs.promises.readFile(thumbPath);
       thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
 
       // 4. Upload Thumbnail para R2
