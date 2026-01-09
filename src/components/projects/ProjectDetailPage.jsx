@@ -65,7 +65,7 @@ export function ProjectDetailPage() {
     } catch (error) {
       console.error('Erro no upload:', error);
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
@@ -102,7 +102,7 @@ export function ProjectDetailPage() {
           <div className="flex-1">
             <h1 className="brick-title text-3xl tracking-tighter uppercase">{project.name}</h1>
             <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold mt-1">
-              Client: {project.client_name || 'N/A'} • {project.videos?.length || 0} Videos
+              Cliente: {project.client_name || 'N/A'} • {project.videos?.length || 0} Vídeos
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -125,7 +125,7 @@ export function ProjectDetailPage() {
                 ) : (
                   <Upload className="w-4 h-4 mr-2" />
                 )}
-                {uploading ? 'Uploading...' : 'Upload Video'}
+                {uploading ? 'Enviando...' : 'Upload de Vídeo'}
               </label>
             </Button>
           </div>
@@ -137,7 +137,7 @@ export function ProjectDetailPage() {
         {!project.videos || project.videos.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-800">
             <FileVideo className="w-12 h-12 text-zinc-800 mb-4" />
-            <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">No videos in this project</p>
+            <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">Nenhum vídeo neste projeto</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -164,6 +164,14 @@ function VideoCard({ video, onClick }) {
     }
   };
 
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'approved': return 'Aprovado';
+      case 'changes_requested': return 'Ajustes';
+      default: return 'Pendente';
+    }
+  };
+
   return (
     <div 
       onClick={onClick}
@@ -183,7 +191,7 @@ function VideoCard({ video, onClick }) {
         
         {/* Status Badge Overlay */}
         <div className={`absolute top-2 left-2 px-2 py-0.5 ${getStatusColor(video.latest_approval_status)} text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg`}>
-          {video.latest_approval_status || 'pending'}
+          {getStatusLabel(video.latest_approval_status)}
         </div>
 
         {/* Duração Overlay */}
@@ -198,7 +206,7 @@ function VideoCard({ video, onClick }) {
             <h3 className="brick-title text-sm text-white truncate uppercase tracking-tighter">{video.title}</h3>
             <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
               <span className="flex items-center gap-1">
-                <MessageSquare className="w-3 h-3" /> {video.comments_count || 0}
+                <MessageSquare className="w-3 h-3" /> {video.comments_count || 0} Comentários
               </span>
               <span className="flex items-center gap-1 text-red-500/80">
                 <Clock className="w-3 h-3" /> v{video.version_number}

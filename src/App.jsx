@@ -79,10 +79,10 @@ function Sidebar({ collapsed, setCollapsed }) {
   const isActive = (path) => location.pathname === path
 
   const navItems = [
-    { icon: Home, label: 'All Projects', path: '/' },
-    { icon: Clock, label: 'Recent', path: '/recent' },
-    { icon: Star, label: 'Starred', path: '/starred' },
-    { icon: Archive, label: 'Archived', path: '/archived' },
+    { icon: Home, label: 'Todos os Projetos', path: '/' },
+    { icon: Clock, label: 'Recentes', path: '/recent' },
+    { icon: Star, label: 'Favoritos', path: '/starred' },
+    { icon: Archive, label: 'Arquivados', path: '/archived' },
   ]
 
   return (
@@ -109,14 +109,14 @@ function Sidebar({ collapsed, setCollapsed }) {
           onClick={() => setCollapsed(!collapsed)}
           className="w-full justify-start text-zinc-400 hover:text-white hover:bg-zinc-900"
         >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <>
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              <span className="text-sm">Collapse</span>
-            </>
-          )}
+              {collapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
+                <>
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  <span className="text-sm">Recolher</span>
+                </>
+              )}
         </Button>
       </div>
 
@@ -161,18 +161,18 @@ function Sidebar({ collapsed, setCollapsed }) {
           <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56 side-right">
             <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
               <User className="w-4 h-4 mr-2" />
-              Profile
+              Perfil
             </DropdownMenuItem>
             <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
               <Settings className="w-4 h-4 mr-2" />
-              Settings
+              Configurações
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={logout}
               className="text-red-500 focus:text-red-400 focus:bg-red-500/10 rounded-none cursor-pointer"
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Logout
+              Sair
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -310,31 +310,31 @@ function ProjectsPage() {
       <header className="border-b border-zinc-800/50 glass-panel sticky top-0 z-30 px-8 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
-            <h1 className="brick-title text-2xl tracking-tighter">Brick's Account</h1>
+            <h1 className="brick-title text-2xl tracking-tighter">Conta da Brick</h1>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="glass-button-primary border-none rounded-none">
                   <Plus className="w-4 h-4 mr-2" />
-                  New Project
+                  Novo Projeto
                 </Button>
               </DialogTrigger>
               <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white">
                 <DialogHeader>
-                  <DialogTitle className="brick-title text-2xl tracking-tighter uppercase">New Project</DialogTitle>
+                  <DialogTitle className="brick-title text-2xl tracking-tighter uppercase">Novo Projeto</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleCreateProject} className="space-y-4 pt-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Project Name</Label>
+                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Nome do Projeto</Label>
                     <Input 
                       required
                       value={newProject.name}
                       onChange={(e) => setNewProject({...newProject, name: e.target.value})}
                       className="glass-input border-none rounded-none h-12" 
-                      placeholder="Ex: KEETA CAMPAIGN" 
+                      placeholder="Ex: CAMPANHA KEETA" 
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Client Name</Label>
+                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Nome do Cliente</Label>
                     <Input 
                       value={newProject.client_name}
                       onChange={(e) => setNewProject({...newProject, client_name: e.target.value})}
@@ -343,12 +343,12 @@ function ProjectsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Description</Label>
+                    <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Descrição</Label>
                     <Input 
                       value={newProject.description}
                       onChange={(e) => setNewProject({...newProject, description: e.target.value})}
                       className="glass-input border-none rounded-none h-12" 
-                      placeholder="Optional details..." 
+                      placeholder="Detalhes opcionais..." 
                     />
                   </div>
                   <Button 
@@ -356,7 +356,7 @@ function ProjectsPage() {
                     disabled={isCreating}
                     className="w-full glass-button-primary border-none rounded-none h-12 font-black uppercase tracking-widest"
                   >
-                    {isCreating ? 'Creating...' : 'Create Project'}
+                    {isCreating ? 'Criando...' : 'Criar Projeto'}
                   </Button>
                 </form>
               </DialogContent>
@@ -367,7 +367,7 @@ function ProjectsPage() {
           <div className="relative w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <Input
-              placeholder="Search projects..."
+              placeholder="Buscar projetos..."
               className="pl-10 glass-input border-none h-10"
             />
           </div>
@@ -382,7 +382,7 @@ function ProjectsPage() {
 
       {/* Recent Projects Section */}
       <div className="px-8 py-6 border-b border-zinc-900">
-        <h2 className="text-sm text-zinc-500 mb-4">Recent Projects</h2>
+        <h2 className="text-sm text-zinc-500 mb-4">Projetos Recentes</h2>
         <div className="flex gap-4 overflow-x-auto pb-2">
           {projects.slice(0, 4).map((project) => (
             <div
@@ -408,25 +408,25 @@ function ProjectsPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Grid className="w-4 h-4 text-zinc-500" />
-            <span className="text-sm text-zinc-400">Filtered by</span>
+            <span className="text-sm text-zinc-400">Filtrado por</span>
             <Badge variant="secondary" className="bg-zinc-900 text-white border-zinc-700">
-              Active Projects
+              Projetos Ativos
             </Badge>
           </div>
 
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="w-4 h-4 text-zinc-500" />
-            <span className="text-sm text-zinc-400">Sorted by</span>
+            <span className="text-sm text-zinc-400">Ordenado por</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="text-white">
-                  Name
+                  Nome
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-zinc-900 border-zinc-800">
-                <DropdownMenuItem className="text-white">Name</DropdownMenuItem>
-                <DropdownMenuItem className="text-white">Date Modified</DropdownMenuItem>
-                <DropdownMenuItem className="text-white">Date Created</DropdownMenuItem>
+                <DropdownMenuItem className="text-white">Nome</DropdownMenuItem>
+                <DropdownMenuItem className="text-white">Data de Modificação</DropdownMenuItem>
+                <DropdownMenuItem className="text-white">Data de Criação</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -462,13 +462,13 @@ function ProjectsPage() {
           </div>
         ) : projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-zinc-800">
-            <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">No projects found</p>
+            <p className="text-zinc-500 uppercase tracking-widest font-bold text-sm">Nenhum projeto encontrado</p>
             <Button 
               size="sm" 
               onClick={() => setIsDialogOpen(true)}
               className="mt-4 glass-button-primary border-none rounded-none"
             >
-              Create your first project
+              Criar seu primeiro projeto
             </Button>
           </div>
         ) : (
@@ -519,15 +519,15 @@ function ProjectCard({ project }) {
 }
 
 function RecentPage() {
-  return <div className="p-8"><h1 className="brick-title text-3xl">Recent Projects</h1></div>
+  return <div className="p-8"><h1 className="brick-title text-3xl">Projetos Recentes</h1></div>
 }
 
 function StarredPage() {
-  return <div className="p-8"><h1 className="brick-title text-3xl">Starred Projects</h1></div>
+  return <div className="p-8"><h1 className="brick-title text-3xl">Projetos Favoritos</h1></div>
 }
 
 function ArchivedPage() {
-  return <div className="p-8"><h1 className="brick-title text-3xl">Archived Projects</h1></div>
+  return <div className="p-8"><h1 className="brick-title text-3xl">Projetos Arquivados</h1></div>
 }
 
 export default App

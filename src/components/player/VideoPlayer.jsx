@@ -91,7 +91,7 @@ export function VideoPlayer({ video, onBack }) {
         body: JSON.stringify({
           video_id: video.id,
           status,
-          notes: status === 'approved' ? 'Approved by client' : 'Changes requested by client'
+          notes: status === 'approved' ? 'Aprovado pelo cliente' : 'Ajustes solicitados pelo cliente'
         })
       });
 
@@ -146,7 +146,8 @@ export function VideoPlayer({ video, onBack }) {
                 >
                   {approvalStatus === 'approved' ? <CheckCircle className="w-3 h-3 mr-2" /> :
                    approvalStatus === 'changes_requested' ? <AlertCircle className="w-3 h-3 mr-2" /> : null}
-                  {approvalStatus.replace('_', ' ')}
+                  {approvalStatus === 'approved' ? 'Aprovado' : 
+                   approvalStatus === 'changes_requested' ? 'Ajustes' : 'Pendente'}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-48">
@@ -154,13 +155,13 @@ export function VideoPlayer({ video, onBack }) {
                   onClick={() => handleApproval('approved')}
                   className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                 >
-                  <CheckCircle className="w-3 h-3 mr-2" /> Approve Video
+                  <CheckCircle className="w-3 h-3 mr-2" /> Aprovar Vídeo
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => handleApproval('changes_requested')}
                   className="text-amber-500 focus:text-amber-400 focus:bg-amber-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                 >
-                  <AlertCircle className="w-3 h-3 mr-2" /> Request Changes
+                  <AlertCircle className="w-3 h-3 mr-2" /> Solicitar Ajustes
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -223,16 +224,16 @@ export function VideoPlayer({ video, onBack }) {
         <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between">
           <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
             {showHistory ? (
-              <><History className="w-4 h-4 text-red-600" /> History</>
+              <><History className="w-4 h-4 text-red-600" /> Histórico</>
             ) : (
-              <><MessageSquare className="w-4 h-4 text-red-600" /> Comments ({comments.length})</>
+              <><MessageSquare className="w-4 h-4 text-red-600" /> Comentários ({comments.length})</>
             )}
           </h3>
           <button 
             onClick={() => setShowHistory(!showHistory)}
             className="text-[10px] font-black uppercase tracking-tighter text-zinc-500 hover:text-white transition-colors"
           >
-            {showHistory ? 'View Comments' : 'View History'}
+            {showHistory ? 'Ver Comentários' : 'Ver Histórico'}
           </button>
         </div>
 
@@ -240,7 +241,7 @@ export function VideoPlayer({ video, onBack }) {
           {showHistory ? (
             history.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
-                No history recorded yet.
+                Nenhum histórico registrado ainda.
               </div>
             ) : (
               history.map((item) => (
@@ -252,7 +253,7 @@ export function VideoPlayer({ video, onBack }) {
                     <span className={`text-[10px] font-black uppercase tracking-widest ${
                       item.status === 'approved' ? 'text-green-500' : 'text-amber-500'
                     }`}>
-                      {item.status.replace('_', ' ')}
+                      {item.status === 'approved' ? 'Aprovado' : 'Ajustes'}
                     </span>
                   </div>
                   <p className="text-xs text-white font-medium mb-1">{item.notes}</p>
@@ -266,7 +267,7 @@ export function VideoPlayer({ video, onBack }) {
           ) : (
             comments.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
-                No comments yet. Go to a specific frame and start the discussion.
+                Nenhum comentário ainda. Vá para um frame específico e comece a discussão.
               </div>
             ) : (
               comments.map((comment) => (
@@ -295,13 +296,13 @@ export function VideoPlayer({ video, onBack }) {
           <div className="p-4 border-t border-zinc-800/50 bg-white/5">
             <form onSubmit={addComment} className="flex flex-col gap-3">
               <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] flex items-center justify-between">
-                Commenting at <span className="text-red-500">{formatTime(currentTime)}</span>
+                Comentando em <span className="text-red-500">{formatTime(currentTime)}</span>
               </div>
               <div className="relative">
                 <textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Write your feedback..."
+                  placeholder="Escreva seu feedback..."
                   className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
                 />
                 <button 

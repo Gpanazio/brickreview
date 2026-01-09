@@ -41,7 +41,7 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-xs uppercase tracking-widest text-zinc-400 font-bold">Username</label>
+              <label className="text-xs uppercase tracking-widest text-zinc-400 font-bold">Usuário</label>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
