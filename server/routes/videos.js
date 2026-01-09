@@ -141,12 +141,12 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
 /**
  * @route GET /api/videos/:id/stream
- * @desc Get a signed streaming URL for a video
+ * @desc Get the video URL for streaming (Prioritizes Public CDN)
  */
 router.get('/:id/stream', authenticateToken, async (req, res) => {
   try {
     const videoResult = await query(
-      'SELECT r2_key FROM brickreview_videos WHERE id = $1',
+      'SELECT r2_key, r2_url, mime_type FROM brickreview_videos WHERE id = $1',
       [req.params.id]
     );
 
@@ -154,7 +154,14 @@ router.get('/:id/stream', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Vídeo não encontrado' });
     }
 
-    const { r2_key: r2Key } = videoResult.rows[0];
+    const { r2_key, r2_url, mime_type } = videoResult.rows[0];
+
+    if (process.env.R2_PUBLIC_URL && r2_url && r2_url.includes(process.env.R2_PUBLIC_URL)) {
+      return res.json({
+        url: r2_url,
+        mime: mime_type || 'video/mp4',
+      });
+    }
 
     if (!process.env.R2_BUCKET_NAME) {
       return res.status(500).json({ error: 'Configuração do R2 ausente' });
@@ -164,15 +171,18 @@ router.get('/:id/stream', authenticateToken, async (req, res) => {
       r2Client,
       new GetObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
-        Key: r2Key,
+        Key: r2_key,
       }),
-      { expiresIn: 60 * 60 }
+      { expiresIn: 60 * 60 * 24 }
     );
 
-    res.json({ url: signedUrl });
+    res.json({
+      url: signedUrl,
+      mime: mime_type || 'video/mp4',
+    });
   } catch (error) {
-    console.error('Erro ao gerar URL assinada:', error);
-    res.status(500).json({ error: 'Erro ao gerar URL de streaming' });
+    console.error('Erro crítico ao gerar URL de streaming:', error);
+    res.status(500).json({ error: 'Falha no sistema de streaming' });
   }
 });
 

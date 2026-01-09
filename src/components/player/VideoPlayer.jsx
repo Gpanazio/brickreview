@@ -209,15 +209,23 @@ export function VideoPlayer({ video, onBack }) {
                 ref={playerRef}
                 source={{
                   type: 'video',
-                  sources: [{ src: videoUrl, type: video.mime_type }]
+                  sources: [
+                    {
+                      src: videoUrl,
+                      type: video.mime_type || 'video/mp4'
+                    }
+                  ]
                 }}
-                options={plyrOptions}
+                options={{
+                  ...plyrOptions,
+                  autoplay: false,
+                }}
                 onTimeUpdate={handleTimeUpdate}
               />
             ) : (
               <div className="flex flex-col items-center gap-3 text-zinc-400">
                 <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                <span className="text-xs font-bold uppercase tracking-[0.2em]">Carregando vídeo...</span>
+                <span className="text-xs font-bold uppercase tracking-[0.2em]">A carregar stream...</span>
               </div>
             )}
           </div>
