@@ -156,6 +156,14 @@ export function ProjectDetailPage() {
 }
 
 function VideoCard({ video, onClick }) {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'approved': return 'bg-green-600';
+      case 'changes_requested': return 'bg-amber-600';
+      default: return 'bg-zinc-600';
+    }
+  };
+
   return (
     <div 
       onClick={onClick}
@@ -173,6 +181,11 @@ function VideoCard({ video, onClick }) {
           </div>
         </div>
         
+        {/* Status Badge Overlay */}
+        <div className={`absolute top-2 left-2 px-2 py-0.5 ${getStatusColor(video.latest_approval_status)} text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg`}>
+          {video.latest_approval_status || 'pending'}
+        </div>
+
         {/* Duração Overlay */}
         <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[10px] font-black text-white uppercase tracking-tighter">
           {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
