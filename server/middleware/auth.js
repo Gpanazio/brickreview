@@ -1,14 +1,35 @@
 import jwt from 'jsonwebtoken'
+import { query } from '../db.js'
 
 // Middleware para verificar token JWT
-export function authenticateToken(req, res, next) {
-  // BYPASS LOGIN - Admin Default
-  req.user = {
-    id: '00000000-0000-0000-0000-000000000000', // Mock UUID
-    username: 'Brick Admin',
-    role: 'admin',
-    email: 'admin@brick.com'
-  };
+export async function authenticateToken(req, res, next) {
+    // BYPASS LOGIN - Admin Default
+    // Tenta buscar um usuário real no banco para evitar erro de FK
+    try {
+      const userResult = await query('SELECT id FROM master_users WHERE role = \'admin\' LIMIT 1');
+      if (userResult.rows.length > 0) {
+        req.user = {
+          id: userResult.rows[0].id,
+          username: 'Brick Admin',
+          role: 'admin',
+          email: 'admin@brick.com'
+        };
+      } else {
+        req.user = {
+          id: '00000000-0000-0000-0000-000000000000',
+          username: 'Brick Admin',
+          role: 'admin',
+          email: 'admin@brick.com'
+        };
+      }
+    } catch (e) {
+      req.user = {
+        id: '00000000-0000-0000-0000-000000000000',
+        username: 'Brick Admin',
+        role: 'admin',
+        email: 'admin@brick.com'
+      };
+    }
   return next();
 
   /*
