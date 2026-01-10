@@ -210,17 +210,29 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
           access_type: 'comment'
         })
       });
-      const data = await response.json();
-      if (response.ok) {
-        const fullUrl = `${window.location.origin}/share/${data.token}`;
-        setShareLink(fullUrl);
-        toast.success('Link de revisão gerado!', { id: shareToast });
-      } else {
-        toast.error(data.error || 'Erro ao gerar link', { id: shareToast });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao gerar link', { id: shareToast });
+        return;
       }
+
+      const data = await response.json();
+      console.log('Share data received:', data); // Debug
+
+      // Garante que temos um token válido
+      if (!data.token) {
+        toast.error('Token de compartilhamento não recebido', { id: shareToast });
+        return;
+      }
+
+      const fullUrl = `${window.location.origin}/share/${data.token}`;
+      console.log('Generated share URL:', fullUrl); // Debug
+      setShareLink(fullUrl);
+      toast.success('Link de revisão gerado!', { id: shareToast });
     } catch (err) {
       console.error('Erro ao gerar link:', err);
-      toast.error('Erro ao gerar link', { id: shareToast });
+      toast.error('Erro ao gerar link de compartilhamento', { id: shareToast });
     } finally {
       setIsGeneratingShare(false);
     }
