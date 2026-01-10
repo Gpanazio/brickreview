@@ -411,4 +411,41 @@ router.post('/:id/create-version', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @route DELETE /api/videos/:id
+ * @desc Delete a video and its files from R2
+ */
+router.delete('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Busca informações do vídeo antes de excluir
+    const videoResult = await query(
+      'SELECT * FROM brickreview_videos WHERE id = $1',
+      [id]
+    );
+
+    if (videoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' });
+    }
+
+    const video = videoResult.rows[0];
+
+    // TODO: Excluir arquivos do R2 (video, thumbnail, proxy)
+    // Por ora, apenas exclui do banco de dados
+    // Em produção, adicionar:
+    // - DeleteObjectCommand para video.r2_key
+    // - DeleteObjectCommand para video.thumbnail_r2_key
+    // - DeleteObjectCommand para video.proxy_r2_key
+
+    // Exclui do banco de dados (CASCADE vai remover comentários, aprovações, etc.)
+    await query('DELETE FROM brickreview_videos WHERE id = $1', [id]);
+
+    res.json({ message: 'Vídeo excluído com sucesso', id });
+  } catch (error) {
+    console.error('Erro ao excluir vídeo:', error);
+    res.status(500).json({ error: 'Erro ao excluir vídeo' });
+  }
+});
+
 export default router;

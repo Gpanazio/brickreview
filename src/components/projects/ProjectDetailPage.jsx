@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Upload, Play, Clock, MessageSquare,
   CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree,
-  FolderPlus, History
+  FolderPlus, History, Share2, Trash2, Archive
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -88,6 +88,79 @@ export function ProjectDetailPage() {
       }
     } catch (error) {
       console.error('Erro ao criar pasta:', error);
+    }
+  };
+
+  const handleGenerateVideoShare = async (videoId) => {
+    const loadingToast = toast.loading('Gerando link de compartilhamento...');
+
+    try {
+      const response = await fetch('/api/shares', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          video_id: videoId,
+          access_type: 'comment'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const shareUrl = `${window.location.origin}/share/${data.token}`;
+
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success('Link copiado para área de transferência!', { id: loadingToast });
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao gerar link', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Erro ao gerar link:', error);
+      toast.error('Erro ao gerar link de compartilhamento', { id: loadingToast });
+    }
+  };
+
+  const handleDeleteVideo = async (videoId) => {
+    if (!confirm('Tem certeza que deseja excluir este vídeo? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    const loadingToast = toast.loading('Excluindo vídeo...');
+
+    try {
+      const response = await fetch(`/api/videos/${videoId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        toast.success('Vídeo excluído com sucesso!', { id: loadingToast });
+        fetchProjectDetails(); // Recarrega lista
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao excluir vídeo', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Erro ao excluir vídeo:', error);
+      toast.error('Erro ao excluir vídeo', { id: loadingToast });
+    }
+  };
+
+  const handleArchiveVideo = async (videoId) => {
+    const loadingToast = toast.loading('Arquivando vídeo...');
+
+    try {
+      // TODO: Implementar lógica de arquivamento no backend
+      // Por ora, apenas mostra mensagem
+      toast.info('Funcionalidade de arquivamento em breve!', { id: loadingToast });
+    } catch (error) {
+      console.error('Erro ao arquivar vídeo:', error);
+      toast.error('Erro ao arquivar vídeo', { id: loadingToast });
     }
   };
 
@@ -426,6 +499,9 @@ export function ProjectDetailPage() {
                             versions={versions}
                             onClick={() => setSelectedVideo(video)}
                             onCreateVersion={handleCreateVersion}
+                            onDelete={(videoId) => handleDeleteVideo(videoId)}
+                            onArchive={(videoId) => handleArchiveVideo(videoId)}
+                            onGenerateShare={(videoId) => handleGenerateVideoShare(videoId)}
                           />
                         </motion.div>
                       );
@@ -461,7 +537,7 @@ export function ProjectDetailPage() {
   );
 }
 
-function VideoCard({ video, versions = [], onClick, onMove, onCreateVersion }) {
+function VideoCard({ video, versions = [], onClick, onMove, onCreateVersion, onDelete, onArchive, onGenerateShare }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const totalVersions = versions.length + 1; // +1 para incluir a versão original
@@ -533,35 +609,37 @@ function VideoCard({ video, versions = [], onClick, onMove, onCreateVersion }) {
   };
 
   return (
-    <div className="relative">
-      {/* Versões empilhadas no fundo */}
-      {versions.slice(0, 3).map((v, index) => (
-        <div
-          key={v.id}
-          className="absolute inset-0 glass-card border-none rounded-none bg-zinc-900/50"
-          style={{
-            transform: `translateY(${(index + 1) * -4}px) translateX(${(index + 1) * 4}px)`,
-            zIndex: -(index + 1),
-          }}
-        />
-      ))}
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div className="relative">
+          {/* Versões empilhadas no fundo */}
+          {versions.slice(0, 3).map((v, index) => (
+            <div
+              key={v.id}
+              className="absolute inset-0 glass-card border-none rounded-none bg-zinc-900/50"
+              style={{
+                transform: `translateY(${(index + 1) * -4}px) translateX(${(index + 1) * 4}px)`,
+                zIndex: -(index + 1),
+              }}
+            />
+          ))}
 
-      {/* Card principal */}
-      <div
-        onClick={onClick}
-        draggable
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
-          isDragging ? 'opacity-50 scale-95' : ''
-        } ${
-          isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105' : ''
-        }`}
-        style={{ zIndex: 1 }}
-      >
+          {/* Card principal */}
+          <div
+            onClick={onClick}
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
+              isDragging ? 'opacity-50 scale-95' : ''
+            } ${
+              isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105' : ''
+            }`}
+            style={{ zIndex: 1 }}
+          >
       {/* Indicador de Drop para criar versão */}
       {isDropTarget && (
         <motion.div
@@ -632,6 +710,43 @@ function VideoCard({ video, versions = [], onClick, onMove, onCreateVersion }) {
         </div>
       </div>
       </div>
-    </div>
+        </div>
+      </ContextMenuTrigger>
+
+      <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onGenerateShare?.(video.id);
+          }}
+          className="focus:bg-red-600 focus:text-white cursor-pointer"
+        >
+          <Share2 className="w-4 h-4 mr-2" />
+          Gerar Link de Revisão
+        </ContextMenuItem>
+
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onArchive?.(video.id);
+          }}
+          className="focus:bg-amber-600 focus:text-white cursor-pointer"
+        >
+          <Archive className="w-4 h-4 mr-2" />
+          Arquivar
+        </ContextMenuItem>
+
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete?.(video.id);
+          }}
+          className="focus:bg-red-600 focus:text-white cursor-pointer text-red-400"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Excluir
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
