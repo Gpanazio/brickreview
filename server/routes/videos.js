@@ -5,7 +5,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
 import r2Client from '../utils/r2.js';
-import { generateThumbnail, getVideoMetadata } from '../utils/video.js';
+import { generateThumbnail, getVideoMetadata, generateProxy } from '../utils/video.js';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -58,9 +58,14 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
   const thumbDir = 'thumbnails/';
   const thumbFilename = `thumb-${uuidv4()}.jpg`;
+  const proxyDir = 'temp-uploads/proxies/';
+  const proxyFilename = `proxy-720p-${uuidv4()}.mp4`;
   let thumbPath = '';
   let thumbKey = null;
   let thumbUrl = null;
+  let proxyPath = '';
+  let proxyKey = null;
+  let proxyUrl = null;
   let metadata = {
     duration: null,
     fps: 30,
@@ -81,7 +86,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
       thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
 
-      // 4. Upload Thumbnail para R2 (usando stream)
+      // Upload Thumbnail para R2 (usando stream)
       const thumbStream = fs.createReadStream(thumbPath);
       await r2Client.send(new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -95,7 +100,28 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       console.warn('Falha ao gerar thumbnail, seguindo sem thumbnail:', thumbnailError);
     }
 
-    // 3. Upload Vídeo para R2 (usando stream para reduzir uso de memória)
+    // 3. Gerar proxy 720p @ 5000kbps
+    try {
+      console.log('🎬 Iniciando geração de proxy 720p...');
+      proxyPath = await generateProxy(file.path, proxyDir, proxyFilename);
+      proxyKey = `proxies/${project_id}/${proxyFilename}`;
+
+      // Upload Proxy para R2 (usando stream)
+      const proxyStream = fs.createReadStream(proxyPath);
+      await r2Client.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: proxyKey,
+        Body: proxyStream,
+        ContentType: 'video/mp4',
+      }));
+
+      proxyUrl = `${process.env.R2_PUBLIC_URL}/${proxyKey}`;
+      console.log('✅ Proxy gerado e enviado para R2');
+    } catch (proxyError) {
+      console.warn('⚠️  Falha ao gerar proxy, usando vídeo original:', proxyError.message);
+    }
+
+    // 4. Upload Vídeo original para R2 (usando stream para reduzir uso de memória)
     const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
     const fileStream = fs.createReadStream(file.path);
 
@@ -112,14 +138,16 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
     const result = await query(`
       INSERT INTO brickreview_videos (
         project_id, title, description, r2_key, r2_url,
+        proxy_r2_key, proxy_url,
         thumbnail_r2_key, thumbnail_url,
         duration, fps, width, height,
         file_size, mime_type, uploaded_by, folder_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `, [
       project_id, title, description, fileKey, r2Url,
+      proxyKey, proxyUrl,
       thumbKey, thumbUrl,
       metadata.duration, metadata.fps, metadata.width, metadata.height,
       file.size, file.mimetype, req.user.id, folder_id || null
@@ -128,6 +156,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
     // Cleanup
     fs.unlinkSync(file.path);
     if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
+    if (fs.existsSync(proxyPath)) fs.unlinkSync(proxyPath);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -141,12 +170,12 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
 /**
  * @route GET /api/videos/:id/stream
- * @desc Get the video URL for streaming (Prioritizes Public CDN)
+ * @desc Get the video URL for streaming (Prioritizes proxy, then original)
  */
 router.get('/:id/stream', authenticateToken, async (req, res) => {
   try {
     const videoResult = await query(
-      'SELECT r2_key, r2_url, mime_type FROM brickreview_videos WHERE id = $1',
+      'SELECT r2_key, r2_url, proxy_r2_key, proxy_url, mime_type FROM brickreview_videos WHERE id = $1',
       [req.params.id]
     );
 
@@ -154,12 +183,17 @@ router.get('/:id/stream', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Vídeo não encontrado' });
     }
 
-    const { r2_key, r2_url, mime_type } = videoResult.rows[0];
+    const { r2_key, r2_url, proxy_r2_key, proxy_url, mime_type } = videoResult.rows[0];
 
-    if (process.env.R2_PUBLIC_URL && r2_url && r2_url.includes(process.env.R2_PUBLIC_URL)) {
+    // Prioriza o proxy se existir
+    const streamKey = proxy_r2_key || r2_key;
+    const streamUrl = proxy_url || r2_url;
+
+    if (process.env.R2_PUBLIC_URL && streamUrl && streamUrl.includes(process.env.R2_PUBLIC_URL)) {
       return res.json({
-        url: r2_url,
-        mime: mime_type || 'video/mp4',
+        url: streamUrl,
+        mime: 'video/mp4', // Proxy sempre será MP4
+        isProxy: !!proxy_url,
       });
     }
 
@@ -171,13 +205,14 @@ router.get('/:id/stream', authenticateToken, async (req, res) => {
       r2Client,
       new GetObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
-        Key: r2_key,
+        Key: streamKey,
       }),
       { expiresIn: 60 * 60 * 24 }
     );
 
     res.json({
       url: signedUrl,
+      isProxy: !!proxy_url,
       mime: mime_type || 'video/mp4',
     });
   } catch (error) {

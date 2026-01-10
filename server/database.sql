@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS brickreview_videos (
   description TEXT,
   r2_key VARCHAR(500) NOT NULL, -- Chave do objeto no R2
   r2_url TEXT NOT NULL, -- URL pública do vídeo
+  proxy_r2_key VARCHAR(500), -- Chave do proxy 720p no R2
+  proxy_url TEXT, -- URL pública do proxy
   thumbnail_r2_key VARCHAR(500),
   thumbnail_url TEXT,
   duration DECIMAL(10, 2), -- Duração em segundos
@@ -72,6 +74,24 @@ CREATE TABLE IF NOT EXISTS brickreview_videos (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Adiciona colunas de proxy se não existirem (para migração de bancos existentes)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'brickreview_videos' AND column_name = 'proxy_r2_key'
+  ) THEN
+    ALTER TABLE brickreview_videos ADD COLUMN proxy_r2_key VARCHAR(500);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'brickreview_videos' AND column_name = 'proxy_url'
+  ) THEN
+    ALTER TABLE brickreview_videos ADD COLUMN proxy_url TEXT;
+  END IF;
+END $$;
 
 DROP TRIGGER IF EXISTS update_brickreview_videos_updated_at ON brickreview_videos;
 CREATE TRIGGER update_brickreview_videos_updated_at
