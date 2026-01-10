@@ -884,21 +884,34 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
                       <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
                     </div>
 
-                    {/* Botão de Responder */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setReplyingTo(replyingTo === comment.id ? null : comment.id);
-                      }}
-                      className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-600 hover:text-red-500 transition-colors"
-                    >
-                      <Reply className="w-3 h-3" />
-                      {replyingTo === comment.id ? 'Cancelar' : 'Responder'}
-                    </button>
+                    {/* Botão de Responder - disponível para todos */}
+                    {canComment && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                        }}
+                        className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-600 hover:text-red-500 transition-colors"
+                      >
+                        <Reply className="w-3 h-3" />
+                        {replyingTo === comment.id ? 'Cancelar' : 'Responder'}
+                      </button>
+                    )}
 
                     {/* Input de Resposta */}
                     {replyingTo === comment.id && (
                       <form onSubmit={addReply} className="mt-3 space-y-2">
+                        {/* Guest name input for replies */}
+                        {isGuest && canComment && (
+                          <input
+                            type="text"
+                            value={visitorName}
+                            onChange={(e) => setVisitorName(e.target.value)}
+                            placeholder="Seu nome"
+                            className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
+                            required={isGuest}
+                          />
+                        )}
                         <textarea
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
@@ -940,6 +953,21 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
                             </span>
                           </div>
                           <p className="text-sm text-zinc-400 leading-relaxed">{reply.content}</p>
+
+                          {/* Botão de responder também nas respostas */}
+                          {canComment && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                                setReplyText(`@${reply.username} `);
+                              }}
+                              className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-600 hover:text-red-500 transition-colors"
+                            >
+                              <Reply className="w-3 h-3" />
+                              Responder
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
