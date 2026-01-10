@@ -5,9 +5,9 @@ import './VideoPlayer.css'; // Importa o CSS customizado
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
-  ChevronLeft, ChevronRight, MessageSquare, Clock, Send,
+  ChevronLeft, ChevronRight, MessageSquare, Clock,
   CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2,
-  Pencil, Eraser, X, Save
+  Pencil, Eraser, Smile, RotateCcw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -809,84 +809,6 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
             +1 FRAME <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
-
-        {/* Drawing Tools */}
-        <div className="px-4 py-3 border-t border-zinc-800/50 glass-panel flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-8 px-3 rounded-none border text-[10px] font-black uppercase tracking-widest transition-all ${
-                drawingMode
-                  ? 'border-red-500 bg-red-500/10 text-red-500'
-                  : 'border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600'
-              }`}
-              onClick={() => setDrawingMode(!drawingMode)}
-            >
-              <Pencil className="w-3 h-3 mr-2" />
-              {drawingMode ? 'Desenhar Ativo' : 'Ativar Desenho'}
-            </Button>
-
-            {drawingMode && (
-              <>
-                <div className="flex items-center gap-2 border-l border-zinc-800 pl-3">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Cor:</span>
-                  <div className="flex gap-1">
-                    {['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'].map(color => (
-                      <button
-                        key={color}
-                        className={`w-6 h-6 rounded-sm border-2 transition-all ${
-                          drawColor === color ? 'border-white scale-110' : 'border-zinc-700 hover:border-zinc-500'
-                        }`}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setDrawColor(color)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 border-l border-zinc-800 pl-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white border border-zinc-800 rounded-none"
-                    onClick={clearDrawing}
-                  >
-                    <Eraser className="w-3 h-3 mr-1" />
-                    Limpar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest text-green-500 hover:text-green-400 border border-green-500/50 rounded-none"
-                    onClick={saveDrawing}
-                    disabled={currentDrawing.length === 0}
-                  >
-                    <Save className="w-3 h-3 mr-1" />
-                    Salvar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-red-500 border border-zinc-800 rounded-none"
-                    onClick={() => {
-                      setDrawingMode(false);
-                      setCurrentDrawing([]);
-                    }}
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-
-          {drawingMode && (
-            <div className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">
-              Pause o vídeo e desenhe sobre o frame
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Barra Lateral de Comentários / Histórico */}
@@ -1032,7 +954,11 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           <div className="p-4 border-t border-zinc-800/50 bg-white/5">
             <form onSubmit={addComment} className="flex flex-col gap-3">
               <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] flex items-center justify-between">
-                Comentando em <span className="text-red-500">{formatTime(currentTime)}</span>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3 h-3" />
+                  <span className="text-red-500">{formatTime(currentTime)}</span>
+                </div>
+                <span>Deixe seu comentário...</span>
               </div>
 
               {/* Guest name input - discreto e inline */}
@@ -1052,16 +978,82 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
-                  className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
+                  className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 pb-12 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
                   disabled={isGuest && !canComment}
                 />
-                <button
-                  type="submit"
-                  disabled={!newComment.trim() || (isGuest && !canComment)}
-                  className="absolute bottom-3 right-3 text-red-600 disabled:text-zinc-700 hover:text-red-500 transition-colors"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
+
+                {/* Toolbar de ações */}
+                <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    {/* Drawing tool */}
+                    <button
+                      type="button"
+                      className={`p-2 rounded-sm transition-colors ${
+                        drawingMode
+                          ? 'text-red-500 bg-red-500/10'
+                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                      }`}
+                      onClick={() => setDrawingMode(!drawingMode)}
+                      title="Desenhar no frame"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+
+                    {/* Color picker - only when drawing mode is active */}
+                    {drawingMode && (
+                      <>
+                        {['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#FFFFFF'].map(color => (
+                          <button
+                            key={color}
+                            type="button"
+                            className={`w-6 h-6 rounded-sm border transition-all ${
+                              drawColor === color ? 'border-white scale-110' : 'border-zinc-700 hover:border-zinc-500'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            onClick={() => setDrawColor(color)}
+                            title={`Cor: ${color}`}
+                          />
+                        ))}
+
+                        <button
+                          type="button"
+                          className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1"
+                          onClick={clearDrawing}
+                          title="Limpar desenho"
+                        >
+                          <Eraser className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+
+                    {/* Emoji picker */}
+                    <button
+                      type="button"
+                      className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                      title="Adicionar emoji"
+                    >
+                      <Smile className="w-4 h-4" />
+                    </button>
+
+                    {/* Undo */}
+                    <button
+                      type="button"
+                      className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                      title="Desfazer"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Send button */}
+                  <button
+                    type="submit"
+                    disabled={!newComment.trim() || (isGuest && !canComment)}
+                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors"
+                  >
+                    Enviar
+                  </button>
+                </div>
               </div>
 
               {isGuest && !canComment && (
