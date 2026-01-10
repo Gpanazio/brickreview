@@ -1,6 +1,5 @@
 [phases.setup]
-nixPkgs = ['nodejs', 'ffmpeg-full']
-aptPkgs = ['ffmpeg']
+nixPkgs = ['nodejs', 'ffmpeg']
 
 [phases.install]
 cmds = ['npm ci']
@@ -9,4 +8,4 @@ cmds = ['npm ci']
 cmds = ['npm run build']
 
 [start]
-cmd = 'npm start'
+cmd = 'chmod +x railway-start.sh && ./railway-start.sh'
