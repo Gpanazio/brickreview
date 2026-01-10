@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, ChevronRight, MessageSquare, Clock,
   CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2,
-  Pencil, Eraser, Smile, RotateCcw
+  Pencil, Eraser, Smile, Paperclip, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -38,6 +38,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const [drawColor, setDrawColor] = useState('#FF0000');
   const [drawings, setDrawings] = useState([]); // Desenhos salvos por timestamp
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
+  const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
   const playerRef = useRef(null);
   const canvasRef = useRef(null);
   const videoContainerRef = useRef(null);
@@ -140,7 +141,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
       const body = {
         video_id: currentVideoId,
         content: newComment,
-        timestamp: currentTime
+        timestamp: hasTimestamp ? currentTime : null
       };
 
       if (isGuest) {
@@ -953,12 +954,18 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
         {!showHistory && (
           <div className="p-4 border-t border-zinc-800/50 bg-white/5">
             <form onSubmit={addComment} className="flex flex-col gap-3">
-              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-3 h-3" />
-                  <span className="text-red-500">{formatTime(currentTime)}</span>
-                </div>
-                <span>Deixe seu comentário...</span>
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-between">
+                {hasTimestamp ? (
+                  <div className="flex items-center gap-2 text-zinc-500">
+                    <Clock className="w-3 h-3" />
+                    <span className="text-red-500">{formatTime(currentTime)}</span>
+                  </div>
+                ) : (
+                  <div className="text-zinc-500">
+                    Comentário geral (sem timestamp)
+                  </div>
+                )}
+                <span className="text-zinc-600">Deixe seu comentário...</span>
               </div>
 
               {/* Guest name input - discreto e inline */}
@@ -985,6 +992,38 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
                 {/* Toolbar de ações */}
                 <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between">
                   <div className="flex items-center gap-1">
+                    {/* Timestamp toggle */}
+                    <button
+                      type="button"
+                      className={`p-2 rounded-sm transition-colors ${
+                        hasTimestamp
+                          ? 'text-red-500 bg-red-500/10'
+                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                      }`}
+                      onClick={() => setHasTimestamp(!hasTimestamp)}
+                      title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
+                    >
+                      {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                    </button>
+
+                    {/* Attachment */}
+                    <button
+                      type="button"
+                      className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                      title="Anexar arquivo"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+
+                    {/* Emoji picker */}
+                    <button
+                      type="button"
+                      className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                      title="Adicionar emoji"
+                    >
+                      <Smile className="w-4 h-4" />
+                    </button>
+
                     {/* Drawing tool */}
                     <button
                       type="button"
@@ -1025,24 +1064,6 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
                         </button>
                       </>
                     )}
-
-                    {/* Emoji picker */}
-                    <button
-                      type="button"
-                      className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-                      title="Adicionar emoji"
-                    >
-                      <Smile className="w-4 h-4" />
-                    </button>
-
-                    {/* Undo */}
-                    <button
-                      type="button"
-                      className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-                      title="Desfazer"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </button>
                   </div>
 
                   {/* Send button */}
