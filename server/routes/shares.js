@@ -160,14 +160,37 @@ router.get('/:token/folder-videos', async (req, res) => {
 
     // Busca vídeos da pasta (apenas vídeos raiz, sem versões)
     console.log('🔍 Buscando vídeos da pasta ID:', share.folder_id);
+    
+    // Debug: Verificar quantos vídeos existem na pasta no total (sem filtros)
+    const debugCount = await query(
+      'SELECT COUNT(*) as count FROM brickreview_videos WHERE folder_id = $1',
+      [share.folder_id]
+    );
+    console.log('📊 Total de vídeos na pasta (bruto):', debugCount.rows[0].count);
+
+    // Query principal
     const videosResult = await query(
       `SELECT * FROM brickreview_videos_with_stats
-       WHERE folder_id = $1 AND parent_video_id IS NULL
+       WHERE folder_id = $1
+       -- Removendo temporariamente o filtro de parent_video_id para teste, ou garantindo que ele não exclua indevidamente
+       AND (parent_video_id IS NULL OR parent_video_id = 0) 
        ORDER BY created_at DESC`,
       [share.folder_id]
     );
 
-    console.log('📹 Vídeos encontrados:', videosResult.rows.length);
+    console.log('📹 Vídeos encontrados (filtrados):', videosResult.rows.length);
+    
+    // Se não encontrou nada, tenta buscar sem a view para ver se é problema na view
+    if (videosResult.rows.length === 0 && parseInt(debugCount.rows[0].count) > 0) {
+        console.warn('⚠️ Vídeos existem na tabela mas não retornaram na query principal. Tentando fallback...');
+        const fallbackResult = await query(
+            `SELECT * FROM brickreview_videos WHERE folder_id = $1`,
+            [share.folder_id]
+        );
+        console.log('🔄 Fallback retornou:', fallbackResult.rows.length);
+        return res.json(fallbackResult.rows);
+    }
+
     res.json(videosResult.rows);
   } catch (err) {
     console.error('❌ Erro ao buscar vídeos da pasta:', err);

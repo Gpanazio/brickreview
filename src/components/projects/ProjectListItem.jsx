@@ -4,7 +4,7 @@ import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '../../hooks/useAuth';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
-import { DEFAULT_PROJECT_COVER_URL } from '../../constants/images';
+import { ProjectCoverPlaceholder } from '@/components/ui/ProjectCoverPlaceholder';
 
 export function ProjectListItem({ project, onProjectUpdate }) {
   const [showSettings, setShowSettings] = useState(false);
@@ -19,14 +19,22 @@ export function ProjectListItem({ project, onProjectUpdate }) {
         <Link to={`/project/${project.id}`} className="flex-1 grid grid-cols-12 gap-4 items-center">
           <div className="col-span-6 flex items-center gap-4">
             <div className="relative w-12 h-8 bg-zinc-900 overflow-hidden flex-shrink-0 border border-zinc-800">
-              <img
-                src={project.cover_image_url || project.thumbnail_url || project.thumbnail || DEFAULT_PROJECT_COVER_URL}
-                alt={project.name}
-                className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = DEFAULT_PROJECT_COVER_URL;
-                }}
+              {project.cover_image_url || project.thumbnail_url || project.thumbnail ? (
+                <img
+                  src={project.cover_image_url || project.thumbnail_url || project.thumbnail}
+                  alt={project.name}
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              
+              <ProjectCoverPlaceholder 
+                className={`absolute inset-0 ${(project.cover_image_url || project.thumbnail_url || project.thumbnail) ? 'hidden' : 'flex'}`}
+                projectName={project.name}
+                clientName={project.client_name}
               />
             </div>
             <div>
