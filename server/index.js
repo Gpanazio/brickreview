@@ -4,8 +4,17 @@ import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { initDatabase } from './database.js'
+import { validateEnvironment } from './utils/validateEnv.js'
 
 dotenv.config()
+
+// Valida variáveis de ambiente ANTES de fazer qualquer outra coisa
+try {
+  validateEnvironment()
+} catch (error) {
+  console.error('\n🛑 Servidor não pode iniciar devido a erros de configuração.')
+  process.exit(1)
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

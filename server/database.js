@@ -8,9 +8,17 @@ const __dirname = path.dirname(__filename)
 
 export async function initDatabase() {
   if (!pool) {
-    console.log('⚠️  Database not configured, skipping schema initialization')
-    console.log('   To enable database, set DATABASE_URL in your .env file')
-    return
+    console.error('\n❌ ERRO CRÍTICO: DATABASE_URL não configurada!')
+    console.error('╔═══════════════════════════════════════════════════════════╗')
+    console.error('║  O servidor NÃO PODE INICIAR sem conexão com o banco!  ║')
+    console.error('╚═══════════════════════════════════════════════════════════╝')
+    console.error('\n💡 Solução:')
+    console.error('   1. Certifique-se que o arquivo .env existe no diretório server/')
+    console.error('   2. O arquivo .env deve conter a variável DATABASE_URL')
+    console.error('   3. Exemplo:')
+    console.error('      DATABASE_URL=postgresql://user:pass@host:port/database\n')
+
+    throw new Error('DATABASE_URL não configurada. O servidor não pode funcionar sem banco de dados.')
   }
 
   try {
