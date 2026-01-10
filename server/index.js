@@ -57,6 +57,7 @@ import commentsRoutes from './routes/comments.js'
 import reviewsRoutes from './routes/reviews.js'
 import sharesRoutes from './routes/shares.js'
 import filesRoutes from './routes/files.js'
+import drawingsRoutes from './routes/drawings.js'
 // TODO: Import other routes
 // import notificationsRoutes from './routes/notifications.js'
 
@@ -68,6 +69,7 @@ app.use('/api/comments', commentsRoutes)
 app.use('/api/reviews', reviewsRoutes)
 app.use('/api/shares', sharesRoutes)
 app.use('/api/files', filesRoutes)
+app.use('/api/drawings', drawingsRoutes)
 // app.use('/api/notifications', notificationsRoutes)
 
 // Serve static files em produção

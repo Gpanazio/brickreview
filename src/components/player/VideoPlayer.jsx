@@ -6,7 +6,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, ChevronRight, MessageSquare, Clock, Send,
-  CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2
+  CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2,
+  Pencil, Eraser, X, Save
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -32,7 +33,14 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const [shareLink, setShareLink] = useState('');
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [visitorName, setVisitorName] = useState(initialVisitorName || localStorage.getItem('brickreview_visitor_name') || '');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [drawingMode, setDrawingMode] = useState(false); // Se está no modo desenho
+  const [drawColor, setDrawColor] = useState('#FF0000');
+  const [drawings, setDrawings] = useState([]); // Desenhos salvos por timestamp
+  const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
   const playerRef = useRef(null);
+  const canvasRef = useRef(null);
+  const videoContainerRef = useRef(null);
   const { token } = useAuth();
 
   // Guest mode: no token, use visitor name for identification
@@ -92,7 +100,9 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   };
 
   const handleTimeUpdate = (e) => {
-    setCurrentTime(e.detail.plyr.currentTime);
+    if (e.detail?.plyr?.currentTime !== undefined) {
+      setCurrentTime(e.detail.plyr.currentTime);
+    }
   };
 
   const addComment = async (e) => {
@@ -322,6 +332,34 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
     fetchComments();
   }, [currentVideoId, token]);
 
+  // Carrega desenhos quando a versão muda
+  useEffect(() => {
+    const fetchDrawings = async () => {
+      if (!token) return;
+
+      try {
+        const response = await fetch(`/api/drawings/video/${currentVideoId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Converte os dados do banco para o formato esperado
+          const formattedDrawings = data.map(d => ({
+            id: d.id,
+            timestamp: parseFloat(d.timestamp),
+            points: d.drawing_data,
+            color: d.color
+          }));
+          setDrawings(formattedDrawings);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar desenhos:', error);
+      }
+    };
+
+    fetchDrawings();
+  }, [currentVideoId, token]);
+
   // Função para fazer download do vídeo (proxy ou original)
   const handleDownload = async (type) => {
     try {
@@ -419,6 +457,144 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
 
     fetchStreamUrl();
   }, [currentVideoId, token]);
+
+  // Polling para atualizar currentTime caso o evento não dispare
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (playerRef.current?.plyr?.currentTime !== undefined) {
+        setCurrentTime(playerRef.current.plyr.currentTime);
+      }
+    }, 100); // Atualiza a cada 100ms
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Canvas drawing handlers
+  const startDrawing = (e) => {
+    if (!drawingMode) return;
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setCurrentDrawing([{ x, y }]);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing || !drawingMode) return;
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setCurrentDrawing([...currentDrawing, { x, y }]);
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    if (currentDrawing.length > 0) {
+      // Salva o desenho com o timestamp atual
+      const newDrawing = {
+        timestamp: currentTime,
+        points: currentDrawing,
+        color: drawColor,
+        id: Date.now()
+      };
+      setDrawings([...drawings, newDrawing]);
+      setCurrentDrawing([]);
+    }
+  };
+
+  const clearDrawing = () => {
+    setCurrentDrawing([]);
+    setDrawings(drawings.filter(d => Math.abs(d.timestamp - currentTime) > 0.1));
+  };
+
+  const saveDrawing = async () => {
+    if (currentDrawing.length === 0) return;
+
+    try {
+      const response = await fetch('/api/drawings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          video_id: currentVideoId,
+          timestamp: currentTime,
+          drawing_data: currentDrawing,
+          color: drawColor
+        })
+      });
+
+      if (response.ok) {
+        toast.success('Desenho salvo!');
+        setCurrentDrawing([]);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar desenho:', error);
+      toast.error('Erro ao salvar desenho');
+    }
+  };
+
+  // Renderiza os desenhos no canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const container = videoContainerRef.current;
+    if (!container) return;
+
+    // Ajusta o tamanho do canvas para o container
+    canvas.width = container.offsetWidth;
+    canvas.height = container.offsetHeight;
+
+    // Limpa o canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Desenha os desenhos salvos para o timestamp atual
+    const currentDrawings = drawings.filter(d => Math.abs(d.timestamp - currentTime) < 0.1);
+    currentDrawings.forEach(drawing => {
+      ctx.strokeStyle = drawing.color;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      drawing.points.forEach((point, i) => {
+        const x = point.x * canvas.width;
+        const y = point.y * canvas.height;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+    });
+
+    // Desenha o desenho atual (em progresso)
+    if (currentDrawing.length > 0) {
+      ctx.strokeStyle = drawColor;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      currentDrawing.forEach((point, i) => {
+        const x = point.x * canvas.width;
+        const y = point.y * canvas.height;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+    }
+  }, [drawings, currentDrawing, currentTime, drawColor]);
 
   return (
     <div className="flex h-full bg-[#050505] overflow-hidden">
@@ -565,25 +741,40 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
         </div>
 
         <div className="flex-1 bg-black flex items-center justify-center p-8">
-          <div className={`w-full max-w-5xl ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10 flex items-center justify-center`}>
+          <div
+            ref={videoContainerRef}
+            className={`relative w-full max-w-5xl ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10 flex items-center justify-center`}
+          >
             {videoUrl ? (
-              <Plyr
-                ref={playerRef}
-                source={{
-                  type: 'video',
-                  sources: [
-                    {
-                      src: videoUrl,
-                      type: currentVideo.mime_type || 'video/mp4'
-                    }
-                  ]
-                }}
-                options={{
-                  ...plyrOptions,
-                  autoplay: false,
-                }}
-                onTimeUpdate={handleTimeUpdate}
-              />
+              <>
+                <Plyr
+                  ref={playerRef}
+                  source={{
+                    type: 'video',
+                    sources: [
+                      {
+                        src: videoUrl,
+                        type: currentVideo.mime_type || 'video/mp4'
+                      }
+                    ]
+                  }}
+                  options={{
+                    ...plyrOptions,
+                    autoplay: false,
+                  }}
+                  onTimeUpdate={handleTimeUpdate}
+                />
+                {/* Canvas overlay for drawing */}
+                <canvas
+                  ref={canvasRef}
+                  className={`absolute inset-0 w-full h-full pointer-events-none ${drawingMode ? 'pointer-events-auto cursor-crosshair' : ''}`}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  style={{ zIndex: drawingMode ? 10 : 5 }}
+                />
+              </>
             ) : (
               <div className="flex flex-col items-center gap-3 text-zinc-400">
                 <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
@@ -617,6 +808,84 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           >
             +1 FRAME <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
+        </div>
+
+        {/* Drawing Tools */}
+        <div className="px-4 py-3 border-t border-zinc-800/50 glass-panel flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-8 px-3 rounded-none border text-[10px] font-black uppercase tracking-widest transition-all ${
+                drawingMode
+                  ? 'border-red-500 bg-red-500/10 text-red-500'
+                  : 'border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-600'
+              }`}
+              onClick={() => setDrawingMode(!drawingMode)}
+            >
+              <Pencil className="w-3 h-3 mr-2" />
+              {drawingMode ? 'Desenhar Ativo' : 'Ativar Desenho'}
+            </Button>
+
+            {drawingMode && (
+              <>
+                <div className="flex items-center gap-2 border-l border-zinc-800 pl-3">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500">Cor:</span>
+                  <div className="flex gap-1">
+                    {['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'].map(color => (
+                      <button
+                        key={color}
+                        className={`w-6 h-6 rounded-sm border-2 transition-all ${
+                          drawColor === color ? 'border-white scale-110' : 'border-zinc-700 hover:border-zinc-500'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setDrawColor(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 border-l border-zinc-800 pl-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white border border-zinc-800 rounded-none"
+                    onClick={clearDrawing}
+                  >
+                    <Eraser className="w-3 h-3 mr-1" />
+                    Limpar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest text-green-500 hover:text-green-400 border border-green-500/50 rounded-none"
+                    onClick={saveDrawing}
+                    disabled={currentDrawing.length === 0}
+                  >
+                    <Save className="w-3 h-3 mr-1" />
+                    Salvar
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-red-500 border border-zinc-800 rounded-none"
+                    onClick={() => {
+                      setDrawingMode(false);
+                      setCurrentDrawing([]);
+                    }}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {drawingMode && (
+            <div className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">
+              Pause o vídeo e desenhe sobre o frame
+            </div>
+          )}
         </div>
       </div>
 

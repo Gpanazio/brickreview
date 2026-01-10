@@ -314,6 +314,23 @@ LEFT JOIN brickreview_project_members m ON m.project_id = p.id
 GROUP BY p.id, p.name, p.description, p.client_name, p.status, p.cover_image_r2_key, p.cover_image_url, p.created_by, p.created_at, p.updated_at;
 
 -- ============================================
+-- 9. DRAWINGS (Desenhos sobre frames - Frame.io style)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS brickreview_drawings (
+  id SERIAL PRIMARY KEY,
+  video_id INTEGER NOT NULL REFERENCES brickreview_videos(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES master_users(id) ON DELETE SET NULL,
+  timestamp DECIMAL(10, 3) NOT NULL, -- Timestamp do frame em segundos
+  drawing_data JSONB NOT NULL, -- Array de pontos {x, y} normalizados (0-1)
+  color VARCHAR(7) DEFAULT '#FF0000', -- Cor do desenho (hex)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Índice para buscar desenhos por vídeo e timestamp
+CREATE INDEX IF NOT EXISTS idx_drawings_video_timestamp ON brickreview_drawings(video_id, timestamp);
+
+-- ============================================
 -- SAMPLE DATA (opcional para desenvolvimento)
 -- ============================================
 
