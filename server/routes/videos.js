@@ -76,15 +76,20 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
   try {
     // 1. Obter metadados
     try {
+      console.log('📊 Obtendo metadados do vídeo:', file.path);
       metadata = await getVideoMetadata(file.path);
+      console.log('✅ Metadados obtidos:', metadata);
     } catch (metadataError) {
-      console.warn('Falha ao obter metadados do vídeo, seguindo com valores padrão:', metadataError);
+      console.error('❌ Falha ao obter metadados do vídeo:', metadataError.message);
+      console.error('Stack trace:', metadataError.stack);
     }
 
     // 2. Gerar thumbnail
     try {
+      console.log('🖼️  Gerando thumbnail...');
       thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
       thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
+      console.log('✅ Thumbnail gerada localmente:', thumbPath);
 
       // Upload Thumbnail para R2 (usando stream)
       const thumbStream = fs.createReadStream(thumbPath);
@@ -96,8 +101,10 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       }));
 
       thumbUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
+      console.log('✅ Thumbnail enviada para R2:', thumbUrl);
     } catch (thumbnailError) {
-      console.warn('Falha ao gerar thumbnail, seguindo sem thumbnail:', thumbnailError);
+      console.error('❌ Falha ao gerar thumbnail:', thumbnailError.message);
+      console.error('Stack trace:', thumbnailError.stack);
     }
 
     // 3. Gerar proxy 720p @ 5000kbps

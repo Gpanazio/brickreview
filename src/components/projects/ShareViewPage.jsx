@@ -33,11 +33,16 @@ export function ShareViewPage() {
           throw new Error(data.error || 'Erro ao carregar link');
         }
       } else {
+        console.log('Share data received:', data);
+        console.log('Resource type:', data.resource?.type);
         setShareData(data);
 
         // Se for uma pasta, buscar vídeos dentro dela
         if (data.resource?.type === 'folder') {
+          console.log('Is a folder, fetching videos...');
           fetchFolderVideos(data.resource.content.id);
+        } else {
+          console.log('Not a folder, resource type is:', data.resource?.type);
         }
       }
     } catch (err) {
@@ -49,11 +54,16 @@ export function ShareViewPage() {
 
   const fetchFolderVideos = async (folderId) => {
     try {
+      console.log('Fetching folder videos for token:', token, 'folderId:', folderId);
       // Buscar vídeos da pasta sem autenticação (público)
       const response = await fetch(`/api/shares/${token}/folder-videos`);
+      console.log('Response status:', response.status);
       if (response.ok) {
         const videos = await response.json();
+        console.log('Folder videos received:', videos, 'count:', videos.length);
         setFolderVideos(videos);
+      } else {
+        console.error('Failed to fetch folder videos:', response.status);
       }
     } catch (err) {
       console.error('Erro ao buscar vídeos da pasta:', err);
@@ -129,6 +139,13 @@ export function ShareViewPage() {
 
   // Se estiver vendo um vídeo específico em uma pasta compartilhada
   const currentVideo = selectedVideo || (resource?.type === 'video' ? resource.content : null);
+
+  console.log('Rendering ShareViewPage:');
+  console.log('- resource:', resource);
+  console.log('- resource.type:', resource?.type);
+  console.log('- folderVideos:', folderVideos);
+  console.log('- folderVideos.length:', folderVideos.length);
+  console.log('- currentVideo:', currentVideo);
 
   return (
     <div className="min-h-screen bg-[#0d0d0e] text-white font-sans overflow-hidden flex flex-col">
