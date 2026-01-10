@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Folder, FolderOpen, File, Plus, MoreVertical, Edit, Trash2, FolderInput } from 'lucide-react';
+import { Folder, FolderOpen, File, FileImage, FileText, FileAudio, Plus, MoreVertical, Edit, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatVideoDuration } from '../../utils/time';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,9 +10,38 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Helper para formatar tamanho de arquivo
+const formatFileSize = (bytes) => {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// Helper para ícone baseado no tipo de arquivo
+const getFileIcon = (fileType) => {
+  switch (fileType) {
+    case 'image': return FileImage;
+    case 'audio': return FileAudio;
+    case 'document': return FileText;
+    default: return File;
+  }
+};
+
+// Helper para cor baseada no tipo de arquivo
+const getFileColor = (fileType) => {
+  switch (fileType) {
+    case 'image': return 'text-green-400';
+    case 'audio': return 'text-purple-400';
+    case 'document': return 'text-orange-400';
+    default: return 'text-zinc-400';
+  }
+};
+
 export function FolderView({
   folders,
   videos,
+  files = [],
   currentFolderId,
   onFolderClick,
   onVideoClick,
@@ -20,6 +50,7 @@ export function FolderView({
   onDeleteFolder,
   onMoveFolder,
   onMoveVideo,
+  onFileDelete,
   token
 }) {
   const [expandedFolders, setExpandedFolders] = useState(new Set());
@@ -39,6 +70,12 @@ export function FolderView({
   const currentLevelVideos = videos.filter(v =>
     v.folder_id === currentFolderId ||
     (!currentFolderId && v.folder_id === null)
+  );
+
+  // Filtra arquivos do nível atual
+  const currentLevelFiles = files.filter(f =>
+    f.folder_id === currentFolderId ||
+    (!currentFolderId && f.folder_id === null)
   );
 
   const toggleFolder = (folderId) => {
@@ -96,6 +133,25 @@ export function FolderView({
     }
   };
 
+  const handleDeleteFile = async (fileId) => {
+    if (!confirm('Tem certeza que deseja excluir este arquivo?')) return;
+
+    try {
+      const response = await fetch(`/api/files/${fileId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        toast.success('Arquivo excluído');
+        onFileDelete?.();
+      }
+    } catch (error) {
+      console.error('Erro ao excluir arquivo:', error);
+      toast.error('Erro ao excluir arquivo');
+    }
+  };
+
   const handleCreateFolder = async (parentFolderId = null) => {
     const folderName = prompt(parentFolderId ? 'Nome da subpasta:' : 'Nome da nova pasta:');
     if (!folderName || !folderName.trim()) return;
@@ -138,10 +194,56 @@ export function FolderView({
     }
   };
 
+  const renderFileItem = (file, depth = 0) => {
+    const FileIcon = getFileIcon(file.file_type);
+    const colorClass = getFileColor(file.file_type);
+
+    return (
+      <div
+        key={`file-${file.id}`}
+        style={{ marginLeft: `${depth * 20}px` }}
+        className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-green-600 transition-all"
+      >
+        <FileIcon className={`w-4 h-4 ${colorClass}`} />
+        <span className="flex-1 text-sm text-zinc-400 hover:text-white uppercase tracking-tight truncate">
+          {file.name}
+        </span>
+        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
+          {formatFileSize(file.file_size)}
+        </span>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-white transition-all p-1">
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="glass-panel border-zinc-800 rounded-none">
+            <DropdownMenuItem
+              className="text-xs uppercase tracking-wider cursor-pointer"
+              onClick={() => window.open(file.r2_url, '_blank')}
+            >
+              <ExternalLink className="w-3 h-3 mr-2" />
+              Abrir
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-xs uppercase tracking-wider text-red-500 cursor-pointer"
+              onClick={() => handleDeleteFile(file.id)}
+            >
+              <Trash2 className="w-3 h-3 mr-2" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    );
+  };
+
   const renderFolder = (folder, depth = 0) => {
     const isExpanded = expandedFolders.has(folder.id);
     const subfolders = folders.filter(f => f.parent_folder_id === folder.id);
     const folderVideos = videos.filter(v => v.folder_id === folder.id);
+    const folderFiles = files.filter(f => f.folder_id === folder.id);
     const isDragOver = dragOverFolder === folder.id;
 
     return (
@@ -184,7 +286,7 @@ export function FolderView({
           )}
 
           <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-            {folder.videos_count || 0} vídeos
+            {(folder.videos_count || 0) + folderFiles.length} itens
           </span>
 
           <DropdownMenu>
@@ -244,6 +346,7 @@ export function FolderView({
                 </span>
               </div>
             ))}
+            {folderFiles.map(file => renderFileItem(file, depth + 1))}
           </div>
         )}
       </div>
@@ -300,9 +403,19 @@ export function FolderView({
         </div>
       )}
 
-      {currentLevelFolders.length === 0 && currentLevelVideos.length === 0 && (
+      {/* Arquivos do nível atual (sem pasta) */}
+      {currentLevelFiles.length > 0 && (
+        <div className="mt-4">
+          <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-3">
+            Arquivos sem pasta
+          </div>
+          {currentLevelFiles.map(file => renderFileItem(file))}
+        </div>
+      )}
+
+      {currentLevelFolders.length === 0 && currentLevelVideos.length === 0 && currentLevelFiles.length === 0 && (
         <div className="text-center py-8 text-zinc-600 text-xs uppercase tracking-wider">
-          Nenhuma pasta ou vídeo neste nível
+          Nenhuma pasta, vídeo ou arquivo neste nível
         </div>
       )}
     </div>

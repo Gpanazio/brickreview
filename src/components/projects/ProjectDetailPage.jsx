@@ -29,6 +29,7 @@ export function ProjectDetailPage() {
   const { id } = useParams();
   const [project, setProject] = useState(null);
   const [folders, setFolders] = useState([]);
+  const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -40,6 +41,7 @@ export function ProjectDetailPage() {
   useEffect(() => {
     fetchProjectDetails();
     fetchFolders();
+    fetchFiles();
   }, [id]);
 
   const fetchProjectDetails = async () => {
@@ -65,6 +67,18 @@ export function ProjectDetailPage() {
       setFolders(data);
     } catch (error) {
       console.error('Erro ao buscar pastas:', error);
+    }
+  };
+
+  const fetchFiles = async () => {
+    try {
+      const response = await fetch(`/api/files/project/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setFiles(data);
+    } catch (error) {
+      console.error('Erro ao buscar arquivos:', error);
     }
   };
 
@@ -171,39 +185,53 @@ export function ProjectDetailPage() {
     if (!fileList || fileList.length === 0) return;
 
     setUploading(true);
-    
+
     // Add to queue for UI feedback
     const newUploads = Array.from(fileList).map(file => ({
       id: Math.random().toString(36),
       name: file.name,
       status: 'uploading'
     }));
-    
+
     setUploadQueue(prev => [...prev, ...newUploads]);
 
     // Upload múltiplos arquivos
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
       const currentUploadId = newUploads[i].id;
-      
+      const isVideo = file.type.startsWith('video/');
+
       const formData = new FormData();
-      formData.append('video', file);
-      formData.append('project_id', id);
-      formData.append('title', file.name.split('.')[0]);
-      if (currentFolderId) {
-        formData.append('folder_id', currentFolderId);
+
+      if (isVideo) {
+        // Upload de vídeo usa endpoint específico
+        formData.append('video', file);
+        formData.append('project_id', id);
+        formData.append('title', file.name.split('.')[0]);
+        if (currentFolderId) {
+          formData.append('folder_id', currentFolderId);
+        }
+      } else {
+        // Upload de arquivo genérico (imagem, documento, etc)
+        formData.append('file', file);
+        formData.append('project_id', id);
+        formData.append('name', file.name);
+        if (currentFolderId) {
+          formData.append('folder_id', currentFolderId);
+        }
       }
 
       try {
-        const response = await fetch('/api/videos/upload', {
+        const endpoint = isVideo ? '/api/videos/upload' : '/api/files/upload';
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: formData
         });
 
         if (response.ok) {
-          toast.success(`${file.name} ENVIADO`, { 
-            description: "Processamento iniciado"
+          toast.success(`${file.name} ENVIADO`, {
+            description: isVideo ? "Processamento iniciado" : "Arquivo salvo"
           });
           setUploadQueue(prev => prev.filter(u => u.id !== currentUploadId));
         } else {
@@ -211,7 +239,7 @@ export function ProjectDetailPage() {
             console.error('Error parsing server response:', parseError);
             return {};
           });
-          toast.error('FALHA NO UPLOAD', { 
+          toast.error('FALHA NO UPLOAD', {
             description: errorData.error || 'Erro desconhecido'
           });
           setUploadQueue(prev => prev.map(u => u.id === currentUploadId ? { ...u, status: 'error' } : u));
@@ -227,6 +255,7 @@ export function ProjectDetailPage() {
 
     setUploading(false);
     fetchProjectDetails();
+    fetchFiles();
     if (e?.target) e.target.value = '';
   };
 
@@ -254,13 +283,8 @@ export function ProjectDetailPage() {
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      // Filtrar apenas arquivos de vídeo
-      const videoFiles = Array.from(files).filter(file => file.type.startsWith('video/'));
-      if (videoFiles.length > 0) {
-        handleFileUpload(null, videoFiles);
-      } else {
-        toast.error('Apenas arquivos de vídeo são permitidos');
-      }
+      // Aceita qualquer tipo de arquivo
+      handleFileUpload(null, Array.from(files));
     }
   };
 
@@ -398,9 +422,8 @@ export function ProjectDetailPage() {
 
             <input
               type="file"
-              id="video-upload"
+              id="file-upload"
               className="hidden"
-              accept="video/*"
               onChange={handleFileUpload}
               disabled={uploading}
               multiple
@@ -410,17 +433,17 @@ export function ProjectDetailPage() {
               className="glass-button-primary border-none rounded-none px-6 py-6 h-auto font-black uppercase tracking-widest text-xs"
               disabled={uploading}
             >
-              <label htmlFor="video-upload" className="cursor-pointer flex items-center">
+              <label htmlFor="file-upload" className="cursor-pointer flex items-center">
                 {uploading ? (
-                  <motion.div 
+                  <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white border-t-transparent mr-3" 
+                    className="w-4 h-4 border-2 border-white border-t-transparent mr-3"
                   />
                 ) : (
                   <Upload className="w-4 h-4 mr-3" />
                 )}
-                {uploading ? 'Processando...' : 'Novo Vídeo'}
+                {uploading ? 'Processando...' : 'Upload'}
               </label>
             </Button>
           </div>
@@ -466,6 +489,7 @@ export function ProjectDetailPage() {
               <FolderView
                 folders={folders}
                 videos={project?.videos || []}
+                files={files}
                 currentFolderId={currentFolderId}
                 onFolderClick={(folder) => setCurrentFolderId(folder.id)}
                 onVideoClick={(video) => setSelectedVideo(video)}
@@ -473,6 +497,7 @@ export function ProjectDetailPage() {
                 onRenameFolder={fetchFolders}
                 onDeleteFolder={fetchFolders}
                 onMoveVideo={handleMoveVideo}
+                onFileDelete={fetchFiles}
                 token={token}
               />
             </motion.div>
