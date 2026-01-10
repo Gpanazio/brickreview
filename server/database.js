@@ -24,10 +24,20 @@ export async function initDatabase() {
 
     const tablesExist = tableCheck.rows[0].exists
 
-    // Se as tabelas existem e NÃO pedimos reset, apenas saímos
+    // Se as tabelas existem, verificamos se a brickreview_shares também existe
     if (tablesExist && process.env.RESET_DB !== 'true') {
-      console.log('✅ Database schema already initialized. Skipping setup.')
-      return
+      const shareTableCheck = await query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'brickreview_shares'
+        ) as exists
+      `)
+      
+      if (shareTableCheck.rows[0].exists) {
+        console.log('✅ Database schema already initialized. Skipping setup.')
+        return
+      }
+      console.log('📦 Main tables exist but brickreview_shares is missing. Updating schema...')
     }
 
     console.log('🔄 Initializing database schema...')
