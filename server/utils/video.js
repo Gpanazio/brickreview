@@ -1,13 +1,38 @@
 import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import fs from 'fs';
+import { execSync } from 'child_process';
 
-// Configura caminhos do FFmpeg a partir das variáveis de ambiente
+// Configura caminhos do FFmpeg
+// Primeiro tenta usar variáveis de ambiente, depois tenta encontrar automaticamente
 if (process.env.FFMPEG_PATH) {
   ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
+  console.log('✅ FFmpeg path configurado via env:', process.env.FFMPEG_PATH);
+} else {
+  try {
+    const ffmpegPath = execSync('which ffmpeg', { encoding: 'utf8' }).trim();
+    if (ffmpegPath) {
+      ffmpeg.setFfmpegPath(ffmpegPath);
+      console.log('✅ FFmpeg encontrado automaticamente:', ffmpegPath);
+    }
+  } catch (err) {
+    console.warn('⚠️  FFmpeg não encontrado no sistema');
+  }
 }
+
 if (process.env.FFPROBE_PATH) {
   ffmpeg.setFfprobePath(process.env.FFPROBE_PATH);
+  console.log('✅ FFprobe path configurado via env:', process.env.FFPROBE_PATH);
+} else {
+  try {
+    const ffprobePath = execSync('which ffprobe', { encoding: 'utf8' }).trim();
+    if (ffprobePath) {
+      ffmpeg.setFfprobePath(ffprobePath);
+      console.log('✅ FFprobe encontrado automaticamente:', ffprobePath);
+    }
+  } catch (err) {
+    console.warn('⚠️  FFprobe não encontrado no sistema');
+  }
 }
 
 /**
