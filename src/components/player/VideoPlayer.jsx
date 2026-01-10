@@ -18,12 +18,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function VideoPlayer({ video, versions = [], onBack, isPublic = false, visitorName: initialVisitorName = '', shareToken = null, accessType = 'view' }) {
-  const [currentVideoId, setCurrentVideoId] = useState(video.id);
-  const [currentVideo, setCurrentVideo] = useState(video);
-  const [comments, setComments] = useState(video.comments || []);
+  // Determina a versão inicial (mais recente) ao montar o componente
+  const getLatestVersion = () => {
+    if (versions.length === 0) return video;
+    // Encontra a versão com maior version_number
+    const sorted = [video, ...versions].sort((a, b) => b.version_number - a.version_number);
+    return sorted[0];
+  };
+
+  const latestVersion = getLatestVersion();
+
+  const [currentVideoId, setCurrentVideoId] = useState(latestVersion.id);
+  const [currentVideo, setCurrentVideo] = useState(latestVersion);
+  const [comments, setComments] = useState(latestVersion.comments || []);
   const [newComment, setNewComment] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
-  const [approvalStatus, setApprovalStatus] = useState(video.latest_approval_status || 'pending');
+  const [approvalStatus, setApprovalStatus] = useState(latestVersion.latest_approval_status || 'pending');
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
@@ -52,7 +62,8 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const canDownload = !isGuest; // Only authenticated users can download
 
   // Constrói lista completa de versões (vídeo original + versões)
-  const allVersions = [video, ...versions].sort((a, b) => a.version_number - b.version_number);
+  // Ordena da versão mais recente para a mais antiga
+  const allVersions = [video, ...versions].sort((a, b) => b.version_number - a.version_number);
 
   // Calcula aspect ratio do vídeo
   const getAspectRatioClass = () => {
