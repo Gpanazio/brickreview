@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, ChevronRight, MessageSquare, Clock, Send,
-  CheckCircle, AlertCircle, History, Reply, CornerDownRight
+  CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -208,6 +208,27 @@ export function VideoPlayer({ video, versions = [], onBack }) {
     fetchComments();
   }, [currentVideoId, token]);
 
+  // Função para fazer download do vídeo (proxy ou original)
+  const handleDownload = async (type) => {
+    try {
+      const response = await fetch(`/api/videos/${currentVideoId}/download?type=${type}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const link = document.createElement('a');
+        link.href = data.url;
+        link.download = `${currentVideo.title}_${type}.mp4`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error('Erro ao fazer download:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchStreamUrl = async () => {
       try {
@@ -280,6 +301,35 @@ export function VideoPlayer({ video, versions = [], onBack }) {
             >
               <History className="w-4 h-4" />
             </Button>
+
+            {/* Download Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
+                <DropdownMenuItem
+                  onClick={() => handleDownload('proxy')}
+                  className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                >
+                  <Download className="w-3 h-3 mr-2" />
+                  Baixar Proxy (720p)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleDownload('original')}
+                  className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                >
+                  <Download className="w-3 h-3 mr-2" />
+                  Baixar Original (HD)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* Version Selector */}
             {allVersions.length > 1 && (

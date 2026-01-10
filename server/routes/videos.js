@@ -222,6 +222,72 @@ router.get('/:id/stream', authenticateToken, async (req, res) => {
 });
 
 /**
+ * @route GET /api/videos/:id/download
+ * @desc Get download URL for original or proxy video
+ */
+router.get('/:id/download', authenticateToken, async (req, res) => {
+  try {
+    const { type } = req.query; // 'original' or 'proxy'
+
+    const videoResult = await query(
+      'SELECT r2_key, r2_url, proxy_r2_key, proxy_url, title FROM brickreview_videos WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (videoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' });
+    }
+
+    const { r2_key, r2_url, proxy_r2_key, proxy_url, title } = videoResult.rows[0];
+
+    let downloadKey, downloadUrl;
+
+    if (type === 'proxy') {
+      if (!proxy_r2_key || !proxy_url) {
+        return res.status(404).json({ error: 'Proxy não disponível para este vídeo' });
+      }
+      downloadKey = proxy_r2_key;
+      downloadUrl = proxy_url;
+    } else {
+      downloadKey = r2_key;
+      downloadUrl = r2_url;
+    }
+
+    // Se temos URL pública, retorna diretamente
+    if (process.env.R2_PUBLIC_URL && downloadUrl && downloadUrl.includes(process.env.R2_PUBLIC_URL)) {
+      return res.json({
+        url: downloadUrl,
+        filename: `${title}_${type}.mp4`,
+        type
+      });
+    }
+
+    // Senão, gera signed URL
+    if (!process.env.R2_BUCKET_NAME) {
+      return res.status(500).json({ error: 'Configuração do R2 ausente' });
+    }
+
+    const signedUrl = await getSignedUrl(
+      r2Client,
+      new GetObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: downloadKey,
+      }),
+      { expiresIn: 60 * 60 * 24 } // 24 horas
+    );
+
+    res.json({
+      url: signedUrl,
+      filename: `${title}_${type}.mp4`,
+      type
+    });
+  } catch (error) {
+    console.error('Erro ao gerar URL de download:', error);
+    res.status(500).json({ error: 'Falha ao gerar URL de download' });
+  }
+});
+
+/**
  * @route GET /api/videos/:id
  * @desc Get video details and its comments
  */
