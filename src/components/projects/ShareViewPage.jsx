@@ -192,7 +192,13 @@ export function ShareViewPage() {
           {/* Conditional Rendering based on Resource Type */}
           {resource.type === 'video' ? (
             <div className="aspect-video bg-black border border-zinc-800 shadow-2xl">
-              <VideoPlayer video={resource.content} isPublic={true} visitorName={visitorName} />
+              <VideoPlayer
+                video={resource.content}
+                isPublic={true}
+                visitorName={visitorName}
+                shareToken={token}
+                accessType={shareData.access_type}
+              />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

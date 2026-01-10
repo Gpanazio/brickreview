@@ -41,6 +41,92 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/shares/:token/comments - Adiciona comentário como convidado (PÚBLICO)
+router.post('/:token/comments', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { video_id, parent_comment_id, content, timestamp, visitor_name } = req.body;
+
+    if (!video_id || !content || !visitor_name) {
+      return res.status(400).json({ error: 'Vídeo ID, conteúdo e nome do visitante são obrigatórios' });
+    }
+
+    // Valida que o share token existe e permite comentários
+    const shareResult = await query(
+      `SELECT * FROM brickreview_shares WHERE token = $1`,
+      [token]
+    );
+
+    if (shareResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
+    }
+
+    const share = shareResult.rows[0];
+
+    // Verifica expiração
+    if (share.expires_at && new Date() > new Date(share.expires_at)) {
+      return res.status(410).json({ error: 'Este link expirou' });
+    }
+
+    // Verifica se o acesso permite comentários
+    if (share.access_type !== 'comment') {
+      return res.status(403).json({ error: 'Este link não permite comentários' });
+    }
+
+    // Verifica que o vídeo pertence ao recurso compartilhado
+    // (para evitar que alguém comente em vídeos não compartilhados)
+    if (share.video_id && share.video_id !== parseInt(video_id)) {
+      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+    }
+
+    // Cria um user_id temporário baseado no nome do visitante
+    // Usamos um UUID consistente para o mesmo nome
+    const crypto = await import('crypto');
+    const guestUserId = crypto.createHash('md5').update(visitor_name.toLowerCase().trim()).digest('hex').substring(0, 8);
+
+    // Insere comentário como convidado
+    // IMPORTANTE: comments ainda requer user_id (UUID), mas para guests usamos um hash do nome
+    // Precisamos criar um guest user temporário OU ajustar o schema
+    // Por ora, vamos criar um guest user se não existir
+
+    // Verifica se já existe um guest user com este nome
+    let guestUser = await query(
+      `SELECT id FROM master_users WHERE username = $1 AND email LIKE 'guest+%'`,
+      [`guest_${guestUserId}`]
+    );
+
+    if (guestUser.rows.length === 0) {
+      // Cria guest user
+      guestUser = await query(
+        `INSERT INTO master_users (id, username, email, password_hash, role)
+         VALUES (gen_random_uuid(), $1, $2, 'guest', 'guest')
+         RETURNING id`,
+        [`guest_${guestUserId}`, `guest+${guestUserId}@brickreview.local`]
+      );
+    }
+
+    const userId = guestUser.rows[0].id;
+
+    // Insere o comentário
+    const commentResult = await query(`
+      INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [video_id, parent_comment_id, userId, content, timestamp]);
+
+    // Busca detalhes do comentário com dados do usuário
+    const fullComment = await query(
+      'SELECT * FROM brickreview_comments_with_user WHERE id = $1',
+      [commentResult.rows[0].id]
+    );
+
+    res.status(201).json(fullComment.rows[0]);
+  } catch (err) {
+    console.error('Erro ao adicionar comentário de convidado:', err);
+    res.status(500).json({ error: 'Erro ao adicionar comentário' });
+  }
+});
+
 // GET /api/shares/:token - Busca informações do link compartilhado (PÚBLICO)
 router.get('/:token', async (req, res) => {
   try {

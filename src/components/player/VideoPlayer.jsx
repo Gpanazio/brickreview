@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function VideoPlayer({ video, versions = [], onBack }) {
+export function VideoPlayer({ video, versions = [], onBack, isPublic = false, visitorName = '', shareToken = null, accessType = 'view' }) {
   const [currentVideoId, setCurrentVideoId] = useState(video.id);
   const [currentVideo, setCurrentVideo] = useState(video);
   const [comments, setComments] = useState(video.comments || []);
@@ -32,6 +32,13 @@ export function VideoPlayer({ video, versions = [], onBack }) {
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const playerRef = useRef(null);
   const { token } = useAuth();
+
+  // Guest mode: no token, use visitor name for identification
+  const isGuest = isPublic || !token;
+  const canComment = isGuest ? (accessType === 'comment') : true;
+  const canApprove = !isGuest; // Only authenticated users can approve
+  const canShare = !isGuest; // Only authenticated users can generate share links
+  const canDownload = !isGuest; // Only authenticated users can download
 
   // Constrói lista completa de versões (vídeo original + versões)
   const allVersions = [video, ...versions].sort((a, b) => a.version_number - b.version_number);
@@ -57,27 +64,51 @@ export function VideoPlayer({ video, versions = [], onBack }) {
     e.preventDefault();
     if (!newComment.trim()) return;
 
+    // Guests can only comment if access_type is 'comment'
+    if (isGuest && !canComment) {
+      toast.error('Você não tem permissão para comentar');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/comments', {
+      // Use different endpoint for guest comments
+      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : '/api/comments';
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (!isGuest) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const body = {
+        video_id: currentVideoId,
+        content: newComment,
+        timestamp: currentTime
+      };
+
+      if (isGuest) {
+        body.visitor_name = visitorName;
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          video_id: currentVideoId,
-          content: newComment,
-          timestamp: currentTime
-        })
+        headers,
+        body: JSON.stringify(body)
       });
 
       if (response.ok) {
         const comment = await response.json();
         setComments([...comments, comment].sort((a, b) => a.timestamp - b.timestamp));
         setNewComment('');
+        toast.success('Comentário adicionado com sucesso!');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao adicionar comentário');
       }
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error);
+      toast.error('Erro ao adicionar comentário');
     }
   };
 
@@ -85,19 +116,38 @@ export function VideoPlayer({ video, versions = [], onBack }) {
     e.preventDefault();
     if (!replyText.trim() || !replyingTo) return;
 
+    // Guests can only reply if access_type is 'comment'
+    if (isGuest && !canComment) {
+      toast.error('Você não tem permissão para responder');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/comments', {
+      // Use different endpoint for guest replies
+      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : '/api/comments';
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (!isGuest) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const body = {
+        video_id: currentVideoId,
+        content: replyText,
+        timestamp: currentTime,
+        parent_comment_id: replyingTo
+      };
+
+      if (isGuest) {
+        body.visitor_name = visitorName;
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          video_id: currentVideoId,
-          content: replyText,
-          timestamp: currentTime,
-          parent_comment_id: replyingTo
-        })
+        headers,
+        body: JSON.stringify(body)
       });
 
       if (response.ok) {
@@ -105,9 +155,14 @@ export function VideoPlayer({ video, versions = [], onBack }) {
         setComments([...comments, reply]);
         setReplyText('');
         setReplyingTo(null);
+        toast.success('Resposta adicionada com sucesso!');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao adicionar resposta');
       }
     } catch (error) {
       console.error('Erro ao adicionar resposta:', error);
+      toast.error('Erro ao adicionar resposta');
     }
   };
 
@@ -320,39 +375,43 @@ export function VideoPlayer({ video, versions = [], onBack }) {
           <h2 className="brick-title text-lg tracking-tighter uppercase truncate">{video.title}</h2>
           
           <div className="flex items-center gap-2 ml-auto">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
-                    approvalStatus === 'approved' ? 'border-green-500/50 text-green-500 bg-green-500/10' :
-                    approvalStatus === 'changes_requested' ? 'border-amber-500/50 text-amber-500 bg-amber-500/10' :
-                    'border-zinc-700 text-zinc-400 bg-zinc-900'
-                  }`}
-                >
-                  {approvalStatus === 'approved' ? <CheckCircle className="w-3 h-3 mr-2" /> :
-                   approvalStatus === 'changes_requested' ? <AlertCircle className="w-3 h-3 mr-2" /> : null}
-                  {approvalStatus === 'approved' ? 'Aprovado' :
-                   approvalStatus === 'changes_requested' ? 'Ajustes' : 'Pendente'}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-48">
-                <DropdownMenuItem
-                  onClick={() => handleApproval('approved')}
-                  className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                >
-                  <CheckCircle className="w-3 h-3 mr-2" /> Aprovar Vídeo
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleApproval('changes_requested')}
-                  className="text-amber-500 focus:text-amber-400 focus:bg-amber-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                >
-                  <AlertCircle className="w-3 h-3 mr-2" /> Solicitar Ajustes
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Approval Button - Only for authenticated users */}
+            {canApprove && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
+                      approvalStatus === 'approved' ? 'border-green-500/50 text-green-500 bg-green-500/10' :
+                      approvalStatus === 'changes_requested' ? 'border-amber-500/50 text-amber-500 bg-amber-500/10' :
+                      'border-zinc-700 text-zinc-400 bg-zinc-900'
+                    }`}
+                  >
+                    {approvalStatus === 'approved' ? <CheckCircle className="w-3 h-3 mr-2" /> :
+                     approvalStatus === 'changes_requested' ? <AlertCircle className="w-3 h-3 mr-2" /> : null}
+                    {approvalStatus === 'approved' ? 'Aprovado' :
+                     approvalStatus === 'changes_requested' ? 'Ajustes' : 'Pendente'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-48">
+                  <DropdownMenuItem
+                    onClick={() => handleApproval('approved')}
+                    className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                  >
+                    <CheckCircle className="w-3 h-3 mr-2" /> Aprovar Vídeo
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleApproval('changes_requested')}
+                    className="text-amber-500 focus:text-amber-400 focus:bg-amber-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                  >
+                    <AlertCircle className="w-3 h-3 mr-2" /> Solicitar Ajustes
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
+            {/* History Button - Available for all users */}
             <Button
               variant="ghost"
               size="icon"
@@ -362,45 +421,49 @@ export function VideoPlayer({ video, versions = [], onBack }) {
               <History className="w-4 h-4" />
             </Button>
 
-            {/* Share Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleGenerateShare}
-              disabled={isGeneratingShare}
-              className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
-            >
-              <Share2 className="w-4 h-4" />
-            </Button>
+            {/* Share Button - Only for authenticated users */}
+            {canShare && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleGenerateShare}
+                disabled={isGeneratingShare}
+                className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
+            )}
 
-            {/* Download Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
-                <DropdownMenuItem
-                  onClick={() => handleDownload('proxy')}
-                  className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                >
-                  <Download className="w-3 h-3 mr-2" />
-                  Baixar Proxy (720p)
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleDownload('original')}
-                  className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                >
-                  <Download className="w-3 h-3 mr-2" />
-                  Baixar Original (HD)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Download Menu - Only for authenticated users */}
+            {canDownload && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800"
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
+                  <DropdownMenuItem
+                    onClick={() => handleDownload('proxy')}
+                    className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                  >
+                    <Download className="w-3 h-3 mr-2" />
+                    Baixar Proxy (720p)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleDownload('original')}
+                    className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                  >
+                    <Download className="w-3 h-3 mr-2" />
+                    Baixar Original (HD)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             {/* Version Selector */}
             {allVersions.length > 1 && (

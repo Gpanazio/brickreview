@@ -67,6 +67,21 @@ export async function initDatabase() {
 
     const sql = fs.readFileSync(sqlFile, 'utf8')
 
+    // First, force drop all views to avoid column rename conflicts
+    // This must be done separately before running the main SQL
+    try {
+      await query(`
+        DROP VIEW IF EXISTS brickreview_projects_with_stats CASCADE;
+        DROP VIEW IF EXISTS brickreview_videos_with_stats CASCADE;
+        DROP VIEW IF EXISTS brickreview_comments_with_user CASCADE;
+        DROP VIEW IF EXISTS brickreview_folders_with_stats CASCADE;
+      `)
+      console.log('🗑️  Dropped existing views to avoid conflicts')
+    } catch (viewError) {
+      // Ignore errors if views don't exist
+      console.log('⚠️  Could not drop views (may not exist):', viewError.message)
+    }
+
     // Execute setup
     await query(sql)
     console.log('✅ Database schema initialized successfully')
