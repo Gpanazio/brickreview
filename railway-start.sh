@@ -26,11 +26,27 @@ if [ -z "$FFMPEG_PATH" ]; then
     FFMPEG_FOUND=$(find /usr /nix/store -name ffmpeg -type f -executable 2>/dev/null | head -n 1)
   fi
 
+  # Strategy 4: Last resort - try to find anything called ffmpeg even if not executable
+  if [ -z "$FFMPEG_FOUND" ]; then
+    echo "🔍 Fazendo busca desesperada por FFmpeg..."
+    FFMPEG_FOUND=$(find / -name ffmpeg -type f 2>/dev/null | head -n 1)
+    if [ -n "$FFMPEG_FOUND" ]; then
+      chmod +x "$FFMPEG_FOUND" 2>/dev/null || true
+    fi
+  fi
+
   if [ -n "$FFMPEG_FOUND" ]; then
     export FFMPEG_PATH="$FFMPEG_FOUND"
     echo "✅ FFmpeg encontrado: $FFMPEG_PATH"
+    
+    # Test execution
+    echo "🧪 Testando execução do FFmpeg..."
+    "$FFMPEG_FOUND" -version | head -n 1 || echo "❌ Falha ao executar FFmpeg"
   else
     echo "⚠️  FFmpeg não encontrado - thumbnails e proxies não funcionarão"
+    echo "📂 Listando conteúdo de /usr/bin e /nix/store para debug:"
+    ls -la /usr/bin/ff* 2>/dev/null || true
+    ls -la /nix/store/*/bin/ff* 2>/dev/null | head -n 20 || true
   fi
 fi
 
@@ -54,6 +70,15 @@ if [ -z "$FFPROBE_PATH" ]; then
   if [ -z "$FFPROBE_FOUND" ]; then
     echo "🔍 Fazendo busca profunda por FFprobe..."
     FFPROBE_FOUND=$(find /usr /nix/store -name ffprobe -type f -executable 2>/dev/null | head -n 1)
+  fi
+
+  # Strategy 4: Last resort
+  if [ -z "$FFPROBE_FOUND" ]; then
+    echo "🔍 Fazendo busca desesperada por FFprobe..."
+    FFPROBE_FOUND=$(find / -name ffprobe -type f 2>/dev/null | head -n 1)
+    if [ -n "$FFPROBE_FOUND" ]; then
+      chmod +x "$FFPROBE_FOUND" 2>/dev/null || true
+    fi
   fi
 
   if [ -n "$FFPROBE_FOUND" ]; then
