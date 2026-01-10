@@ -2,6 +2,14 @@ import ffmpeg from 'fluent-ffmpeg';
 import path from 'path';
 import fs from 'fs';
 
+// Configura caminhos do FFmpeg a partir das variáveis de ambiente
+if (process.env.FFMPEG_PATH) {
+  ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
+}
+if (process.env.FFPROBE_PATH) {
+  ffmpeg.setFfprobePath(process.env.FFPROBE_PATH);
+}
+
 /**
  * Gera uma thumbnail de um vídeo em um timestamp específico
  * @param {string} videoPath - Caminho local do vídeo

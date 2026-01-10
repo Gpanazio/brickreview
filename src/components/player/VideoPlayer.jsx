@@ -217,12 +217,24 @@ export function VideoPlayer({ video, versions = [], onBack }) {
 
       if (response.ok) {
         const data = await response.json();
+
+        // Força download usando fetch + blob ao invés de link direto
+        const videoResponse = await fetch(data.url);
+        const blob = await videoResponse.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
         const link = document.createElement('a');
-        link.href = data.url;
-        link.download = `${currentVideo.title}_${type}.mp4`;
+        link.href = blobUrl;
+        link.download = data.filename || `${currentVideo.title}_${type}.mp4`;
+        link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+
+        // Cleanup
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 100);
       }
     } catch (error) {
       console.error('Erro ao fazer download:', error);
