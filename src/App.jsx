@@ -21,6 +21,7 @@ import { LoginPage } from './components/LoginPage'
 import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
 import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal'
 import { ProjectListItem } from './components/projects/ProjectListItem'
+import { ShareViewPage } from './components/projects/ShareViewPage'
 import { Toaster } from './components/ui/sonner'
 import { DEFAULT_PROJECT_COVER_URL } from './constants/images'
 

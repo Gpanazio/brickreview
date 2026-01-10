@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Upload, Copy, Archive, Trash2, Image as ImageIcon, ZoomIn, ZoomOut, Move } from 'lucide-react';
+import { Upload, Copy, Archive, Trash2, Image as ImageIcon, ZoomIn, ZoomOut, Move, Share2, Check, Globe } from 'lucide-react';
 
 export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token }) {
   const [showCoverEditor, setShowCoverEditor] = useState(false);
@@ -14,6 +14,9 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [projectDetails, setProjectDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
+  const [shareLink, setShareLink] = useState('');
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchProjectDetails();
@@ -158,6 +161,44 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       console.error('Erro ao alterar status:', error);
       toast.error('Erro ao alterar status do projeto');
     }
+  };
+
+  const handleGenerateShare = async () => {
+    setIsGeneratingShare(true);
+    const shareToast = toast.loading('Gerando link de compartilhamento...');
+    try {
+      const response = await fetch('/api/shares', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          project_id: project.id,
+          access_type: 'comment'
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        const fullUrl = `${window.location.origin}/share/${data.token}`;
+        setShareLink(fullUrl);
+        toast.success('Link de revisão gerado!', { id: shareToast });
+      } else {
+        toast.error(data.error || 'Erro ao gerar link', { id: shareToast });
+      }
+    } catch (err) {
+      console.error('Erro ao gerar link:', err);
+      toast.error('Erro ao gerar link', { id: shareToast });
+    } finally {
+      setIsGeneratingShare(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(shareLink);
+    setCopied(true);
+    toast.success('Link copiado para a área de transferência');
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDeleteProject = async () => {
@@ -372,6 +413,42 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
             <Trash2 className="w-4 h-4 mr-3" />
             Excluir Projeto
           </Button>
+
+          <div className="pt-4 border-t border-zinc-900 mt-4 space-y-4">
+            <h3 className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Compartilhamento</h3>
+            
+            {!shareLink ? (
+              <Button
+                variant="outline"
+                className="w-full justify-start border-zinc-800 bg-zinc-900/50 hover:bg-red-600 hover:text-white transition-all rounded-none"
+                onClick={handleGenerateShare}
+                disabled={isGeneratingShare}
+              >
+                <Share2 className="w-4 h-4 mr-3" />
+                {isGeneratingShare ? 'Gerando...' : 'Gerar Link de Revisão'}
+              </Button>
+            ) : (
+              <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-center gap-2 p-3 bg-black border border-zinc-800 rounded-none">
+                  <Globe className="w-3 h-3 text-red-500 flex-shrink-0" />
+                  <input 
+                    readOnly 
+                    value={shareLink} 
+                    className="flex-1 bg-transparent border-none text-[10px] text-zinc-400 font-mono outline-none truncate"
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 hover:bg-zinc-800 rounded-none"
+                    onClick={copyToClipboard}
+                  >
+                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-zinc-500" />}
+                  </Button>
+                </div>
+                <p className="text-[9px] text-zinc-600 uppercase tracking-widest text-center">O cliente poderá revisar e comentar</p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-3 mt-6">
