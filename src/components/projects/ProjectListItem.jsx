@@ -6,6 +6,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { ProjectCoverPlaceholder } from '@/components/ui/ProjectCoverPlaceholder';
 
+// Helper para verificar se a URL é a antiga padrão do Unsplash
+const isDefaultUrl = (url) => {
+  return url && url.includes('images.unsplash.com/photo-1574267432644');
+};
+
 export function ProjectListItem({ project, onProjectUpdate }) {
   const [showSettings, setShowSettings] = useState(false);
   const { token } = useAuth();
@@ -13,26 +18,33 @@ export function ProjectListItem({ project, onProjectUpdate }) {
   const updatedAt = project.updated_at ? new Date(project.updated_at).toLocaleDateString() : project.updatedAt;
   const createdAt = project.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A';
 
+  // Determina se deve mostrar a imagem ou o placeholder
+  const coverUrl = project.cover_image_url || project.thumbnail_url || project.thumbnail;
+  const hasValidCover = coverUrl && !isDefaultUrl(coverUrl);
+
   return (
     <>
       <div className="group flex items-center px-6 py-4 hover:bg-zinc-900/50 transition-colors border-l-2 border-transparent hover:border-l-red-600 relative">
         <Link to={`/project/${project.id}`} className="flex-1 grid grid-cols-12 gap-4 items-center">
           <div className="col-span-6 flex items-center gap-4">
             <div className="relative w-12 h-8 bg-zinc-900 overflow-hidden flex-shrink-0 border border-zinc-800">
-              {project.cover_image_url || project.thumbnail_url || project.thumbnail ? (
+              {hasValidCover ? (
                 <img
-                  src={project.cover_image_url || project.thumbnail_url || project.thumbnail}
+                  src={coverUrl}
                   alt={project.name}
                   className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
                   onError={(e) => {
                     e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
+                    // Força o placeholder a aparecer se a imagem falhar
+                    const placeholder = e.target.parentElement.querySelector('.project-placeholder');
+                    if (placeholder) placeholder.classList.remove('hidden');
+                    if (placeholder) placeholder.classList.add('flex');
                   }}
                 />
               ) : null}
               
               <ProjectCoverPlaceholder 
-                className={`absolute inset-0 ${(project.cover_image_url || project.thumbnail_url || project.thumbnail) ? 'hidden' : 'flex'}`}
+                className={`project-placeholder absolute inset-0 ${hasValidCover ? 'hidden' : 'flex'}`}
                 projectName={project.name}
                 clientName={project.client_name}
               />
