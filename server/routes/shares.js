@@ -1,7 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { nanoid } from 'nanoid';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
@@ -15,7 +15,8 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'É necessário fornecer um projeto, pasta ou vídeo para compartilhar' });
     }
 
-    const token = nanoid(10); // Gera um token curto de 10 caracteres
+    // Gera um token curto usando a primeira parte de um UUID para evitar dependência extra de nanoid
+    const token = uuidv4().split('-')[0]; 
     let expires_at = null;
     if (expires_in_days) {
       expires_at = new Date();
