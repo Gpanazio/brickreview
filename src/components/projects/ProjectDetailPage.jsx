@@ -508,7 +508,7 @@ export function ProjectDetailPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              {!project.videos || (project.videos.length === 0 && uploadQueue.length === 0) ? (
+              {(!project.videos || project.videos.length === 0) && files.length === 0 && uploadQueue.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-80 border border-dashed border-zinc-800 bg-zinc-950/10">
                   <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
                     <FileVideo className="w-8 h-8 text-zinc-700" />
@@ -591,6 +591,30 @@ export function ProjectDetailPage() {
                         </motion.div>
                       );
                     })}
+
+                  {/* File Cards */}
+                  {files.map((file) => (
+                    <motion.div
+                      key={`file-${file.id}`}
+                      variants={{
+                        hidden: { opacity: 0, scale: 0.95 },
+                        show: { opacity: 1, scale: 1 }
+                      }}
+                    >
+                      <FileCard
+                        file={file}
+                        onDelete={() => {
+                          fetch(`/api/files/${file.id}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                          }).then(() => {
+                            toast.success('Arquivo excluído');
+                            fetchFiles();
+                          });
+                        }}
+                      />
+                    </motion.div>
+                  ))}
                 </motion.div>
               )}
             </motion.div>
@@ -610,13 +634,110 @@ export function ProjectDetailPage() {
             </ContextMenuItem>
             <ContextMenuItem 
               className="focus:bg-red-600 focus:text-white cursor-pointer"
-              onClick={() => document.getElementById('video-upload').click()}
+              onClick={() => document.getElementById('file-upload').click()}
             >
               <Upload className="w-4 h-4 mr-2" />
               Novo Upload
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
+      </div>
+    </div>
+  );
+}
+
+// Helper para formatar tamanho de arquivo
+const formatFileSize = (bytes) => {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+function FileCard({ file, onDelete }) {
+  const isImage = file.file_type === 'image';
+
+  const getFileTypeLabel = (type) => {
+    switch (type) {
+      case 'image': return 'Imagem';
+      case 'audio': return 'Áudio';
+      case 'document': return 'Documento';
+      default: return 'Arquivo';
+    }
+  };
+
+  const getFileTypeColor = (type) => {
+    switch (type) {
+      case 'image': return 'bg-green-600';
+      case 'audio': return 'bg-purple-600';
+      case 'document': return 'bg-orange-600';
+      default: return 'bg-zinc-600';
+    }
+  };
+
+  return (
+    <div
+      className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer"
+      onClick={() => window.open(file.r2_url, '_blank')}
+    >
+      <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0">
+        {isImage && file.thumbnail_url ? (
+          <img
+            src={file.thumbnail_url}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            alt={file.name}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+            <div className={`w-16 h-16 ${getFileTypeColor(file.file_type)} flex items-center justify-center`}>
+              <span className="text-white text-2xl font-black">
+                {file.name.split('.').pop()?.toUpperCase().slice(0, 4)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Type Badge */}
+        <div className={`absolute top-2 left-2 px-2 py-0.5 ${getFileTypeColor(file.file_type)} text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg`}>
+          {getFileTypeLabel(file.file_type)}
+        </div>
+
+        {/* Size Badge */}
+        <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[10px] font-black text-white uppercase tracking-tighter">
+          {formatFileSize(file.file_size)}
+        </div>
+      </div>
+
+      <div className="p-5 border-l-2 border-l-transparent group-hover:border-l-green-600 transition-all flex-1 flex flex-col justify-between">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="brick-title text-sm text-white truncate mb-1">{file.name}</h3>
+            <p className="brick-manifesto text-[10px] text-zinc-500 truncate">{file.mime_type}</p>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="text-zinc-600 hover:text-white p-1.5 hover:bg-zinc-800/50 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="glass-panel border-zinc-800 rounded-none">
+              <DropdownMenuItem
+                className="text-xs uppercase tracking-wider text-red-500 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm('Excluir este arquivo?')) onDelete?.();
+                }}
+              >
+                <Trash2 className="w-3 h-3 mr-2" />
+                Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );
