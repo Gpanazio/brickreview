@@ -93,8 +93,14 @@
 }
 
 /* Garante que os controles do player fiquem acima do canvas quando não estiver desenhando */
-.plyr__controls,
-.plyr__control--overlaid {
+.plyr__controls {
   position: relative;
   z-index: 3 !important;
+}
+
+/* Botão de play no centro - fixo e acima do canvas */
+.plyr__control--overlaid {
+  position: absolute !important;
+  z-index: 50 !important;
+  pointer-events: auto !important;
 }

@@ -744,10 +744,10 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
         <div className="flex-1 bg-black flex items-center justify-center p-8">
           <div
             ref={videoContainerRef}
-            className={`relative w-full max-w-5xl ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10 flex items-center justify-center`}
+            className={`relative w-full max-w-5xl ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10`}
           >
             {videoUrl ? (
-              <>
+              <div className="relative w-full h-full">
                 <Plyr
                   ref={playerRef}
                   source={{
@@ -768,14 +768,14 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
                 {/* Canvas overlay for drawing */}
                 <canvas
                   ref={canvasRef}
-                  className={`absolute inset-0 w-full h-full pointer-events-none ${drawingMode ? 'pointer-events-auto cursor-crosshair' : ''}`}
+                  className={`absolute top-0 left-0 w-full h-full pointer-events-none ${drawingMode ? 'pointer-events-auto cursor-crosshair' : ''}`}
                   onMouseDown={startDrawing}
                   onMouseMove={draw}
                   onMouseUp={stopDrawing}
                   onMouseLeave={stopDrawing}
                   style={{ zIndex: drawingMode ? 10 : 1 }}
                 />
-              </>
+              </div>
             ) : (
               <div className="flex flex-col items-center gap-3 text-zinc-400">
                 <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
