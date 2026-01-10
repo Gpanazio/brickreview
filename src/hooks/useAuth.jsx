@@ -3,35 +3,17 @@ import { useState, createContext, useContext, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // BYPASS LOGIN - Gabriel
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('brickreview_token') || 'bypass-token');
+  const [token, setToken] = useState(localStorage.getItem('brickreview_token'));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Tenta forçar o login do Gabriel se estiver em modo bypass
-    const forceBypass = async () => {
-      try {
-        const response = await fetch('/api/auth/verify', {
-          headers: { 'Authorization': 'Bearer bypass-token' }
-        });
-        const data = await response.json();
-        if (data.valid) {
-          setUser(data.user);
-        } else {
-          // Se falhar o bypass, limpa para login real
-          localStorage.removeItem('brickreview_token');
-          setToken(null);
-          setUser(null);
-        }
-      } catch (error) {
-        console.error('Erro no bypass Gabriel:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    forceBypass();
+    const storedToken = localStorage.getItem('brickreview_token');
+    if (storedToken) {
+      verifyToken(storedToken);
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const verifyToken = async (authToken) => {
