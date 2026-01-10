@@ -53,6 +53,9 @@ export function FolderView({
   onFileDelete,
   token
 }) {
+  const normalizedFolders = Array.isArray(folders) ? folders : [];
+  const normalizedVideos = Array.isArray(videos) ? videos : [];
+  const normalizedFiles = Array.isArray(files) ? files : [];
   const [expandedFolders, setExpandedFolders] = useState(new Set());
   const [renamingFolder, setRenamingFolder] = useState(null);
   const [newFolderName, setNewFolderName] = useState('');
@@ -61,19 +64,19 @@ export function FolderView({
   const [dragOverFolder, setDragOverFolder] = useState(null);
 
   // Filtra pastas do nível atual
-  const currentLevelFolders = folders.filter(f =>
+  const currentLevelFolders = normalizedFolders.filter(f =>
     f.parent_folder_id === currentFolderId ||
     (!currentFolderId && f.parent_folder_id === null)
   );
 
   // Filtra vídeos do nível atual
-  const currentLevelVideos = videos.filter(v =>
+  const currentLevelVideos = normalizedVideos.filter(v =>
     v.folder_id === currentFolderId ||
     (!currentFolderId && v.folder_id === null)
   );
 
   // Filtra arquivos do nível atual
-  const currentLevelFiles = files.filter(f =>
+  const currentLevelFiles = normalizedFiles.filter(f =>
     f.folder_id === currentFolderId ||
     (!currentFolderId && f.folder_id === null)
   );
@@ -241,9 +244,9 @@ export function FolderView({
 
   const renderFolder = (folder, depth = 0) => {
     const isExpanded = expandedFolders.has(folder.id);
-    const subfolders = folders.filter(f => f.parent_folder_id === folder.id);
-    const folderVideos = videos.filter(v => v.folder_id === folder.id);
-    const folderFiles = files.filter(f => f.folder_id === folder.id);
+    const subfolders = normalizedFolders.filter(f => f.parent_folder_id === folder.id);
+    const folderVideos = normalizedVideos.filter(v => v.folder_id === folder.id);
+    const folderFiles = normalizedFiles.filter(f => f.folder_id === folder.id);
     const isDragOver = dragOverFolder === folder.id;
 
     return (
