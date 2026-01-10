@@ -127,6 +127,47 @@ router.post('/:token/comments', async (req, res) => {
   }
 });
 
+// GET /api/shares/:token/folder-videos - Busca vídeos de uma pasta compartilhada (PÚBLICO)
+router.get('/:token/folder-videos', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const shareResult = await query(
+      `SELECT * FROM brickreview_shares WHERE token = $1`,
+      [token]
+    );
+
+    if (shareResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
+    }
+
+    const share = shareResult.rows[0];
+
+    // Verifica expiração
+    if (share.expires_at && new Date() > new Date(share.expires_at)) {
+      return res.status(410).json({ error: 'Este link expirou' });
+    }
+
+    // Só funciona para pastas
+    if (!share.folder_id) {
+      return res.status(400).json({ error: 'Este compartilhamento não é de uma pasta' });
+    }
+
+    // Busca vídeos da pasta (apenas vídeos raiz, sem versões)
+    const videosResult = await query(
+      `SELECT * FROM brickreview_videos_with_stats
+       WHERE folder_id = $1 AND parent_video_id IS NULL
+       ORDER BY created_at DESC`,
+      [share.folder_id]
+    );
+
+    res.json(videosResult.rows);
+  } catch (err) {
+    console.error('Erro ao buscar vídeos da pasta:', err);
+    res.status(500).json({ error: 'Erro ao buscar vídeos' });
+  }
+});
+
 // GET /api/shares/:token - Busca informações do link compartilhado (PÚBLICO)
 router.get('/:token', async (req, res) => {
   try {

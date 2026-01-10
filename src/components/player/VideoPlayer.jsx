@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function VideoPlayer({ video, versions = [], onBack, isPublic = false, visitorName = '', shareToken = null, accessType = 'view' }) {
+export function VideoPlayer({ video, versions = [], onBack, isPublic = false, visitorName: initialVisitorName = '', shareToken = null, accessType = 'view' }) {
   const [currentVideoId, setCurrentVideoId] = useState(video.id);
   const [currentVideo, setCurrentVideo] = useState(video);
   const [comments, setComments] = useState(video.comments || []);
@@ -30,6 +30,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const [replyText, setReplyText] = useState('');
   const [shareLink, setShareLink] = useState('');
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [visitorName, setVisitorName] = useState(initialVisitorName || localStorage.getItem('brickreview_visitor_name') || '');
   const playerRef = useRef(null);
   const { token } = useAuth();
 
@@ -42,6 +43,39 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
 
   // Constrói lista completa de versões (vídeo original + versões)
   const allVersions = [video, ...versions].sort((a, b) => a.version_number - b.version_number);
+
+  // Calcula aspect ratio do vídeo
+  const getAspectRatioClass = () => {
+    if (!currentVideo.width || !currentVideo.height) {
+      return 'aspect-video'; // fallback para 16:9
+    }
+
+    const ratio = currentVideo.width / currentVideo.height;
+
+    // Horizontal (>= 16:9)
+    if (ratio >= 1.7) return 'aspect-video';
+    // Quase horizontal (>= 4:3)
+    if (ratio >= 1.3) return 'aspect-[4/3]';
+    // Quadrado (~1:1)
+    if (ratio >= 0.9 && ratio <= 1.1) return 'aspect-square';
+    // Vertical (9:16 e similares)
+    if (ratio <= 0.6) return 'aspect-[9/16]';
+    // Outros verticais
+    return 'aspect-[3/4]';
+  };
+
+  const getMaxHeightClass = () => {
+    if (!currentVideo.width || !currentVideo.height) {
+      return 'max-h-[70vh]';
+    }
+
+    const ratio = currentVideo.width / currentVideo.height;
+
+    // Vertical: limita altura
+    if (ratio < 1) return 'max-h-[80vh]';
+    // Horizontal: sem limite específico
+    return 'max-h-[70vh]';
+  };
 
   // Use precise FPS from metadata, fallback to 30 if not available
   const videoFPS = currentVideo.fps || 30;
@@ -70,7 +104,18 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
       return;
     }
 
+    // Guests must provide a name
+    if (isGuest && !visitorName.trim()) {
+      toast.error('Por favor, informe seu nome');
+      return;
+    }
+
     try {
+      // Save visitor name to localStorage for future visits
+      if (isGuest && visitorName.trim()) {
+        localStorage.setItem('brickreview_visitor_name', visitorName.trim());
+      }
+
       // Use different endpoint for guest comments
       const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : '/api/comments';
       const headers = {
@@ -122,7 +167,17 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
       return;
     }
 
+    // Guests must provide a name
+    if (isGuest && !visitorName.trim()) {
+      toast.error('Por favor, informe seu nome');
+      return;
+    }
+
     try {
+      // Save visitor name to localStorage for future visits
+      if (isGuest && visitorName.trim()) {
+        localStorage.setItem('brickreview_visitor_name', visitorName.trim());
+      }
       // Use different endpoint for guest replies
       const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : '/api/comments';
       const headers = {
@@ -509,7 +564,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
         </div>
 
         <div className="flex-1 bg-black flex items-center justify-center p-8">
-          <div className="w-full max-w-5xl aspect-video shadow-2xl ring-1 ring-white/10 flex items-center justify-center">
+          <div className={`w-full max-w-5xl ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10 flex items-center justify-center`}>
             {videoUrl ? (
               <Plyr
                 ref={playerRef}
@@ -709,21 +764,39 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
               <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] flex items-center justify-between">
                 Comentando em <span className="text-red-500">{formatTime(currentTime)}</span>
               </div>
+
+              {/* Guest name input - discreto e inline */}
+              {isGuest && canComment && (
+                <input
+                  type="text"
+                  value={visitorName}
+                  onChange={(e) => setVisitorName(e.target.value)}
+                  placeholder="Seu nome"
+                  className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
+                  required={isGuest}
+                />
+              )}
+
               <div className="relative">
                 <textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Escreva seu feedback..."
+                  placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
                   className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
+                  disabled={isGuest && !canComment}
                 />
-                <button 
+                <button
                   type="submit"
-                  disabled={!newComment.trim()}
+                  disabled={!newComment.trim() || (isGuest && !canComment)}
                   className="absolute bottom-3 right-3 text-red-600 disabled:text-zinc-700 hover:text-red-500 transition-colors"
                 >
                   <Send className="w-5 h-5" />
                 </button>
               </div>
+
+              {isGuest && !canComment && (
+                <p className="text-xs text-zinc-600 italic">Este compartilhamento é somente visualização.</p>
+              )}
             </form>
           </div>
         )}

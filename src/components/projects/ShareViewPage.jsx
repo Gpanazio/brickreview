@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Film, Folder, Play, Clock, MessageSquare, ChevronRight, Share2, Lock } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Film, Folder, Play, MessageSquare, ChevronRight, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -15,8 +14,8 @@ export function ShareViewPage() {
   const [error, setError] = useState(null);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
-  const [visitorName, setVisitorName] = useState(localStorage.getItem('brickreview_visitor_name') || '');
-  const [showNameModal, setShowNameModal] = useState(!localStorage.getItem('brickreview_visitor_name'));
+  const [selectedVideo, setSelectedVideo] = useState(null); // Video being viewed in folder
+  const [folderVideos, setFolderVideos] = useState([]); // Videos in the shared folder
 
   const fetchShare = async (pass = null) => {
     try {
@@ -34,11 +33,29 @@ export function ShareViewPage() {
         }
       } else {
         setShareData(data);
+
+        // Se for uma pasta, buscar vídeos dentro dela
+        if (data.resource?.type === 'folder') {
+          fetchFolderVideos(data.resource.content.id);
+        }
       }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFolderVideos = async (folderId) => {
+    try {
+      // Buscar vídeos da pasta sem autenticação (público)
+      const response = await fetch(`/api/shares/${token}/folder-videos`);
+      if (response.ok) {
+        const videos = await response.json();
+        setFolderVideos(videos);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar vídeos da pasta:', err);
     }
   };
 
@@ -49,14 +66,6 @@ export function ShareViewPage() {
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
     fetchShare(password);
-  };
-
-  const handleSaveName = (e) => {
-    e.preventDefault();
-    if (visitorName.trim()) {
-      localStorage.setItem('brickreview_visitor_name', visitorName.trim());
-      setShowNameModal(false);
-    }
   };
 
   if (loading) {
@@ -117,39 +126,11 @@ export function ShareViewPage() {
 
   const { resource } = shareData;
 
+  // Se estiver vendo um vídeo específico em uma pasta compartilhada
+  const currentVideo = selectedVideo || (resource?.type === 'video' ? resource.content : null);
+
   return (
     <div className="min-h-screen bg-[#0d0d0e] text-white font-sans overflow-hidden flex flex-col">
-      {/* Name Collection Overlay */}
-      <AnimatePresence>
-        {showNameModal && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-full max-w-sm glass-panel p-8 border-zinc-800"
-            >
-              <h2 className="brick-title text-xl text-center mb-2">BEM-VINDO AO REVIEW</h2>
-              <p className="text-[10px] text-zinc-500 text-center uppercase tracking-[0.2em] mb-8 leading-relaxed">
-                Identifique-se para que possamos atribuir seus comentários
-              </p>
-              <form onSubmit={handleSaveName} className="space-y-4">
-                <Input 
-                  placeholder="SEU NOME"
-                  value={visitorName}
-                  onChange={(e) => setVisitorName(e.target.value)}
-                  className="glass-input h-12 rounded-none border-none text-center text-xs tracking-widest"
-                  required
-                  autoFocus
-                />
-                <Button type="submit" className="w-full h-12 glass-button-primary border-none rounded-none font-black uppercase tracking-widest text-xs">
-                  Começar Revisão
-                </Button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       {/* Public Header */}
       <header className="h-16 border-b border-zinc-900 bg-black/40 backdrop-blur-md px-6 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-4">
@@ -164,11 +145,9 @@ export function ShareViewPage() {
 
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="border-zinc-800 text-[8px] uppercase tracking-widest text-zinc-400 rounded-none bg-zinc-900/50 h-6">
-            Visitante: {visitorName || 'Anônimo'}
+            <Film className="w-3 h-3 mr-1" />
+            {resource?.type === 'folder' ? `${folderVideos.length} vídeos` : 'Compartilhamento'}
           </Badge>
-          <Button variant="ghost" size="sm" className="text-zinc-500 text-[10px] uppercase font-bold hover:text-white" onClick={() => setShowNameModal(true)}>
-            Trocar Nome
-          </Button>
         </div>
       </header>
 
@@ -190,24 +169,84 @@ export function ShareViewPage() {
           </div>
 
           {/* Conditional Rendering based on Resource Type */}
-          {resource.type === 'video' ? (
-            <div className="aspect-video bg-black border border-zinc-800 shadow-2xl">
-              <VideoPlayer
-                video={resource.content}
-                isPublic={true}
-                visitorName={visitorName}
-                shareToken={token}
-                accessType={shareData.access_type}
-              />
+          {currentVideo ? (
+            <div className="space-y-4">
+              {/* Back button if viewing video in folder */}
+              {resource.type === 'folder' && selectedVideo && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setSelectedVideo(null)}
+                  className="text-zinc-400 hover:text-white text-xs uppercase tracking-widest"
+                >
+                  <ChevronRight className="w-4 h-4 rotate-180 mr-2" />
+                  Voltar para pasta
+                </Button>
+              )}
+
+              <div className="w-full flex items-center justify-center bg-black border border-zinc-800 shadow-2xl p-4">
+                <div className="w-full max-w-6xl">
+                  <VideoPlayer
+                    video={currentVideo}
+                    isPublic={true}
+                    shareToken={token}
+                    accessType={shareData.access_type}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : resource.type === 'folder' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {folderVideos.length === 0 ? (
+                <div className="col-span-full bg-zinc-900/20 border border-zinc-800 p-12 text-center">
+                  <Folder className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
+                  <p className="text-zinc-500 text-sm italic">Esta pasta não contém vídeos.</p>
+                </div>
+              ) : (
+                folderVideos.map((video) => (
+                  <Card
+                    key={video.id}
+                    onClick={() => setSelectedVideo(video)}
+                    className="glass-panel border-zinc-800 rounded-none overflow-hidden hover:border-red-600/50 transition-all cursor-pointer group"
+                  >
+                    <div className="aspect-video bg-zinc-900 relative overflow-hidden">
+                      {video.thumbnail_url ? (
+                        <img
+                          src={video.thumbnail_url}
+                          alt={video.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Play className="w-12 h-12 text-zinc-700" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="w-16 h-16 text-white" />
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="brick-title text-sm tracking-tighter text-white truncate">{video.title}</h3>
+                      <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-500 uppercase tracking-widest">
+                        <span className="flex items-center gap-1">
+                          <MessageSquare className="w-3 h-3" />
+                          {video.comments_count || 0}
+                        </span>
+                        {video.duration && (
+                          <span className="flex items-center gap-1">
+                            <Play className="w-3 h-3" />
+                            {Math.floor(video.duration / 60)}:{String(Math.floor(video.duration % 60)).padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {/* Se for projeto ou pasta, listaremos o conteúdo principal aqui */}
-               {/* Para o MVP do link, focaremos no vídeo compartilhado. */}
-               <div className="col-span-full bg-zinc-900/20 border border-zinc-800 p-12 text-center">
-                  <Play className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
-                  <p className="text-zinc-500 text-sm italic">O conteúdo deste compartilamento está pronto para revisão.</p>
-               </div>
+            <div className="col-span-full bg-zinc-900/20 border border-zinc-800 p-12 text-center">
+              <Play className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
+              <p className="text-zinc-500 text-sm italic">O conteúdo deste compartilhamento está pronto para revisão.</p>
             </div>
           )}
         </div>
