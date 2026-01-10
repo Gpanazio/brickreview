@@ -7,25 +7,23 @@ echo "🚀 Iniciando BrickReview no Railway..."
 if [ -z "$FFMPEG_PATH" ]; then
   echo "🔍 Procurando FFmpeg no sistema..."
 
-  # Strategy 1: Try which command
-  FFMPEG_FOUND=$(which ffmpeg 2>/dev/null || true)
+  # Strategy 1: Try common APT paths first (faster)
+  for path in /usr/bin/ffmpeg /usr/local/bin/ffmpeg; do
+    if [ -f "$path" ]; then
+      FFMPEG_FOUND="$path"
+      break
+    fi
+  done
 
-  # Strategy 2: Check common paths
+  # Strategy 2: Try which command
   if [ -z "$FFMPEG_FOUND" ]; then
-    echo "🔍 FFmpeg não está no PATH, procurando no sistema..."
-    for path in /usr/bin/ffmpeg /usr/local/bin/ffmpeg /usr/lib/ffmpeg; do
-      if [ -f "$path" ]; then
-        FFMPEG_FOUND="$path"
-        break
-      fi
-    done
+    FFMPEG_FOUND=$(which ffmpeg 2>/dev/null || true)
   fi
 
-  # Strategy 3: Hardcore find in /nix/store
+  # Strategy 3: Hardcore find (last resort)
   if [ -z "$FFMPEG_FOUND" ]; then
-    echo "🔍 Procurando FFmpeg no /nix/store..."
-    # Aumentando depth e procurando especificamente em pastas bin
-    NIX_FFMPEG=$(find /nix/store -maxdepth 4 -path "*/bin/ffmpeg" -type f 2>/dev/null | head -n 1)
+    echo "🔍 FFmpeg não encontrado nos locais óbvios, fazendo busca profunda..."
+    NIX_FFMPEG=$(find /nix/store /usr/lib -maxdepth 4 -name ffmpeg -type f 2>/dev/null | head -n 1)
     if [ -n "$NIX_FFMPEG" ]; then
         FFMPEG_FOUND="$NIX_FFMPEG"
     fi
@@ -42,24 +40,23 @@ fi
 if [ -z "$FFPROBE_PATH" ]; then
   echo "🔍 Procurando FFprobe no sistema..."
 
-  # Strategy 1: Try which command
-  FFPROBE_FOUND=$(which ffprobe 2>/dev/null || true)
+  # Strategy 1: Try common APT paths first (faster)
+  for path in /usr/bin/ffprobe /usr/local/bin/ffprobe; do
+    if [ -f "$path" ]; then
+      FFPROBE_FOUND="$path"
+      break
+    fi
+  done
 
-  # Strategy 2: Check common paths
+  # Strategy 2: Try which command
   if [ -z "$FFPROBE_FOUND" ]; then
-    echo "🔍 FFprobe não está no PATH, procurando no sistema..."
-    for path in /usr/bin/ffprobe /usr/local/bin/ffprobe /usr/lib/ffprobe; do
-      if [ -f "$path" ]; then
-        FFPROBE_FOUND="$path"
-        break
-      fi
-    done
+    FFPROBE_FOUND=$(which ffprobe 2>/dev/null || true)
   fi
 
-  # Strategy 3: Hardcore find in /nix/store
+  # Strategy 3: Hardcore find (last resort)
   if [ -z "$FFPROBE_FOUND" ]; then
-    echo "🔍 Procurando FFprobe no /nix/store..."
-    NIX_FFPROBE=$(find /nix/store -maxdepth 4 -path "*/bin/ffprobe" -type f 2>/dev/null | head -n 1)
+    echo "🔍 FFprobe não encontrado nos locais óbvios, fazendo busca profunda..."
+    NIX_FFPROBE=$(find /nix/store /usr/lib -maxdepth 4 -name ffprobe -type f 2>/dev/null | head -n 1)
     if [ -n "$NIX_FFPROBE" ]; then
         FFPROBE_FOUND="$NIX_FFPROBE"
     fi

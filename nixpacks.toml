@@ -1,5 +1,6 @@
 [phases.setup]
-nixPkgs = ['nodejs', 'ffmpeg-full']
+nixPkgs = ['nodejs']
+aptPkgs = ['ffmpeg']
 
 [phases.install]
 cmds = ['npm ci']
