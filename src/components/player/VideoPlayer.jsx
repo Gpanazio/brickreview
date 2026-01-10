@@ -5,8 +5,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, ChevronRight, MessageSquare, Clock, Send,
-  CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download
+  CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,8 @@ export function VideoPlayer({ video, versions = [], onBack }) {
   const [videoUrl, setVideoUrl] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null); // ID do comentário sendo respondido
   const [replyText, setReplyText] = useState('');
+  const [shareLink, setShareLink] = useState('');
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const playerRef = useRef(null);
   const { token } = useAuth();
 
@@ -241,6 +244,51 @@ export function VideoPlayer({ video, versions = [], onBack }) {
     }
   };
 
+  // Função para gerar link de compartilhamento do vídeo
+  const handleGenerateShare = async () => {
+    setIsGeneratingShare(true);
+    const shareToast = toast.loading('Gerando link de compartilhamento...');
+
+    try {
+      const response = await fetch('/api/shares', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          video_id: currentVideoId,
+          access_type: 'comment' // Convidados podem comentar
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao gerar link', { id: shareToast });
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!data.token) {
+        toast.error('Token de compartilhamento não recebido', { id: shareToast });
+        return;
+      }
+
+      const fullUrl = `${window.location.origin}/share/${data.token}`;
+      setShareLink(fullUrl);
+
+      // Copia para clipboard
+      navigator.clipboard.writeText(fullUrl);
+      toast.success('Link copiado para área de transferência!', { id: shareToast });
+    } catch (error) {
+      console.error('Erro ao gerar link:', error);
+      toast.error('Erro ao gerar link de compartilhamento', { id: shareToast });
+    } finally {
+      setIsGeneratingShare(false);
+    }
+  };
+
   useEffect(() => {
     const fetchStreamUrl = async () => {
       try {
@@ -309,9 +357,20 @@ export function VideoPlayer({ video, versions = [], onBack }) {
               variant="ghost"
               size="icon"
               onClick={() => setShowHistory(!showHistory)}
-              className={`h-8 w-8 rounded-none border border-zinc-800 ${showHistory ? 'bg-red-600 text-white border-red-600' : 'text-zinc-500'}`}
+              className={`h-8 w-8 rounded-none border border-zinc-800 ${showHistory ? 'bg-red-600 text-white border-red-600' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'}`}
             >
               <History className="w-4 h-4" />
+            </Button>
+
+            {/* Share Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleGenerateShare}
+              disabled={isGeneratingShare}
+              className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
+            >
+              <Share2 className="w-4 h-4" />
             </Button>
 
             {/* Download Menu */}
