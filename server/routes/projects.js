@@ -45,12 +45,16 @@ const uploadImage = multer({
  */
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    const { recent } = req.query;
     // Se for admin, vê todos. Se for cliente, vê apenas onde é membro.
     let projects;
+    let limitClause = recent === 'true' ? ' LIMIT 5' : '';
+
     if (req.user.role === 'admin') {
       projects = await query(`
         SELECT * FROM brickreview_projects_with_stats 
         ORDER BY updated_at DESC
+        ${limitClause}
       `);
     } else {
       projects = await query(`

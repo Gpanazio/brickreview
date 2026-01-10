@@ -282,7 +282,10 @@ function ProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('/api/projects', {
+      const isRecentPage = location.pathname === '/recent'
+      const url = isRecentPage ? '/api/projects?recent=true' : '/api/projects'
+      
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()

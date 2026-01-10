@@ -9,8 +9,15 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Upload, Play, Clock, MessageSquare,
-  CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree
+  CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree,
+  FolderPlus
 } from 'lucide-react';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -226,7 +233,9 @@ export function ProjectDetailPage() {
       </header>
 
       {/* Lista de Vídeos */}
-      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
+        <ContextMenu>
+          <ContextMenuTrigger className="min-h-full block">
         <AnimatePresence mode="wait">
           {viewMode === 'folders' ? (
             <motion.div 
@@ -294,6 +303,27 @@ export function ProjectDetailPage() {
             </motion.div>
           )}
         </AnimatePresence>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+            <ContextMenuItem 
+              className="focus:bg-red-600 focus:text-white cursor-pointer"
+              onClick={() => {
+                const name = prompt('Nome da nova pasta:');
+                if (name) handleCreateFolder(name, currentFolderId);
+              }}
+            >
+              <FolderPlus className="w-4 h-4 mr-2" />
+              Nova Pasta
+            </ContextMenuItem>
+            <ContextMenuItem 
+              className="focus:bg-red-600 focus:text-white cursor-pointer"
+              onClick={() => document.getElementById('video-upload').click()}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Novo Upload
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </div>
     </div>
   );
