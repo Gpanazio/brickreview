@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Plyr from 'plyr-react';
 import 'plyr-react/plyr.css';
+import './VideoPlayer.css'; // Importa o CSS customizado
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {

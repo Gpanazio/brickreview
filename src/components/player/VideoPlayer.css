@@ -1,0 +1,93 @@
+/* Remove o box-shadow padrão e bordas do Plyr */
+:root {
+  --plyr-color-main: #DC2626; /* Vermelho BRICK */
+  --plyr-control-radius: 0px;
+  --plyr-font-family: 'JetBrains Mono', monospace;
+  --plyr-font-size-time: 12px;
+}
+
+.plyr--video {
+  border-radius: 0 !important;
+}
+
+/* Fundo da barra de progresso */
+.plyr__progress {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Progresso preenchido */
+.plyr__progress__buffer {
+  background: rgba(255, 255, 255, 0.2);
+  color: transparent !important;
+}
+
+/* Tooltip do tempo */
+.plyr__tooltip {
+  background: #000000;
+  border: 1px solid #DC2626;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  font-size: 10px;
+  padding: 4px 8px;
+}
+
+/* Botões de controle */
+.plyr__control {
+  background: transparent;
+  transition: all 0.2s ease;
+  color: #A1A1AA; /* zinc-400 */
+}
+
+.plyr__control:hover,
+.plyr__control[aria-expanded="true"] {
+  background: #DC2626;
+  color: #FFFFFF;
+}
+
+/* Ícone de play grande no centro */
+.plyr__control--overlaid {
+  background: rgba(220, 38, 38, 0.9); /* red-600 */
+  border-radius: 0;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.plyr__control--overlaid:hover {
+    background: #EF4444; /* red-500 */
+    transform: scale(1.1);
+}
+
+.plyr__control--overlaid svg {
+    width: 30px;
+    height: 30px;
+}
+
+/* Barra de controles inferior */
+.plyr__controls {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-top: 20px;
+}
+
+/* Ajustes de fonte para tempo */
+.plyr__time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Slider de volume */
+.plyr--audio .plyr__controls, .plyr--video .plyr__controls {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+/* Remove borda do input de progresso */
+.plyr__progress input[type=range] {
+  color: #DC2626;
+}
