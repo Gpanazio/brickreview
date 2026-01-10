@@ -23,7 +23,12 @@ import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal
 import { ProjectListItem } from './components/projects/ProjectListItem'
 import { ShareViewPage } from './components/projects/ShareViewPage'
 import { Toaster } from './components/ui/sonner'
-import { DEFAULT_PROJECT_COVER_URL } from './constants/images'
+import { ProjectCoverPlaceholder } from './components/ui/ProjectCoverPlaceholder'
+
+// Helper para identificar URLs padrão antigas
+const isDefaultUrl = (url) => {
+  return !url || url.includes('images.unsplash.com/photo-1574267432644');
+};
 
 function App() {
   return (
@@ -302,7 +307,7 @@ function ProjectsPage() {
     {
       id: 1,
       name: 'KEETA',
-      thumbnail: DEFAULT_PROJECT_COVER_URL,
+      thumbnail: null,
       color: '#FFD700',
       updatedAt: '0mo ago',
       team: "Brick's Team"
@@ -447,28 +452,33 @@ function ProjectsPage() {
       <div className="px-8 py-8 border-b border-zinc-900/50 bg-zinc-950/20">
         <h2 className="brick-tech text-[10px] text-zinc-500 mb-6 uppercase tracking-[0.3em]">Projetos Recentes</h2>
         <div className="flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
-          {projects.slice(0, 5).map((project) => (
-            <Link
-              key={project.id}
-              to={`/project/${project.id}`}
-              className="flex-shrink-0 w-64 group"
-            >
-              <div className="relative aspect-video overflow-hidden mb-3 border border-zinc-800/50 group-hover:border-red-600/30 transition-colors bg-zinc-900">
-                <img
-                  src={project.cover_image_url ?? project.thumbnail_url ?? project.thumbnail ?? DEFAULT_PROJECT_COVER_URL}
-                  alt={project.name}
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = DEFAULT_PROJECT_COVER_URL;
-                  }}
-                />
-                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors" />
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-red-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500" />
-              </div>
-              <p className="brick-title text-xs text-zinc-400 group-hover:text-white transition-colors truncate">{project.name}</p>
-            </Link>
-          ))}
+          {projects.slice(0, 5).map((project) => {
+            const coverUrl = project.cover_image_url || project.thumbnail_url || project.thumbnail;
+            const hasValidCover = !isDefaultUrl(coverUrl);
+
+            return (
+              <Link
+                key={project.id}
+                to={`/project/${project.id}`}
+                className="flex-shrink-0 w-64 group"
+              >
+                <div className="relative aspect-video overflow-hidden mb-3 border border-zinc-800/50 group-hover:border-red-600/30 transition-colors bg-zinc-900">
+                  {hasValidCover ? (
+                    <img
+                      src={coverUrl}
+                      alt={project.name}
+                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
+                    />
+                  ) : (
+                    <ProjectCoverPlaceholder projectName={project.name} />
+                  )}
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors" />
+                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-red-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500" />
+                </div>
+                <p className="brick-title text-xs text-zinc-400 group-hover:text-white transition-colors truncate">{project.name}</p>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
@@ -665,18 +675,27 @@ function ProjectsPage() {
 
 function ProjectCard({ project, onProjectUpdate }) {
   const [showSettings, setShowSettings] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const { token } = useAuth();
+
+  const coverUrl = project.cover_image_url || project.thumbnail_url || project.thumbnail;
+  const hasValidCover = !isDefaultUrl(coverUrl);
 
   return (
     <>
       <div className="group glass-card p-4 border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-500 relative flex flex-col h-full">
         <Link to={`/project/${project.id}`} className="flex-1 flex flex-col cursor-pointer">
           <div className="relative aspect-[4/3] overflow-hidden mb-5 bg-zinc-900 border border-zinc-800/30">
-            <img
-              src={project.cover_image_url || project.thumbnail_url || project.thumbnail || DEFAULT_PROJECT_COVER_URL}
-              alt={project.name}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out grayscale group-hover:grayscale-0"
-            />
+            {hasValidCover && !imageError ? (
+              <img
+                src={coverUrl}
+                alt={project.name}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out grayscale group-hover:grayscale-0"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <ProjectCoverPlaceholder projectName={project.name} clientName={project.client_name} />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
             {/* Status indicator */}
