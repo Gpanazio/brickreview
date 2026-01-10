@@ -32,7 +32,7 @@ export async function initDatabase() {
 
     const tablesExist = tableCheck.rows[0].exists
 
-    // Se as tabelas existem, verificamos se a brickreview_shares também existe
+    // If the tables exist, check if brickreview_shares and the required views also exist
     if (tablesExist && process.env.RESET_DB !== 'true') {
       const shareTableCheck = await query(`
         SELECT EXISTS (
@@ -40,12 +40,36 @@ export async function initDatabase() {
           WHERE table_name = 'brickreview_shares'
         ) as exists
       `)
-      
-      if (shareTableCheck.rows[0].exists) {
+
+      const requiredViews = [
+        'brickreview_projects_with_stats',
+        'brickreview_videos_with_stats',
+        'brickreview_comments_with_user',
+        'brickreview_folders_with_stats',
+      ]
+
+      const viewsCheck = await query(`
+        SELECT table_name
+        FROM information_schema.views
+        WHERE table_name = ANY($1)
+      `, [requiredViews])
+
+      const existingViews = new Set(viewsCheck.rows.map(row => row.table_name))
+      const missingViews = requiredViews.filter(view => !existingViews.has(view))
+
+      if (shareTableCheck.rows[0].exists && missingViews.length === 0) {
         console.log('✅ Database schema already initialized. Skipping setup.')
         return
       }
-      console.log('📦 Main tables exist but brickreview_shares is missing. Updating schema...')
+
+      if (!shareTableCheck.rows[0].exists) {
+        console.log('📦 Main tables exist but brickreview_shares is missing. Updating schema...')
+      }
+
+      if (missingViews.length > 0) {
+        console.log('📦 Main tables exist but some views are missing. Updating schema...')
+        console.log('   Missing views:', missingViews.join(', '))
+      }
     }
 
     console.log('🔄 Initializing database schema...')
