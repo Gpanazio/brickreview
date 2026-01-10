@@ -26,7 +26,17 @@ if [ -z "$FFMPEG_PATH" ]; then
     FFMPEG_FOUND=$(find /usr /nix/store -name ffmpeg -type f -executable 2>/dev/null | head -n 1)
   fi
 
-  # Strategy 4: Last resort - try to find anything called ffmpeg even if not executable
+  # Strategy 4: Check if we are running as root and can use apt-get update/install at runtime
+  if [ -z "$FFMPEG_FOUND" ]; then
+    echo "🔍 Tentando instalar FFmpeg via apt-get em tempo de execução..."
+    if [ "$(id -u)" = "0" ]; then
+        apt-get update && apt-get install -y ffmpeg && FFMPEG_FOUND=$(which ffmpeg)
+    else
+        echo "⚠️ Não é root, não posso instalar pacotes."
+    fi
+  fi
+
+  # Strategy 5: Last resort - try to find anything called ffmpeg even if not executable
   if [ -z "$FFMPEG_FOUND" ]; then
     echo "🔍 Fazendo busca desesperada por FFmpeg..."
     FFMPEG_FOUND=$(find / -name ffmpeg -type f 2>/dev/null | head -n 1)
