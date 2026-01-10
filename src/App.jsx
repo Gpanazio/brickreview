@@ -652,8 +652,8 @@ function ProjectCard({ project, onProjectUpdate }) {
 
   return (
     <>
-      <div className="group cursor-pointer glass-card p-4 border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-500 block relative flex flex-col h-full">
-        <Link to={`/project/${project.id}`} className="flex-1 flex flex-col">
+      <div className="group glass-card p-4 border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-500 relative flex flex-col h-full">
+        <Link to={`/project/${project.id}`} className="flex-1 flex flex-col cursor-pointer">
           <div className="relative aspect-[4/3] overflow-hidden mb-5 bg-zinc-900 border border-zinc-800/30">
             <img
               src={project.cover_image_url || project.thumbnail_url || project.thumbnail || DEFAULT_PROJECT_COVER_URL}
