@@ -59,7 +59,14 @@ R2_SECRET_ACCESS_KEY=your-r2-secret-key
 R2_BUCKET_NAME=brickreview-videos
 R2_PUBLIC_URL=https://pub-xxxxx.r2.dev
 
-# Resend (Email)
+# FFmpeg (ajuste os caminhos para seu sistema)
+# macOS (Homebrew): /opt/homebrew/bin/ffmpeg
+# Linux/Ubuntu: /usr/bin/ffmpeg
+# Windows: C:\ffmpeg\bin\ffmpeg.exe
+FFMPEG_PATH=/opt/homebrew/bin/ffmpeg
+FFPROBE_PATH=/opt/homebrew/bin/ffprobe
+
+# Resend (Email) - Opcional
 RESEND_API_KEY=re_xxxxx
 RESEND_FROM_EMAIL=noreply@yourdomain.com
 
@@ -67,6 +74,20 @@ RESEND_FROM_EMAIL=noreply@yourdomain.com
 PORT=3002
 NODE_ENV=development
 CORS_ORIGIN=http://localhost:5173
+```
+
+**Como encontrar o caminho do FFmpeg no seu sistema:**
+
+```bash
+# macOS/Linux
+which ffmpeg
+which ffprobe
+
+# Ou instalar via Homebrew (macOS)
+brew install ffmpeg
+
+# Ou via apt (Ubuntu/Debian)
+sudo apt install ffmpeg
 ```
 
 ### 3. Criar Schema do Banco
@@ -187,10 +208,61 @@ brickreview/
 
 **API:**
 1. Connect GitHub repo
-2. Environment variables
+2. Environment variables (ver seção abaixo)
 3. Build: `npm install && npm run build`
 4. Start: `node server/index.js`
 5. Volumes: `/temp-uploads`, `/thumbnails`
+
+**⚠️ IMPORTANTE - Variáveis de Ambiente Obrigatórias no Railway:**
+
+```bash
+# Banco de Dados
+DATABASE_URL=postgresql://...
+
+# JWT
+JWT_SECRET=your-secret-key
+
+# Cloudflare R2
+R2_ACCOUNT_ID=your-account-id
+R2_ACCESS_KEY_ID=your-access-key
+R2_SECRET_ACCESS_KEY=your-secret-key
+R2_BUCKET_NAME=brickreview-videos
+R2_PUBLIC_URL=https://pub-xxxxx.r2.dev
+
+# FFmpeg (CRÍTICO - sem isso thumbnails não funcionam)
+FFMPEG_PATH=/nix/var/nix/profiles/default/bin/ffmpeg
+FFPROBE_PATH=/nix/var/nix/profiles/default/bin/ffprobe
+
+# Email (opcional)
+RESEND_API_KEY=re_xxxxx
+RESEND_FROM_EMAIL=noreply@yourdomain.com
+
+# Configuração (opcional - tem valores padrão)
+CORS_ORIGIN=*
+PORT=8080
+NODE_ENV=production
+```
+
+**Por que FFmpeg precisa dos caminhos explícitos?**
+
+O Railway/Nixpacks instala o FFmpeg via `nixpacks.toml`, mas os binários ficam em `/nix/store` com um hash único no caminho. As variáveis `FFMPEG_PATH` e `FFPROBE_PATH` dizem ao Node.js exatamente onde procurar, evitando buscas lentas que podem falhar.
+
+**Como verificar se FFmpeg está funcionando:**
+
+Nos logs do Railway, você deve ver:
+```
+✅ ffmpeg path configurado via env: /nix/var/nix/profiles/default/bin/ffmpeg
+✅ ffprobe path configurado via env: /nix/var/nix/profiles/default/bin/ffprobe
+```
+
+Ao fazer upload de vídeo:
+```
+📊 Obtendo metadados do vídeo: temp-uploads/video-123.mp4
+✅ Metadados obtidos: { duration: 120, width: 1920, height: 1080, fps: 30 }
+🖼️ Gerando thumbnail...
+✅ Thumbnail gerada localmente: thumbnails/thumb-abc.jpg
+✅ Thumbnail enviada para R2: https://...
+```
 
 **Nota:** Vídeos vão para Cloudflare R2 (não Railway)
 
