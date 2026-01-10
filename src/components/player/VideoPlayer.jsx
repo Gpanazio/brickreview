@@ -309,8 +309,8 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
     if (selectedVersion) {
       setCurrentVideo(selectedVersion);
       setApprovalStatus(selectedVersion.latest_approval_status || 'pending');
-      setVideoUrl(null); // Reset URL to trigger loading
-      // Comentários serão recarregados pelo efeito abaixo
+      // A URL será recarregada automaticamente pelo useEffect quando currentVideoId mudar
+      // O componente Plyr será remontado devido ao key={currentVideoId}
     }
   };
 
@@ -449,14 +449,20 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           const data = await response.json();
           if (data.url) {
             setVideoUrl(data.url);
+          } else {
+            console.error('URL de streaming não recebida');
           }
+        } else {
+          console.error('Erro ao buscar URL de streaming:', response.status);
         }
       } catch (error) {
         console.error('Erro ao obter URL de streaming:', error);
       }
     };
 
-    fetchStreamUrl();
+    if (currentVideoId) {
+      fetchStreamUrl();
+    }
   }, [currentVideoId, token]);
 
   // Polling para atualizar currentTime caso o evento não dispare
@@ -749,6 +755,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
             {videoUrl ? (
               <div className="relative w-full h-full">
                 <Plyr
+                  key={currentVideoId}
                   ref={playerRef}
                   source={{
                     type: 'video',
