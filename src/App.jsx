@@ -237,6 +237,7 @@ import { Label } from "@/components/ui/label"
 function ProjectsPage() {
   const [viewMode, setViewMode] = useState('grid')
   const [projects, setProjects] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [newProject, setNewProject] = useState({ name: '', description: '', client_name: '' })
@@ -278,7 +279,7 @@ function ProjectsPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       const data = await response.json()
-      setProjects(data)
+      setProjects(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Erro ao buscar projetos:', error)
     } finally {
@@ -419,6 +420,8 @@ function ProjectsPage() {
             <Input
               placeholder="Buscar projetos..."
               className="pl-10 glass-input border-none h-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
@@ -557,7 +560,9 @@ function ProjectsPage() {
             }}
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
           >
-            {projects.map((project) => (
+            {projects
+              .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.client_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((project) => (
               <motion.div
                 key={project.id}
                 variants={{
@@ -608,7 +613,9 @@ function ProjectsPage() {
               }}
               className="divide-y divide-zinc-900"
             >
-              {projects.map((project) => (
+              {projects
+                .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.client_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+                .map((project) => (
                 <motion.div
                   key={project.id}
                   variants={{
