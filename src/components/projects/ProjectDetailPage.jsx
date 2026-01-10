@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Upload, Play, Clock, MessageSquare,
   CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree,
-  FolderPlus
+  FolderPlus, History
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -234,13 +234,17 @@ export function ProjectDetailPage() {
   if (!project) return <div className="p-8 text-white">Projeto não encontrado</div>;
 
   if (selectedVideo) {
+    // Busca versões do vídeo selecionado
+    const videoVersions = project?.videos?.filter(v => v.parent_video_id === selectedVideo.id) || [];
+
     return (
-      <VideoPlayer 
-        video={selectedVideo} 
+      <VideoPlayer
+        video={selectedVideo}
+        versions={videoVersions}
         onBack={() => {
           setSelectedVideo(null);
           fetchProjectDetails();
-        }} 
+        }}
       />
     );
   }
@@ -405,21 +409,27 @@ export function ProjectDetailPage() {
                   }}
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
                 >
-                  {project.videos.map((video) => (
-                    <motion.div
-                      key={video.id}
-                      variants={{
-                        hidden: { opacity: 0, scale: 0.95 },
-                        show: { opacity: 1, scale: 1 }
-                      }}
-                    >
-                      <VideoCard
-                        video={video}
-                        onClick={() => setSelectedVideo(video)}
-                        onCreateVersion={handleCreateVersion}
-                      />
-                    </motion.div>
-                  ))}
+                  {project.videos
+                    .filter(v => !v.parent_video_id) // Só mostra vídeos raiz (não versões)
+                    .map((video) => {
+                      const versions = project.videos.filter(v => v.parent_video_id === video.id);
+                      return (
+                        <motion.div
+                          key={video.id}
+                          variants={{
+                            hidden: { opacity: 0, scale: 0.95 },
+                            show: { opacity: 1, scale: 1 }
+                          }}
+                        >
+                          <VideoCard
+                            video={video}
+                            versions={versions}
+                            onClick={() => setSelectedVideo(video)}
+                            onCreateVersion={handleCreateVersion}
+                          />
+                        </motion.div>
+                      );
+                    })}
                 </motion.div>
               )}
             </motion.div>
@@ -451,9 +461,10 @@ export function ProjectDetailPage() {
   );
 }
 
-function VideoCard({ video, onClick, onMove, onCreateVersion }) {
+function VideoCard({ video, versions = [], onClick, onMove, onCreateVersion }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
+  const totalVersions = versions.length + 1; // +1 para incluir a versão original
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -522,20 +533,35 @@ function VideoCard({ video, onClick, onMove, onCreateVersion }) {
   };
 
   return (
-    <div
-      onClick={onClick}
-      draggable
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
-        isDragging ? 'opacity-50 scale-95' : ''
-      } ${
-        isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105' : ''
-      }`}
-    >
+    <div className="relative">
+      {/* Versões empilhadas no fundo */}
+      {versions.slice(0, 3).map((v, index) => (
+        <div
+          key={v.id}
+          className="absolute inset-0 glass-card border-none rounded-none bg-zinc-900/50"
+          style={{
+            transform: `translateY(${(index + 1) * -4}px) translateX(${(index + 1) * 4}px)`,
+            zIndex: -(index + 1),
+          }}
+        />
+      ))}
+
+      {/* Card principal */}
+      <div
+        onClick={onClick}
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
+          isDragging ? 'opacity-50 scale-95' : ''
+        } ${
+          isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105' : ''
+        }`}
+        style={{ zIndex: 1 }}
+      >
       {/* Indicador de Drop para criar versão */}
       {isDropTarget && (
         <motion.div
@@ -563,6 +589,14 @@ function VideoCard({ video, onClick, onMove, onCreateVersion }) {
         <div className={`absolute top-2 left-2 px-2 py-0.5 ${getStatusColor(video.latest_approval_status)} text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg`}>
           {getStatusLabel(video.latest_approval_status)}
         </div>
+
+        {/* Version Count Badge */}
+        {totalVersions > 1 && (
+          <div className="absolute top-2 right-2 px-2 py-0.5 bg-blue-600 text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg flex items-center gap-1">
+            <History className="w-3 h-3" />
+            {totalVersions} Versões
+          </div>
+        )}
 
         {/* Duração Overlay */}
         <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-[10px] font-black text-white uppercase tracking-tighter">
@@ -596,6 +630,7 @@ function VideoCard({ video, onClick, onMove, onCreateVersion }) {
             {new Date().toLocaleDateString()}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

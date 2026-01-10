@@ -3,9 +3,9 @@ import Plyr from 'plyr-react';
 import 'plyr-react/plyr.css';
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { 
-  ChevronLeft, ChevronRight, MessageSquare, Clock, Send, 
-  CheckCircle, AlertCircle, History
+import {
+  ChevronLeft, ChevronRight, MessageSquare, Clock, Send,
+  CheckCircle, AlertCircle, History, Reply, CornerDownRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -14,7 +14,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function VideoPlayer({ video, onBack }) {
+export function VideoPlayer({ video, versions = [], onBack }) {
+  const [currentVideoId, setCurrentVideoId] = useState(video.id);
+  const [currentVideo, setCurrentVideo] = useState(video);
   const [comments, setComments] = useState(video.comments || []);
   const [newComment, setNewComment] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
@@ -23,11 +25,16 @@ export function VideoPlayer({ video, onBack }) {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
   const [videoUrl, setVideoUrl] = useState(null);
+  const [replyingTo, setReplyingTo] = useState(null); // ID do comentário sendo respondido
+  const [replyText, setReplyText] = useState('');
   const playerRef = useRef(null);
   const { token } = useAuth();
 
+  // Constrói lista completa de versões (vídeo original + versões)
+  const allVersions = [video, ...versions].sort((a, b) => a.version_number - b.version_number);
+
   // Use precise FPS from metadata, fallback to 30 if not available
-  const videoFPS = video.fps || 30;
+  const videoFPS = currentVideo.fps || 30;
   const frameTime = 1 / videoFPS;
 
   const plyrOptions = {
@@ -55,7 +62,7 @@ export function VideoPlayer({ video, onBack }) {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          video_id: video.id,
+          video_id: currentVideoId,
           content: newComment,
           timestamp: currentTime
         })
@@ -69,6 +76,49 @@ export function VideoPlayer({ video, onBack }) {
     } catch (error) {
       console.error('Erro ao adicionar comentário:', error);
     }
+  };
+
+  const addReply = async (e) => {
+    e.preventDefault();
+    if (!replyText.trim() || !replyingTo) return;
+
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          video_id: currentVideoId,
+          content: replyText,
+          timestamp: currentTime,
+          parent_comment_id: replyingTo
+        })
+      });
+
+      if (response.ok) {
+        const reply = await response.json();
+        setComments([...comments, reply]);
+        setReplyText('');
+        setReplyingTo(null);
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar resposta:', error);
+    }
+  };
+
+  // Organiza comentários em threads (pais e respostas)
+  const organizeComments = () => {
+    const parentComments = comments.filter(c => !c.parent_comment_id);
+    return parentComments
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map(parent => ({
+        ...parent,
+        replies: comments
+          .filter(c => c.parent_comment_id === parent.id)
+          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      }));
   };
 
   const seekTo = (time) => {
@@ -94,7 +144,7 @@ export function VideoPlayer({ video, onBack }) {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          video_id: video.id,
+          video_id: currentVideoId,
           status,
           notes: status === 'approved' ? 'Aprovado pelo cliente' : 'Ajustes solicitados pelo cliente'
         })
@@ -113,7 +163,7 @@ export function VideoPlayer({ video, onBack }) {
 
   const fetchHistory = async () => {
     try {
-      const response = await fetch(`/api/reviews/${video.id}`, {
+      const response = await fetch(`/api/reviews/${currentVideoId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -127,10 +177,41 @@ export function VideoPlayer({ video, onBack }) {
     if (showHistory) fetchHistory();
   }, [showHistory]);
 
+  // Função para trocar de versão
+  const handleVersionChange = async (versionId) => {
+    setCurrentVideoId(versionId);
+    const selectedVersion = allVersions.find(v => v.id === versionId);
+    if (selectedVersion) {
+      setCurrentVideo(selectedVersion);
+      setApprovalStatus(selectedVersion.latest_approval_status || 'pending');
+      setVideoUrl(null); // Reset URL to trigger loading
+      // Comentários serão recarregados pelo efeito abaixo
+    }
+  };
+
+  // Carrega comentários quando a versão muda
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        const response = await fetch(`/api/comments/video/${currentVideoId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setComments(data.sort((a, b) => a.timestamp - b.timestamp));
+        }
+      } catch (error) {
+        console.error('Erro ao carregar comentários:', error);
+      }
+    };
+
+    fetchComments();
+  }, [currentVideoId, token]);
+
   useEffect(() => {
     const fetchStreamUrl = async () => {
       try {
-        const response = await fetch(`/api/videos/${video.id}/stream`, {
+        const response = await fetch(`/api/videos/${currentVideoId}/stream`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
@@ -145,7 +226,7 @@ export function VideoPlayer({ video, onBack }) {
     };
 
     fetchStreamUrl();
-  }, [video.id, token]);
+  }, [currentVideoId, token]);
 
   return (
     <div className="flex h-full bg-[#050505] overflow-hidden">
@@ -160,9 +241,9 @@ export function VideoPlayer({ video, onBack }) {
           <div className="flex items-center gap-2 ml-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
                     approvalStatus === 'approved' ? 'border-green-500/50 text-green-500 bg-green-500/10' :
                     approvalStatus === 'changes_requested' ? 'border-amber-500/50 text-amber-500 bg-amber-500/10' :
@@ -171,18 +252,18 @@ export function VideoPlayer({ video, onBack }) {
                 >
                   {approvalStatus === 'approved' ? <CheckCircle className="w-3 h-3 mr-2" /> :
                    approvalStatus === 'changes_requested' ? <AlertCircle className="w-3 h-3 mr-2" /> : null}
-                  {approvalStatus === 'approved' ? 'Aprovado' : 
+                  {approvalStatus === 'approved' ? 'Aprovado' :
                    approvalStatus === 'changes_requested' ? 'Ajustes' : 'Pendente'}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-48">
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => handleApproval('approved')}
                   className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                 >
                   <CheckCircle className="w-3 h-3 mr-2" /> Aprovar Vídeo
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => handleApproval('changes_requested')}
                   className="text-amber-500 focus:text-amber-400 focus:bg-amber-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                 >
@@ -191,18 +272,55 @@ export function VideoPlayer({ video, onBack }) {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setShowHistory(!showHistory)}
               className={`h-8 w-8 rounded-none border border-zinc-800 ${showHistory ? 'bg-red-600 text-white border-red-600' : 'text-zinc-500'}`}
             >
               <History className="w-4 h-4" />
             </Button>
 
-            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-2 py-1.5 h-8 flex items-center">
-              v{video.version_number}
-            </div>
+            {/* Version Selector */}
+            {allVersions.length > 1 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
+                  >
+                    <History className="w-3 h-3" />
+                    v{currentVideo.version_number}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
+                  {allVersions.map((v) => (
+                    <DropdownMenuItem
+                      key={v.id}
+                      onClick={() => handleVersionChange(v.id)}
+                      className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
+                        v.id === currentVideoId
+                          ? 'text-red-500 bg-red-500/10'
+                          : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span>Versão {v.version_number}</span>
+                        {v.id === currentVideoId && <CheckCircle className="w-3 h-3" />}
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Version badge when only one version */}
+            {allVersions.length === 1 && (
+              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-2 py-1.5 h-8 flex items-center">
+                v{currentVideo.version_number}
+              </div>
+            )}
           </div>
         </div>
 
@@ -216,7 +334,7 @@ export function VideoPlayer({ video, onBack }) {
                   sources: [
                     {
                       src: videoUrl,
-                      type: video.mime_type || 'video/mp4'
+                      type: currentVideo.mime_type || 'video/mp4'
                     }
                   ]
                 }}
@@ -313,21 +431,87 @@ export function VideoPlayer({ video, onBack }) {
                 Nenhum comentário ainda. Vá para um frame específico e comece a discussão.
               </div>
             ) : (
-              comments.map((comment) => (
-                <div 
-                  key={comment.id} 
-                  className="group glass-card p-3 border-l-2 border-l-transparent hover:border-l-red-600 cursor-pointer transition-all"
-                  onClick={() => seekTo(comment.timestamp)}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
-                      {formatTime(comment.timestamp)}
-                    </span>
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                      {comment.username}
-                    </span>
+              organizeComments().map((comment) => (
+                <div key={comment.id} className="space-y-2">
+                  {/* Comentário Principal */}
+                  <div
+                    className="group glass-card p-3 border-l-2 border-l-transparent hover:border-l-red-600 transition-all"
+                  >
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => seekTo(comment.timestamp)}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
+                          {formatTime(comment.timestamp)}
+                        </span>
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                          {comment.username}
+                        </span>
+                      </div>
+                      <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
+                    </div>
+
+                    {/* Botão de Responder */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                      }}
+                      className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-600 hover:text-red-500 transition-colors"
+                    >
+                      <Reply className="w-3 h-3" />
+                      {replyingTo === comment.id ? 'Cancelar' : 'Responder'}
+                    </button>
+
+                    {/* Input de Resposta */}
+                    {replyingTo === comment.id && (
+                      <form onSubmit={addReply} className="mt-3 space-y-2">
+                        <textarea
+                          value={replyText}
+                          onChange={(e) => setReplyText(e.target.value)}
+                          placeholder="Escreva sua resposta..."
+                          className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
+                          autoFocus
+                        />
+                        <button
+                          type="submit"
+                          disabled={!replyText.trim()}
+                          className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                        >
+                          Enviar Resposta
+                        </button>
+                      </form>
+                    )}
                   </div>
-                  <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
+
+                  {/* Respostas */}
+                  {comment.replies && comment.replies.length > 0 && (
+                    <div className="ml-4 space-y-2 border-l-2 border-zinc-800/50 pl-3">
+                      {comment.replies.map((reply) => (
+                        <div
+                          key={reply.id}
+                          className="glass-card p-3 bg-zinc-900/30"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <CornerDownRight className="w-3 h-3 text-zinc-600" />
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                              {reply.username}
+                            </span>
+                            <span className="text-[9px] text-zinc-600">
+                              {new Date(reply.created_at).toLocaleString('pt-BR', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-zinc-400 leading-relaxed">{reply.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )
