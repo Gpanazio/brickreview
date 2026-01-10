@@ -232,50 +232,67 @@ router.get('/:token/folder-videos', async (req, res) => {
 router.get('/:token', async (req, res) => {
   try {
     const { token } = req.params;
-    
+    console.log('🔗 Buscando share link, token:', token);
+
     const result = await query(
       `SELECT * FROM brickreview_shares WHERE token = $1`,
       [token]
     );
 
     if (result.rows.length === 0) {
+      console.log('❌ Share não encontrado para token:', token);
       return res.status(404).json({ error: 'Link de compartilhamento não encontrado ou expirado' });
     }
 
     const share = result.rows[0];
+    console.log('✅ Share encontrado:', {
+      id: share.id,
+      project_id: share.project_id,
+      folder_id: share.folder_id,
+      video_id: share.video_id
+    });
 
     // Verifica expiração
     if (share.expires_at && new Date() > new Date(share.expires_at)) {
+      console.log('❌ Share expirado');
       return res.status(410).json({ error: 'Este link de compartilhamento expirou' });
     }
 
     // Se o link tiver senha, o frontend precisará lidar com o desafio antes de carregar os dados reais
     if (share.password_hash) {
-      return res.json({ 
+      return res.json({
         requires_password: true,
-        access_type: share.access_type 
+        access_type: share.access_type
       });
     }
 
     // Busca os dados do recurso compartilhado
     let data = null;
     if (share.project_id) {
+      console.log('📁 Buscando projeto:', share.project_id);
       const projectResult = await query('SELECT * FROM brickreview_projects_with_stats WHERE id = $1', [share.project_id]);
       data = { type: 'project', content: projectResult.rows[0] };
+      console.log('📁 Projeto encontrado:', projectResult.rows[0]?.name);
     } else if (share.folder_id) {
+      console.log('📂 Buscando pasta:', share.folder_id);
       const folderResult = await query('SELECT * FROM brickreview_folders_with_stats WHERE id = $1', [share.folder_id]);
       data = { type: 'folder', content: folderResult.rows[0] };
+      console.log('📂 Pasta encontrada:', folderResult.rows[0]?.name, '| Resource type será:', data.type);
     } else if (share.video_id) {
+      console.log('🎬 Buscando vídeo:', share.video_id);
       const videoResult = await query('SELECT * FROM brickreview_videos_with_stats WHERE id = $1', [share.video_id]);
       data = { type: 'video', content: videoResult.rows[0] };
+      console.log('🎬 Vídeo encontrado:', videoResult.rows[0]?.title);
     }
+
+    console.log('📤 Retornando resource.type:', data?.type);
 
     res.json({
       ...share,
       resource: data
     });
   } catch (err) {
-    console.error('Erro ao buscar share link:', err);
+    console.error('❌ Erro ao buscar share link:', err);
     res.status(500).json({ error: 'Erro interno ao processar link' });
   }
 });
