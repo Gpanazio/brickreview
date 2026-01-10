@@ -5,34 +5,64 @@ import { execSync } from 'child_process';
 
 // Configura caminhos do FFmpeg
 // Primeiro tenta usar variáveis de ambiente, depois tenta encontrar automaticamente
-if (process.env.FFMPEG_PATH) {
-  ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
-  console.log('✅ FFmpeg path configurado via env:', process.env.FFMPEG_PATH);
-} else {
+function findExecutable(name, envVar) {
+  // 1. Tentar variável de ambiente
+  if (envVar && process.env[envVar]) {
+    console.log(`✅ ${name} path configurado via env:`, process.env[envVar]);
+    return process.env[envVar];
+  }
+
+  // 2. Tentar which (procura no PATH)
   try {
-    const ffmpegPath = execSync('which ffmpeg', { encoding: 'utf8' }).trim();
-    if (ffmpegPath) {
-      ffmpeg.setFfmpegPath(ffmpegPath);
-      console.log('✅ FFmpeg encontrado automaticamente:', ffmpegPath);
+    const path = execSync(`which ${name}`, { encoding: 'utf8' }).trim();
+    if (path) {
+      console.log(`✅ ${name} encontrado via which:`, path);
+      return path;
     }
   } catch (err) {
-    console.warn('⚠️  FFmpeg não encontrado no sistema');
+    // Continua para próxima tentativa
   }
+
+  // 3. Tentar caminhos comuns do sistema
+  const commonPaths = [
+    `/usr/bin/${name}`,
+    `/usr/local/bin/${name}`,
+    `/opt/homebrew/bin/${name}`,
+  ];
+
+  for (const path of commonPaths) {
+    if (fs.existsSync(path)) {
+      console.log(`✅ ${name} encontrado em caminho comum:`, path);
+      return path;
+    }
+  }
+
+  // 4. Tentar procurar no nix store (Railway/Nixpacks)
+  try {
+    const nixPath = execSync(`find /nix/store -name ${name} -type f 2>/dev/null | head -1`, {
+      encoding: 'utf8',
+      timeout: 5000
+    }).trim();
+    if (nixPath) {
+      console.log(`✅ ${name} encontrado no Nix store:`, nixPath);
+      return nixPath;
+    }
+  } catch (err) {
+    // Continua
+  }
+
+  console.warn(`⚠️  ${name} não encontrado no sistema`);
+  return null;
 }
 
-if (process.env.FFPROBE_PATH) {
-  ffmpeg.setFfprobePath(process.env.FFPROBE_PATH);
-  console.log('✅ FFprobe path configurado via env:', process.env.FFPROBE_PATH);
-} else {
-  try {
-    const ffprobePath = execSync('which ffprobe', { encoding: 'utf8' }).trim();
-    if (ffprobePath) {
-      ffmpeg.setFfprobePath(ffprobePath);
-      console.log('✅ FFprobe encontrado automaticamente:', ffprobePath);
-    }
-  } catch (err) {
-    console.warn('⚠️  FFprobe não encontrado no sistema');
-  }
+const ffmpegPath = findExecutable('ffmpeg', 'FFMPEG_PATH');
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath);
+}
+
+const ffprobePath = findExecutable('ffprobe', 'FFPROBE_PATH');
+if (ffprobePath) {
+  ffmpeg.setFfprobePath(ffprobePath);
 }
 
 /**
