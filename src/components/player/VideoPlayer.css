@@ -91,3 +91,10 @@
 .plyr__progress input[type=range] {
   color: #DC2626;
 }
+
+/* Garante que os controles do player fiquem acima do canvas quando não estiver desenhando */
+.plyr__controls,
+.plyr__control--overlaid {
+  position: relative;
+  z-index: 3 !important;
+}

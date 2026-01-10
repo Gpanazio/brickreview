@@ -772,7 +772,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
                   onMouseMove={draw}
                   onMouseUp={stopDrawing}
                   onMouseLeave={stopDrawing}
-                  style={{ zIndex: drawingMode ? 10 : 5 }}
+                  style={{ zIndex: drawingMode ? 10 : 1 }}
                 />
               </>
             ) : (
