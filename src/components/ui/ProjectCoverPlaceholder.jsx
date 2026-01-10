@@ -19,46 +19,57 @@ export function ProjectCoverPlaceholder({ className, projectName = '', clientNam
 
   return (
     <div className={`w-full h-full bg-zinc-950 relative overflow-hidden flex flex-col items-center justify-center ${className}`}>
+      {/* Fallback Background (Solid Color) - Fail-safe */}
+      <div className="absolute inset-0 bg-[#09090b]" />
+
       {/* Dynamic Background Pattern */}
-      <div className="absolute inset-0 opacity-15">
+      <div className="absolute inset-0 opacity-20">
         {variation === 0 && (
-          <div className="w-full h-full bg-[linear-gradient(45deg,#09090b_25%,transparent_25%,transparent_75%,#09090b_75%,#09090b),linear-gradient(45deg,#09090b_25%,transparent_25%,transparent_75%,#09090b_75%,#09090b)] bg-[length:10px_10px] bg-[position:0_0,5px_5px] bg-zinc-900/50" />
+           <div className="w-full h-full" style={{ 
+             backgroundImage: 'linear-gradient(45deg, #18181b 25%, transparent 25%, transparent 75%, #18181b 75%, #18181b), linear-gradient(45deg, #18181b 25%, transparent 25%, transparent 75%, #18181b 75%, #18181b)',
+             backgroundSize: '10px 10px',
+             backgroundPosition: '0 0, 5px 5px'
+           }} />
         )}
         
         {variation === 1 && (
-          <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800/20 via-zinc-950 to-zinc-950" />
+          <div className="w-full h-full" style={{
+            background: 'radial-gradient(circle at center, #27272a 0%, #000000 100%)'
+          }} />
         )}
 
         {variation === 2 && (
-            <div className="w-full h-full bg-[repeating-linear-gradient(45deg,transparent,transparent_5px,#18181b_5px,#18181b_10px)]" />
+            <div className="w-full h-full" style={{
+              backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, #18181b 5px, #18181b 10px)'
+            }} />
         )}
       </div>
 
       {/* Red Accent (Vertical Stripe) */}
-      <div className="absolute top-0 left-0 w-[4px] h-full bg-red-600/80 z-20" />
+      <div className="absolute top-0 left-0 w-[4px] h-full bg-[#dc2626] z-20" />
 
       {/* Content Container (Scale Down for Small Thumbnails) */}
-      <div className="relative z-10 flex flex-col items-center justify-center transform scale-75 md:scale-100">
+      <div className="relative z-10 flex flex-col items-center justify-center transform scale-[0.6] md:scale-100 origin-center w-full">
         {/* Initial Box */}
-        <div className="w-10 h-10 md:w-12 md:h-12 border-2 border-zinc-800 flex items-center justify-center bg-black shadow-2xl">
-            <span className="brick-title text-lg md:text-xl text-white font-black tracking-tighter">
+        <div className="w-10 h-10 border-2 border-[#27272a] flex items-center justify-center bg-black shadow-lg">
+            <span className="font-sans text-xl text-white font-black tracking-tighter" style={{ fontFamily: 'Inter, sans-serif' }}>
                 {projectName ? projectName.charAt(0).toUpperCase() : 'B'}
             </span>
         </div>
         
         {/* Decorative Line */}
-        <div className="h-[2px] w-6 bg-red-600 my-1.5 opacity-50"></div>
+        <div className="h-[2px] w-6 bg-[#dc2626] my-1 opacity-80"></div>
         
         {/* Project Name (Truncated) */}
         {projectName.length > 0 && (
-           <span className="brick-tech text-[6px] md:text-[8px] text-zinc-500 uppercase tracking-[0.2em] font-bold max-w-[80px] truncate text-center">
+           <span className="font-mono text-[8px] text-[#71717a] uppercase tracking-widest font-bold max-w-[60px] truncate text-center" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
              {projectName.substring(0, 3).toUpperCase()}
            </span>
         )}
       </div>
       
-      {/* Vignette Overlay */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,rgba(0,0,0,0.8)_100%)] pointer-events-none" />
+      {/* Vignette Overlay (CSS fallback) */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.6) 100%)' }} />
 
       {/* Noise/Grain Overlay */}
       <div className="absolute inset-0 opacity-[0.05] pointer-events-none mix-blend-overlay"

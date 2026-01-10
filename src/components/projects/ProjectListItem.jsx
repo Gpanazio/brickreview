@@ -21,33 +21,28 @@ export function ProjectListItem({ project, onProjectUpdate }) {
   // Determina se deve mostrar a imagem ou o placeholder
   const coverUrl = project.cover_image_url || project.thumbnail_url || project.thumbnail;
   const hasValidCover = coverUrl && !isDefaultUrl(coverUrl);
+  const [imageError, setImageError] = useState(false);
 
   return (
     <>
       <div className="group flex items-center px-6 py-4 hover:bg-zinc-900/50 transition-colors border-l-2 border-transparent hover:border-l-red-600 relative">
         <Link to={`/project/${project.id}`} className="flex-1 grid grid-cols-12 gap-4 items-center">
           <div className="col-span-6 flex items-center gap-4">
-            <div className="relative w-12 h-8 bg-zinc-900 overflow-hidden flex-shrink-0 border border-zinc-800">
-              {hasValidCover ? (
+            <div className="relative w-12 h-8 flex-shrink-0 overflow-hidden border border-zinc-800 bg-zinc-950">
+              {hasValidCover && !imageError ? (
                 <img
                   src={coverUrl}
                   alt={project.name}
                   className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    // Força o placeholder a aparecer se a imagem falhar
-                    const placeholder = e.target.parentElement.querySelector('.project-placeholder');
-                    if (placeholder) placeholder.classList.remove('hidden');
-                    if (placeholder) placeholder.classList.add('flex');
-                  }}
+                  onError={() => setImageError(true)}
                 />
-              ) : null}
-              
-              <ProjectCoverPlaceholder 
-                className={`project-placeholder absolute inset-0 ${hasValidCover ? 'hidden' : 'flex'}`}
-                projectName={project.name}
-                clientName={project.client_name}
-              />
+              ) : (
+                <ProjectCoverPlaceholder 
+                  className="w-full h-full"
+                  projectName={project.name}
+                  clientName={project.client_name}
+                />
+              )}
             </div>
             <div>
               <h3 className="text-sm font-bold text-white group-hover:text-red-500 transition-colors">{project.name}</h3>
