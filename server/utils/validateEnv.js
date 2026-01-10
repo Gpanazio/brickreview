@@ -22,8 +22,8 @@ const OPTIONAL_ENV_VARS = {
   PORT: '3002',
   NODE_ENV: 'development',
   CORS_ORIGIN: '*',
-  FFMPEG_PATH: '/usr/bin/ffmpeg',
-  FFPROBE_PATH: '/usr/bin/ffprobe',
+  FFMPEG_PATH: '',
+  FFPROBE_PATH: '',
 }
 
 export function validateEnvironment() {
@@ -71,8 +71,12 @@ export function validateEnvironment() {
   // Verifica variáveis opcionais e aplica defaults
   for (const [key, defaultValue] of Object.entries(OPTIONAL_ENV_VARS)) {
     if (!process.env[key]) {
-      process.env[key] = defaultValue
-      warnings.push(`${key} não definida, usando padrão: ${defaultValue}`)
+      if (defaultValue) {
+        process.env[key] = defaultValue
+        warnings.push(`${key} não definida, usando padrão: ${defaultValue}`)
+      } else {
+        warnings.push(`${key} não definida, deixando o sistema detectar automaticamente`)
+      }
     }
   }
 

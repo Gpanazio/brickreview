@@ -12,7 +12,7 @@ if [ -z "$FFMPEG_PATH" ]; then
 
   # Strategy 2: Check common paths
   if [ -z "$FFMPEG_FOUND" ]; then
-    for path in /usr/bin/ffmpeg /usr/local/bin/ffmpeg /nix/store/*/bin/ffmpeg; do
+    for path in /usr/bin/ffmpeg /usr/local/bin/ffmpeg $(find /nix/store -maxdepth 3 -name ffmpeg -type f 2>/dev/null | head -n 1); do
       if [ -f "$path" ]; then
         FFMPEG_FOUND="$path"
         break
@@ -36,7 +36,7 @@ if [ -z "$FFPROBE_PATH" ]; then
 
   # Strategy 2: Check common paths
   if [ -z "$FFPROBE_FOUND" ]; then
-    for path in /usr/bin/ffprobe /usr/local/bin/ffprobe /nix/store/*/bin/ffprobe; do
+    for path in /usr/bin/ffprobe /usr/local/bin/ffprobe $(find /nix/store -maxdepth 3 -name ffprobe -type f 2>/dev/null | head -n 1); do
       if [ -f "$path" ]; then
         FFPROBE_FOUND="$path"
         break
