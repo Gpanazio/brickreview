@@ -64,9 +64,10 @@ export function ProjectDetailPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
-      setFolders(data);
+      setFolders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao buscar pastas:', error);
+      setFolders([]);
     }
   };
 
@@ -76,9 +77,10 @@ export function ProjectDetailPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
-      setFiles(data);
+      setFiles(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao buscar arquivos:', error);
+      setFiles([]);
     }
   };
 
