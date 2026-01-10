@@ -28,7 +28,13 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppContent />
+        <Routes>
+          {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
+          <Route path="/share/:token" element={<ShareViewPage />} />
+          
+          {/* Rotas Principais do App */}
+          <Route path="/*" element={<AppContent />} />
+        </Routes>
         <Toaster position="top-right" />
       </BrowserRouter>
     </AuthProvider>
@@ -686,7 +692,7 @@ function ProjectCard({ project, onProjectUpdate }) {
           </div>
         </Link>
 
-        <div className="flex items-center justify-between pt-4 border-t border-zinc-900/50">
+        <div className="flex items-center justify-between pt-4 border-t border-zinc-900/50 relative z-20">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-zinc-900 border border-zinc-800 flex items-center justify-center">
               <span className="brick-tech text-[8px] text-zinc-500">v1</span>
@@ -698,10 +704,11 @@ function ProjectCard({ project, onProjectUpdate }) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 hover:bg-zinc-900 rounded-none transition-colors"
+            className="h-8 w-8 hover:bg-zinc-900 rounded-none transition-colors pointer-events-auto"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              console.log('Botão de engrenagem clicado para o projeto:', project.id);
               setShowSettings(true);
             }}
           >

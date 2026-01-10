@@ -168,6 +168,32 @@ CREATE INDEX IF NOT EXISTS idx_folders_project ON brickreview_folders(project_id
 CREATE INDEX IF NOT EXISTS idx_folders_parent ON brickreview_folders(parent_folder_id);
 
 -- ============================================
+-- 8. SHARES (links de compartilhamento)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS brickreview_shares (
+  id SERIAL PRIMARY KEY,
+  token VARCHAR(50) UNIQUE NOT NULL, -- Token curto (nanoid)
+  project_id INTEGER REFERENCES brickreview_projects(id) ON DELETE CASCADE,
+  folder_id INTEGER REFERENCES brickreview_folders(id) ON DELETE CASCADE,
+  video_id INTEGER REFERENCES brickreview_videos(id) ON DELETE CASCADE,
+  access_type VARCHAR(50) DEFAULT 'view', -- view, comment
+  password_hash VARCHAR(255), -- Senha opcional para o link
+  expires_at TIMESTAMP, -- Data de expiração opcional
+  created_by UUID REFERENCES master_users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  -- Garante que o link aponte para exatamente uma entidade
+  CONSTRAINT one_entity_check CHECK (
+    (project_id IS NOT NULL AND folder_id IS NULL AND video_id IS NULL) OR
+    (project_id IS NULL AND folder_id IS NOT NULL AND video_id IS NULL) OR
+    (project_id IS NULL AND folder_id IS NULL AND video_id IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_shares_token ON brickreview_shares(token);
+
+-- ============================================
 -- VIEWS (queries úteis)
 -- ============================================
 
