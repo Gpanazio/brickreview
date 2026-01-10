@@ -14,6 +14,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [projectDetails, setProjectDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
+  const [projectName, setProjectName] = useState(project.name);
+  const [isRenaming, setIsRenaming] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -29,6 +31,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       });
       const data = await response.json();
       setProjectDetails(data);
+      setProjectName(data.name);
     } catch (error) {
       console.error('Erro ao buscar detalhes do projeto:', error);
     } finally {
@@ -135,6 +138,35 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
   const handleDuplicateProject = async () => {
     toast.info('Funcionalidade de duplicar projeto em desenvolvimento');
+  };
+
+  const handleRename = async () => {
+    if (!projectName.trim() || projectName === projectData.name) return;
+
+    setIsRenaming(true);
+    const renameToast = toast.loading('Renomeando projeto...');
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: projectName.trim() })
+      });
+
+      if (response.ok) {
+        toast.success('Projeto renomeado com sucesso!', { id: renameToast });
+        onProjectUpdate();
+      } else {
+        toast.error('Erro ao renomear projeto', { id: renameToast });
+      }
+    } catch (error) {
+      console.error('Erro ao renomear:', error);
+      toast.error('Erro ao renomear projeto', { id: renameToast });
+    } finally {
+      setIsRenaming(false);
+    }
   };
 
   const handleToggleStatus = async () => {
@@ -339,6 +371,30 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="brick-title text-xl uppercase tracking-tighter mb-6">Configurações do Projeto</h2>
+
+        {/* Edição de Nome */}
+        <div className="mb-6 space-y-2">
+          <label className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Nome do Projeto</label>
+          <div className="flex gap-2">
+            <input 
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              className="flex-1 bg-black border border-zinc-800 text-white px-3 py-2 text-sm focus:border-red-600 outline-none transition-colors rounded-none font-bold uppercase tracking-tighter"
+              placeholder="NOME DO PROJETO"
+            />
+            {projectName !== projectData.name && (
+              <Button 
+                size="sm" 
+                className="glass-button-primary border-none rounded-none px-4 h-auto text-[10px]"
+                onClick={handleRename}
+                disabled={isRenaming}
+              >
+                {isRenaming ? '...' : 'OK'}
+              </Button>
+            )}
+          </div>
+        </div>
 
         {/* Informações do Projeto */}
         <div className="mb-6 p-4 glass-card rounded-none border border-zinc-800">
