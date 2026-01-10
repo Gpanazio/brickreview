@@ -229,9 +229,9 @@ R2_SECRET_ACCESS_KEY=your-secret-key
 R2_BUCKET_NAME=brickreview-videos
 R2_PUBLIC_URL=https://pub-xxxxx.r2.dev
 
-# FFmpeg (CRÍTICO - sem isso thumbnails não funcionam)
-FFMPEG_PATH=/nix/var/nix/profiles/default/bin/ffmpeg
-FFPROBE_PATH=/nix/var/nix/profiles/default/bin/ffprobe
+# FFmpeg (CRÍTICO - NÃO definir no Railway/Nixpacks)
+# No Railway, o FFmpeg é encontrado automaticamente via 'which'
+# Apenas defina FFMPEG_PATH/FFPROBE_PATH se estiver usando Dockerfile customizado
 
 # Email (opcional)
 RESEND_API_KEY=re_xxxxx
@@ -243,16 +243,26 @@ PORT=8080
 NODE_ENV=production
 ```
 
-**Por que FFmpeg precisa dos caminhos explícitos?**
+**⚠️ IMPORTANTE: NÃO configure FFMPEG_PATH/FFPROBE_PATH no Railway!**
 
-O Railway/Nixpacks instala o FFmpeg via `nixpacks.toml`, mas os binários ficam em `/nix/store` com um hash único no caminho. As variáveis `FFMPEG_PATH` e `FFPROBE_PATH` dizem ao Node.js exatamente onde procurar, evitando buscas lentas que podem falhar.
+Quando você usa Nixpacks (padrão do Railway), o FFmpeg fica em `/nix/store` com um caminho dinâmico que muda a cada build. O código já detecta automaticamente usando `which ffmpeg`.
+
+**Apenas defina FFMPEG_PATH/FFPROBE_PATH se:**
+- Estiver usando um Dockerfile customizado (não Nixpacks)
+- O FFmpeg estiver em um caminho não-padrão
 
 **Como verificar se FFmpeg está funcionando:**
 
 Nos logs do Railway, você deve ver:
 ```
-✅ ffmpeg path configurado via env: /nix/var/nix/profiles/default/bin/ffmpeg
-✅ ffprobe path configurado via env: /nix/var/nix/profiles/default/bin/ffprobe
+✅ ffmpeg encontrado via which: /nix/store/xxxxx-ffmpeg-6.x/bin/ffmpeg
+✅ ffprobe encontrado via which: /nix/store/xxxxx-ffmpeg-6.x/bin/ffprobe
+```
+
+Ou em caminhos comuns:
+```
+✅ ffmpeg encontrado em caminho comum: /usr/bin/ffmpeg
+✅ ffprobe encontrado em caminho comum: /usr/bin/ffprobe
 ```
 
 Ao fazer upload de vídeo:
