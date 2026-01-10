@@ -131,6 +131,7 @@ router.post('/:token/comments', async (req, res) => {
 router.get('/:token/folder-videos', async (req, res) => {
   try {
     const { token } = req.params;
+    console.log('📂 Buscando vídeos da pasta compartilhada, token:', token);
 
     const shareResult = await query(
       `SELECT * FROM brickreview_shares WHERE token = $1`,
@@ -138,22 +139,27 @@ router.get('/:token/folder-videos', async (req, res) => {
     );
 
     if (shareResult.rows.length === 0) {
+      console.log('❌ Share não encontrado para token:', token);
       return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
     }
 
     const share = shareResult.rows[0];
+    console.log('✅ Share encontrado:', { id: share.id, folder_id: share.folder_id, video_id: share.video_id });
 
     // Verifica expiração
     if (share.expires_at && new Date() > new Date(share.expires_at)) {
+      console.log('❌ Share expirado');
       return res.status(410).json({ error: 'Este link expirou' });
     }
 
     // Só funciona para pastas
     if (!share.folder_id) {
+      console.log('❌ Este share não é de uma pasta, é de video_id:', share.video_id);
       return res.status(400).json({ error: 'Este compartilhamento não é de uma pasta' });
     }
 
     // Busca vídeos da pasta (apenas vídeos raiz, sem versões)
+    console.log('🔍 Buscando vídeos da pasta ID:', share.folder_id);
     const videosResult = await query(
       `SELECT * FROM brickreview_videos_with_stats
        WHERE folder_id = $1 AND parent_video_id IS NULL
@@ -161,9 +167,10 @@ router.get('/:token/folder-videos', async (req, res) => {
       [share.folder_id]
     );
 
+    console.log('📹 Vídeos encontrados:', videosResult.rows.length);
     res.json(videosResult.rows);
   } catch (err) {
-    console.error('Erro ao buscar vídeos da pasta:', err);
+    console.error('❌ Erro ao buscar vídeos da pasta:', err);
     res.status(500).json({ error: 'Erro ao buscar vídeos' });
   }
 });
