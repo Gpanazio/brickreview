@@ -164,16 +164,28 @@ export function ProjectDetailPage() {
     }
   };
 
+  const [uploadQueue, setUploadQueue] = useState([]);
+
   const handleFileUpload = async (e, files = null) => {
     const fileList = files || e.target.files;
     if (!fileList || fileList.length === 0) return;
 
     setUploading(true);
+    
+    // Add to queue for UI feedback
+    const newUploads = Array.from(fileList).map(file => ({
+      id: Math.random().toString(36),
+      name: file.name,
+      status: 'uploading'
+    }));
+    
+    setUploadQueue(prev => [...prev, ...newUploads]);
 
     // Upload múltiplos arquivos
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
-      const uploadToast = toast.loading(`Enviando ${file.name}...`);
+      const currentUploadId = newUploads[i].id;
+      
       const formData = new FormData();
       formData.append('video', file);
       formData.append('project_id', id);
@@ -190,17 +202,26 @@ export function ProjectDetailPage() {
         });
 
         if (response.ok) {
-          toast.success(`${file.name} enviado com sucesso!`, { id: uploadToast });
+          toast.success(`${file.name} ENVIADO`, { 
+            description: "Processamento iniciado"
+          });
+          setUploadQueue(prev => prev.filter(u => u.id !== currentUploadId));
         } else {
           const errorData = await response.json().catch((parseError) => {
             console.error('Error parsing server response:', parseError);
             return {};
           });
-          toast.error(errorData.error || 'Erro no upload', { id: uploadToast });
+          toast.error('FALHA NO UPLOAD', { 
+            description: errorData.error || 'Erro desconhecido'
+          });
+          setUploadQueue(prev => prev.map(u => u.id === currentUploadId ? { ...u, status: 'error' } : u));
         }
       } catch (error) {
         console.error('Erro no upload:', error);
-        toast.error(`Erro ao enviar ${file.name}`, { id: uploadToast });
+        toast.error('ERRO DE CONEXÃO', {
+          description: `Falha ao enviar ${file.name}`
+        });
+        setUploadQueue(prev => prev.map(u => u.id === currentUploadId ? { ...u, status: 'error' } : u));
       }
     }
 
@@ -462,7 +483,7 @@ export function ProjectDetailPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              {!project.videos || project.videos.length === 0 ? (
+              {!project.videos || (project.videos.length === 0 && uploadQueue.length === 0) ? (
                 <div className="flex flex-col items-center justify-center h-80 border border-dashed border-zinc-800 bg-zinc-950/10">
                   <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
                     <FileVideo className="w-8 h-8 text-zinc-700" />
@@ -482,6 +503,45 @@ export function ProjectDetailPage() {
                   }}
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
                 >
+                  {/* Uploading Cards */}
+                  {uploadQueue.map((upload) => (
+                    <motion.div
+                      key={upload.id}
+                      className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative"
+                    >
+                      <div className="aspect-video bg-zinc-900/50 flex flex-col items-center justify-center border-b border-zinc-800/50 relative overflow-hidden">
+                        <motion.div 
+                          className="absolute inset-0 bg-red-900/10"
+                          animate={{ opacity: [0.1, 0.3, 0.1] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        />
+                        <div className="w-12 h-12 rounded-full border-2 border-zinc-800 flex items-center justify-center mb-4 relative z-10">
+                          <motion.div 
+                            className="absolute inset-0 border-2 border-red-600 rounded-full border-t-transparent"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          />
+                          <Upload className="w-5 h-5 text-zinc-500" />
+                        </div>
+                        <p className="brick-tech text-[10px] text-red-500 uppercase tracking-widest animate-pulse">Enviando...</p>
+                      </div>
+                      <div className="p-5 border-l-2 border-l-red-600/50 flex-1 flex flex-col justify-between bg-zinc-950/30">
+                        <div>
+                          <h3 className="brick-title text-sm text-zinc-400 truncate mb-1">{upload.name}</h3>
+                          <p className="brick-manifesto text-[10px] text-zinc-600 truncate">Processando arquivo</p>
+                        </div>
+                        <div className="mt-4 h-1 w-full bg-zinc-900 overflow-hidden">
+                          <motion.div 
+                            className="h-full bg-red-600"
+                            initial={{ width: "0%" }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 15, ease: "linear" }} // Mock duration since we don't have real progress
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+
                   {project.videos
                     .filter(v => !v.parent_video_id) // Só mostra vídeos raiz (não versões)
                     .map((video) => {
