@@ -197,8 +197,14 @@ CREATE INDEX IF NOT EXISTS idx_shares_token ON brickreview_shares(token);
 -- VIEWS (queries úteis)
 -- ============================================
 
+-- Drop existing views first to avoid column rename conflicts
+DROP VIEW IF EXISTS brickreview_projects_with_stats;
+DROP VIEW IF EXISTS brickreview_videos_with_stats;
+DROP VIEW IF EXISTS brickreview_comments_with_user;
+DROP VIEW IF EXISTS brickreview_folders_with_stats;
+
 -- View: Vídeos com contagem de comentários e status de aprovação
-CREATE OR REPLACE VIEW brickreview_videos_with_stats AS
+CREATE VIEW brickreview_videos_with_stats AS
 SELECT
   v.*,
   COUNT(DISTINCT c.id) as comments_count,
@@ -210,7 +216,7 @@ LEFT JOIN brickreview_comments c ON c.video_id = v.id
 GROUP BY v.id;
 
 -- View: Comentários com informações do usuário
-CREATE OR REPLACE VIEW brickreview_comments_with_user AS
+CREATE VIEW brickreview_comments_with_user AS
 SELECT
   c.*,
   u.username,
@@ -220,7 +226,7 @@ FROM brickreview_comments c
 JOIN master_users u ON c.user_id = u.id;
 
 -- View: Folders com estatísticas
-CREATE OR REPLACE VIEW brickreview_folders_with_stats AS
+CREATE VIEW brickreview_folders_with_stats AS
 SELECT
   f.id,
   f.project_id,
@@ -235,7 +241,7 @@ LEFT JOIN brickreview_folders sf ON sf.parent_folder_id = f.id
 GROUP BY f.id, f.project_id, f.parent_folder_id, f.name, f.created_at;
 
 -- View: Projetos com estatísticas
-CREATE OR REPLACE VIEW brickreview_projects_with_stats AS
+CREATE VIEW brickreview_projects_with_stats AS
 SELECT
   p.id,
   p.name,
