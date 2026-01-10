@@ -218,10 +218,11 @@ CREATE INDEX IF NOT EXISTS idx_shares_token ON brickreview_shares(token);
 -- ============================================
 
 -- Drop existing views first to avoid column rename conflicts
-DROP VIEW IF EXISTS brickreview_projects_with_stats;
-DROP VIEW IF EXISTS brickreview_videos_with_stats;
-DROP VIEW IF EXISTS brickreview_comments_with_user;
-DROP VIEW IF EXISTS brickreview_folders_with_stats;
+-- Must drop in reverse dependency order
+DROP VIEW IF EXISTS brickreview_projects_with_stats CASCADE;
+DROP VIEW IF EXISTS brickreview_videos_with_stats CASCADE;
+DROP VIEW IF EXISTS brickreview_comments_with_user CASCADE;
+DROP VIEW IF EXISTS brickreview_folders_with_stats CASCADE;
 
 -- View: Vídeos com contagem de comentários e status de aprovação
 CREATE VIEW brickreview_videos_with_stats AS

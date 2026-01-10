@@ -360,14 +360,30 @@ router.post('/:id/create-version', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'parent_video_id é obrigatório' });
     }
 
-    // Verifica se o vídeo pai existe
+    // Previne ciclos: não permite que um vídeo seja pai de si mesmo
+    if (parseInt(childVideoId) === parseInt(parent_video_id)) {
+      return res.status(400).json({ error: 'Um vídeo não pode ser versão de si mesmo' });
+    }
+
+    // Verifica se o vídeo pai existe e busca info sobre ele
     const parentCheck = await query(
-      'SELECT id, version_number FROM brickreview_videos WHERE id = $1',
+      'SELECT id, version_number, parent_video_id FROM brickreview_videos WHERE id = $1',
       [parent_video_id]
     );
 
     if (parentCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Vídeo pai não encontrado' });
+    }
+
+    // Previne ciclos: parent não pode ter parent (somente vídeos raiz podem ser pais)
+    if (parentCheck.rows[0].parent_video_id !== null) {
+      return res.status(400).json({ error: 'Não é possível criar versão de uma versão. Apenas vídeos raiz podem ter versões.' });
+    }
+
+    // Verifica se o child já não é pai de outro vídeo (evita ciclos)
+    const childIsParentCheck = await query('SELECT COUNT(*) as count FROM brickreview_videos WHERE parent_video_id = $1', [childVideoId]);
+    if (parseInt(childIsParentCheck.rows[0].count) > 0) {
+      return res.status(400).json({ error: 'Este vídeo já é pai de outras versões e não pode se tornar uma versão' });
     }
 
     // Busca o maior version_number dos vídeos que têm o mesmo parent
