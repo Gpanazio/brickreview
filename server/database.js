@@ -40,12 +40,36 @@ export async function initDatabase() {
           WHERE table_name = 'brickreview_shares'
         ) as exists
       `)
-      
-      if (shareTableCheck.rows[0].exists) {
+
+      const requiredViews = [
+        'brickreview_projects_with_stats',
+        'brickreview_videos_with_stats',
+        'brickreview_comments_with_user',
+        'brickreview_folders_with_stats',
+      ]
+
+      const viewsCheck = await query(
+        `
+          SELECT table_name
+          FROM information_schema.views
+          WHERE table_name = ANY($1::text[])
+        `,
+        [requiredViews]
+      )
+
+      const existingViews = new Set(viewsCheck.rows.map(row => row.table_name))
+      const missingViews = requiredViews.filter(view => !existingViews.has(view))
+
+      if (shareTableCheck.rows[0].exists && missingViews.length === 0) {
         console.log('✅ Database schema already initialized. Skipping setup.')
         return
       }
-      console.log('📦 Main tables exist but brickreview_shares is missing. Updating schema...')
+
+      if (!shareTableCheck.rows[0].exists) {
+        console.log('📦 Main tables exist but brickreview_shares is missing. Updating schema...')
+      } else {
+        console.log(`📦 Missing views detected (${missingViews.join(', ')}). Updating schema...`)
+      }
     }
 
     console.log('🔄 Initializing database schema...')
