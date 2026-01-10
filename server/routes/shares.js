@@ -158,37 +158,31 @@ router.get('/:token/folder-videos', async (req, res) => {
       return res.status(400).json({ error: 'Este compartilhamento não é de uma pasta' });
     }
 
-    // Busca vídeos da pasta (apenas vídeos raiz, sem versões)
+    // Busca vídeos da pasta (usando tabela base para evitar problemas com view)
     console.log('🔍 Buscando vídeos da pasta ID:', share.folder_id);
-    
-    // Debug: Verificar quantos vídeos existem na pasta no total (sem filtros)
-    const debugCount = await query(
-      'SELECT COUNT(*) as count FROM brickreview_videos WHERE folder_id = $1',
-      [share.folder_id]
-    );
-    console.log('📊 Total de vídeos na pasta (bruto):', debugCount.rows[0].count);
 
-    // Query principal
+    // Query direta na tabela base (mais confiável que a view)
     const videosResult = await query(
-      `SELECT * FROM brickreview_videos_with_stats
-       WHERE folder_id = $1
-       -- Removendo temporariamente o filtro de parent_video_id para teste, ou garantindo que ele não exclua indevidamente
-       AND (parent_video_id IS NULL OR parent_video_id = 0) 
-       ORDER BY created_at DESC`,
+      `SELECT v.*,
+              COALESCE(c.comments_count, 0) as comments_count,
+              COALESCE(c.open_comments_count, 0) as open_comments_count
+       FROM brickreview_videos v
+       LEFT JOIN (
+         SELECT video_id,
+                COUNT(*) as comments_count,
+                COUNT(CASE WHEN status = 'open' THEN 1 END) as open_comments_count
+         FROM brickreview_comments
+         GROUP BY video_id
+       ) c ON c.video_id = v.id
+       WHERE v.folder_id = $1
+         AND v.parent_video_id IS NULL
+       ORDER BY v.created_at DESC`,
       [share.folder_id]
     );
 
-    console.log('📹 Vídeos encontrados (filtrados):', videosResult.rows.length);
-    
-    // Se não encontrou nada, tenta buscar sem a view para ver se é problema na view
-    if (videosResult.rows.length === 0 && parseInt(debugCount.rows[0].count) > 0) {
-        console.warn('⚠️ Vídeos existem na tabela mas não retornaram na query principal. Tentando fallback...');
-        const fallbackResult = await query(
-            `SELECT * FROM brickreview_videos WHERE folder_id = $1`,
-            [share.folder_id]
-        );
-        console.log('🔄 Fallback retornou:', fallbackResult.rows.length);
-        return res.json(fallbackResult.rows);
+    console.log('📹 Vídeos encontrados:', videosResult.rows.length);
+    if (videosResult.rows.length > 0) {
+      console.log('📹 Primeiro vídeo:', { id: videosResult.rows[0].id, title: videosResult.rows[0].title });
     }
 
     res.json(videosResult.rows);

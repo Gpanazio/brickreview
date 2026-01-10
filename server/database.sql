@@ -100,6 +100,36 @@ CREATE TRIGGER update_brickreview_videos_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
+-- 3.1 FILES (arquivos genéricos - imagens, PDFs, etc)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS brickreview_files (
+  id SERIAL PRIMARY KEY,
+  project_id INTEGER NOT NULL REFERENCES brickreview_projects(id) ON DELETE CASCADE,
+  folder_id INTEGER REFERENCES brickreview_folders(id) ON DELETE SET NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  r2_key VARCHAR(500) NOT NULL,
+  r2_url TEXT NOT NULL,
+  thumbnail_r2_key VARCHAR(500),
+  thumbnail_url TEXT,
+  file_type VARCHAR(50) NOT NULL, -- image, document, audio, other
+  mime_type VARCHAR(100),
+  file_size BIGINT,
+  width INTEGER, -- Para imagens
+  height INTEGER, -- Para imagens
+  uploaded_by UUID REFERENCES master_users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TRIGGER IF EXISTS update_brickreview_files_updated_at ON brickreview_files;
+CREATE TRIGGER update_brickreview_files_updated_at
+  BEFORE UPDATE ON brickreview_files
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
 -- 4. COMMENTS (com timestamp e threads)
 -- ============================================
 
