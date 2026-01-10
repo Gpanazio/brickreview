@@ -72,16 +72,16 @@ function AppContent() {
           key="app"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex min-h-screen bg-[#050505] text-white relative overflow-hidden font-sans"
+          className="flex min-h-screen bg-[#0d0d0e] text-white relative overflow-hidden font-sans"
         >
           {/* Background Accents for Glassmorphism */}
           <motion.div 
             animate={{ 
-              scale: [1, 1.2, 1],
-              opacity: [0.08, 0.12, 0.08],
+              scale: [1, 1.1, 1],
+              opacity: [0.04, 0.06, 0.04],
             }}
-            transition={{ duration: 15, repeat: Infinity }}
-            className="absolute top-[-10%] left-[-5%] w-[40%] h-[40%] bg-red-600/10 blur-[120px] rounded-full" 
+            transition={{ duration: 12, repeat: Infinity }}
+            className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[180px] rounded-full pointer-events-none" 
           />
           <motion.div 
             animate={{ 

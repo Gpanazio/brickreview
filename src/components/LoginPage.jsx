@@ -25,17 +25,17 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0d0d0e] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Accents */}
       <motion.div 
         animate={{ 
-          scale: [1, 1.2, 1],
-          opacity: [0.1, 0.15, 0.1],
-          x: [0, 50, 0],
-          y: [0, -30, 0]
+          scale: [1, 1.1, 1],
+          opacity: [0.04, 0.06, 0.04],
+          x: [0, 30, 0],
+          y: [0, -20, 0]
         }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        className="absolute top-[-15%] left-[-10%] w-[60%] h-[60%] bg-red-600/10 blur-[150px] rounded-full" 
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+        className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[180px] rounded-full pointer-events-none" 
       />
       <motion.div 
         animate={{ 
