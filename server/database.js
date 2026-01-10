@@ -34,13 +34,6 @@ export async function initDatabase() {
 
     // If the tables exist, check if brickreview_shares and the required views also exist
     if (tablesExist && process.env.RESET_DB !== 'true') {
-      const shareTableCheck = await query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables
-          WHERE table_name = 'brickreview_shares'
-        ) as exists
-      `)
-
       const requiredViews = [
         'brickreview_projects_with_stats',
         'brickreview_videos_with_stats',
@@ -48,26 +41,41 @@ export async function initDatabase() {
         'brickreview_folders_with_stats',
       ]
 
-      const viewsCheck = await query(`
-        SELECT table_name
-        FROM information_schema.views
-        WHERE table_name = ANY($1)
+      const schemaCheck = await query(`
+        SELECT
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.tables
+              WHERE table_name = 'brickreview_shares'
+            )
+          ) as "shareTableExists",
+          (
+            SELECT array_agg(table_name)
+            FROM information_schema.views
+            WHERE table_name = ANY($1)
+          ) as "existingViewNames"
       `, [requiredViews])
 
-      const existingViews = new Set(viewsCheck.rows.map(row => row.table_name))
+      const { shareTableExists, existingViewNames } = schemaCheck.rows[0]
+      const existingViews = new Set(existingViewNames || [])
       const missingViews = requiredViews.filter(view => !existingViews.has(view))
 
-      if (shareTableCheck.rows[0].exists && missingViews.length === 0) {
+      if (shareTableExists && missingViews.length === 0) {
         console.log('✅ Database schema already initialized. Skipping setup.')
         return
       }
 
-      if (!shareTableCheck.rows[0].exists) {
-        console.log('📦 Main tables exist but brickreview_shares is missing. Updating schema...')
+      const missingItems = []
+      if (!shareTableExists) {
+        missingItems.push('"brickreview_shares" table')
+      }
+      if (missingViews.length > 0) {
+        missingItems.push(`${missingViews.length} view(s)`)
       }
 
+      console.log(`📦 Main tables exist but ${missingItems.join(' and ')} are missing. Updating schema...`)
       if (missingViews.length > 0) {
-        console.log('📦 Main tables exist but some views are missing. Updating schema...')
         console.log('   Missing views:', missingViews.join(', '))
       }
     }
