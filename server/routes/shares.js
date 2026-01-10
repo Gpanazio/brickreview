@@ -127,6 +127,69 @@ router.post('/:token/comments', async (req, res) => {
   }
 });
 
+// GET /api/shares/:token/project-videos - Busca vídeos de um projeto compartilhado (PÚBLICO)
+router.get('/:token/project-videos', async (req, res) => {
+  try {
+    const { token } = req.params;
+    console.log('📁 Buscando vídeos do projeto compartilhado, token:', token);
+
+    const shareResult = await query(
+      `SELECT * FROM brickreview_shares WHERE token = $1`,
+      [token]
+    );
+
+    if (shareResult.rows.length === 0) {
+      console.log('❌ Share não encontrado para token:', token);
+      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
+    }
+
+    const share = shareResult.rows[0];
+    console.log('✅ Share encontrado:', { id: share.id, project_id: share.project_id });
+
+    // Verifica expiração
+    if (share.expires_at && new Date() > new Date(share.expires_at)) {
+      console.log('❌ Share expirado');
+      return res.status(410).json({ error: 'Este link expirou' });
+    }
+
+    // Só funciona para projetos
+    if (!share.project_id) {
+      console.log('❌ Este share não é de um projeto');
+      return res.status(400).json({ error: 'Este compartilhamento não é de um projeto' });
+    }
+
+    // Busca todos os vídeos do projeto (de todas as pastas)
+    console.log('🔍 Buscando vídeos do projeto ID:', share.project_id);
+
+    const videosResult = await query(
+      `SELECT v.*,
+              f.name as folder_name,
+              COALESCE(c.comments_count, 0) as comments_count,
+              COALESCE(c.open_comments_count, 0) as open_comments_count
+       FROM brickreview_videos v
+       LEFT JOIN brickreview_folders f ON f.id = v.folder_id
+       LEFT JOIN (
+         SELECT video_id,
+                COUNT(*) as comments_count,
+                COUNT(CASE WHEN status = 'open' THEN 1 END) as open_comments_count
+         FROM brickreview_comments
+         GROUP BY video_id
+       ) c ON c.video_id = v.id
+       WHERE v.project_id = $1
+         AND (v.parent_video_id IS NULL)
+       ORDER BY f.name ASC NULLS FIRST, v.created_at DESC`,
+      [share.project_id]
+    );
+
+    console.log('📹 Vídeos encontrados:', videosResult.rows.length);
+
+    res.json(videosResult.rows);
+  } catch (err) {
+    console.error('❌ Erro ao buscar vídeos do projeto:', err);
+    res.status(500).json({ error: 'Erro ao buscar vídeos' });
+  }
+});
+
 // GET /api/shares/:token/folder-videos - Busca vídeos de uma pasta compartilhada (PÚBLICO)
 router.get('/:token/folder-videos', async (req, res) => {
   try {

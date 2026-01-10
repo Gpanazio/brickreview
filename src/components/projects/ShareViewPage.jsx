@@ -15,8 +15,8 @@ export function ShareViewPage() {
   const [error, setError] = useState(null);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState(null); // Video being viewed in folder
-  const [folderVideos, setFolderVideos] = useState([]); // Videos in the shared folder
+  const [selectedVideo, setSelectedVideo] = useState(null); // Video being viewed in folder/project
+  const [videos, setVideos] = useState([]); // Videos in the shared folder or project
 
   const fetchShare = async (pass = null) => {
     try {
@@ -37,12 +37,15 @@ export function ShareViewPage() {
         console.log('Resource type:', data.resource?.type);
         setShareData(data);
 
-        // Se for uma pasta, buscar vídeos dentro dela
+        // Se for uma pasta ou projeto, buscar vídeos
         if (data.resource?.type === 'folder') {
           console.log('Is a folder, fetching videos...');
-          fetchFolderVideos(data.resource.content.id);
+          fetchFolderVideos();
+        } else if (data.resource?.type === 'project') {
+          console.log('Is a project, fetching videos...');
+          fetchProjectVideos();
         } else {
-          console.log('Not a folder, resource type is:', data.resource?.type);
+          console.log('Is a video, resource type is:', data.resource?.type);
         }
       }
     } catch (err) {
@@ -52,21 +55,37 @@ export function ShareViewPage() {
     }
   };
 
-  const fetchFolderVideos = async (folderId) => {
+  const fetchFolderVideos = async () => {
     try {
-      console.log('Fetching folder videos for token:', token, 'folderId:', folderId);
-      // Buscar vídeos da pasta sem autenticação (público)
+      console.log('Fetching folder videos for token:', token);
       const response = await fetch(`/api/shares/${token}/folder-videos`);
       console.log('Response status:', response.status);
       if (response.ok) {
-        const videos = await response.json();
-        console.log('Folder videos received:', videos, 'count:', videos.length);
-        setFolderVideos(videos);
+        const data = await response.json();
+        console.log('Folder videos received:', data, 'count:', data.length);
+        setVideos(data);
       } else {
         console.error('Failed to fetch folder videos:', response.status);
       }
     } catch (err) {
       console.error('Erro ao buscar vídeos da pasta:', err);
+    }
+  };
+
+  const fetchProjectVideos = async () => {
+    try {
+      console.log('Fetching project videos for token:', token);
+      const response = await fetch(`/api/shares/${token}/project-videos`);
+      console.log('Response status:', response.status);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Project videos received:', data, 'count:', data.length);
+        setVideos(data);
+      } else {
+        console.error('Failed to fetch project videos:', response.status);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar vídeos do projeto:', err);
     }
   };
 
@@ -143,8 +162,8 @@ export function ShareViewPage() {
   console.log('Rendering ShareViewPage:');
   console.log('- resource:', resource);
   console.log('- resource.type:', resource?.type);
-  console.log('- folderVideos:', folderVideos);
-  console.log('- folderVideos.length:', folderVideos.length);
+  console.log('- videos:', videos);
+  console.log('- videos.length:', videos.length);
   console.log('- currentVideo:', currentVideo);
 
   return (
@@ -164,7 +183,7 @@ export function ShareViewPage() {
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="border-zinc-800 text-[8px] uppercase tracking-widest text-zinc-400 rounded-none bg-zinc-900/50 h-6">
             <Film className="w-3 h-3 mr-1" />
-            {resource?.type === 'folder' ? `${folderVideos.length} vídeos` : 'Compartilhamento'}
+            {(resource?.type === 'folder' || resource?.type === 'project') ? `${videos.length} vídeos` : 'Compartilhamento'}
           </Badge>
         </div>
       </header>
@@ -189,15 +208,15 @@ export function ShareViewPage() {
           {/* Conditional Rendering based on Resource Type */}
           {currentVideo ? (
             <div className="space-y-4">
-              {/* Back button if viewing video in folder */}
-              {resource.type === 'folder' && selectedVideo && (
+              {/* Back button if viewing video in folder or project */}
+              {(resource.type === 'folder' || resource.type === 'project') && selectedVideo && (
                 <Button
                   variant="ghost"
                   onClick={() => setSelectedVideo(null)}
                   className="text-zinc-400 hover:text-white text-xs uppercase tracking-widest"
                 >
                   <ChevronRight className="w-4 h-4 rotate-180 mr-2" />
-                  Voltar para pasta
+                  Voltar para {resource.type === 'folder' ? 'pasta' : 'projeto'}
                 </Button>
               )}
 
@@ -212,15 +231,17 @@ export function ShareViewPage() {
                 </div>
               </div>
             </div>
-          ) : resource.type === 'folder' ? (
+          ) : (resource.type === 'folder' || resource.type === 'project') ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {folderVideos.length === 0 ? (
+              {videos.length === 0 ? (
                 <div className="col-span-full bg-zinc-900/20 border border-zinc-800 p-12 text-center">
                   <Folder className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
-                  <p className="text-zinc-500 text-sm italic">Esta pasta não contém vídeos.</p>
+                  <p className="text-zinc-500 text-sm italic">
+                    {resource.type === 'folder' ? 'Esta pasta não contém vídeos.' : 'Este projeto não contém vídeos.'}
+                  </p>
                 </div>
               ) : (
-                folderVideos.map((video) => (
+                videos.map((video) => (
                   <Card
                     key={video.id}
                     onClick={() => setSelectedVideo(video)}
@@ -244,6 +265,13 @@ export function ShareViewPage() {
                     </div>
                     <div className="p-4">
                       <h3 className="brick-title text-sm tracking-tighter text-white truncate">{video.title}</h3>
+                      {/* Show folder name for project shares */}
+                      {resource.type === 'project' && video.folder_name && (
+                        <p className="text-[9px] text-zinc-600 uppercase tracking-widest mt-1">
+                          <Folder className="w-3 h-3 inline mr-1" />
+                          {video.folder_name}
+                        </p>
+                      )}
                       <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-500 uppercase tracking-widest">
                         <span className="flex items-center gap-1">
                           <MessageSquare className="w-3 h-3" />
