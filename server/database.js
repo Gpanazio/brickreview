@@ -32,7 +32,7 @@ export async function initDatabase() {
 
     const tablesExist = tableCheck.rows[0].exists
 
-    // Se as tabelas existem, verificamos se a brickreview_shares e as views necessárias existem
+    // If the tables exist, check if brickreview_shares and the required views also exist
     if (tablesExist && process.env.RESET_DB !== 'true') {
       const shareTableCheck = await query(`
         SELECT EXISTS (
