@@ -34,7 +34,7 @@ const upload = multer({ storage });
  * @desc Upload a video to R2 and save metadata
  */
 router.post('/upload', authenticateToken, upload.single('video'), async (req, res) => {
-  const { project_id, title, description } = req.body;
+  const { project_id, title, description, folder_id } = req.body;
   const file = req.file;
 
   const missingR2Config = [
@@ -111,18 +111,18 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
     // 5. Salva no banco
     const result = await query(`
       INSERT INTO brickreview_videos (
-        project_id, title, description, r2_key, r2_url, 
+        project_id, title, description, r2_key, r2_url,
         thumbnail_r2_key, thumbnail_url,
         duration, fps, width, height,
-        file_size, mime_type, uploaded_by
+        file_size, mime_type, uploaded_by, folder_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [
       project_id, title, description, fileKey, r2Url,
       thumbKey, thumbUrl,
       metadata.duration, metadata.fps, metadata.width, metadata.height,
-      file.size, file.mimetype, req.user.id
+      file.size, file.mimetype, req.user.id, folder_id || null
     ]);
 
     // Cleanup
@@ -205,7 +205,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
     // Busca comentários do vídeo
     const commentsResult = await query(`
-      SELECT * FROM brickreview_comments_with_user 
+      SELECT * FROM brickreview_comments_with_user
       WHERE video_id = $1 AND parent_comment_id IS NULL
       ORDER BY timestamp ASC, created_at ASC
     `, [req.params.id]);
@@ -217,6 +217,80 @@ router.get('/:id', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar detalhes do vídeo:', error);
     res.status(500).json({ error: 'Erro ao buscar detalhes do vídeo' });
+  }
+});
+
+/**
+ * @route PATCH /api/videos/:id/move
+ * @desc Move video to a different folder
+ */
+router.patch('/:id/move', authenticateToken, async (req, res) => {
+  try {
+    const { folder_id } = req.body;
+    const videoId = req.params.id;
+
+    // Atualiza o folder_id do vídeo (null significa sem pasta)
+    const result = await query(
+      'UPDATE brickreview_videos SET folder_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [folder_id || null, videoId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao mover vídeo:', error);
+    res.status(500).json({ error: 'Erro ao mover vídeo' });
+  }
+});
+
+/**
+ * @route POST /api/videos/:id/create-version
+ * @desc Create a new version relationship between videos
+ */
+router.post('/:id/create-version', authenticateToken, async (req, res) => {
+  try {
+    const { parent_video_id } = req.body;
+    const childVideoId = req.params.id;
+
+    if (!parent_video_id) {
+      return res.status(400).json({ error: 'parent_video_id é obrigatório' });
+    }
+
+    // Verifica se o vídeo pai existe
+    const parentCheck = await query(
+      'SELECT id, version_number FROM brickreview_videos WHERE id = $1',
+      [parent_video_id]
+    );
+
+    if (parentCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo pai não encontrado' });
+    }
+
+    // Busca o maior version_number dos vídeos que têm o mesmo parent
+    const maxVersionResult = await query(
+      'SELECT MAX(version_number) as max_version FROM brickreview_videos WHERE parent_video_id = $1 OR id = $1',
+      [parent_video_id]
+    );
+
+    const nextVersion = (maxVersionResult.rows[0].max_version || parentCheck.rows[0].version_number || 1) + 1;
+
+    // Atualiza o vídeo para ser versão do pai
+    const result = await query(
+      'UPDATE brickreview_videos SET parent_video_id = $1, version_number = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
+      [parent_video_id, nextVersion, childVideoId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo filho não encontrado' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao criar versão:', error);
+    res.status(500).json({ error: 'Erro ao criar versão' });
   }
 });
 

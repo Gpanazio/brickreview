@@ -19,6 +19,7 @@ export function FolderView({
   onRenameFolder,
   onDeleteFolder,
   onMoveFolder,
+  onMoveVideo,
   token
 }) {
   const [expandedFolders, setExpandedFolders] = useState(new Set());
@@ -26,6 +27,7 @@ export function FolderView({
   const [newFolderName, setNewFolderName] = useState('');
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newSubfolderParent, setNewSubfolderParent] = useState(null);
+  const [dragOverFolder, setDragOverFolder] = useState(null);
 
   // Filtra pastas do nível atual
   const currentLevelFolders = folders.filter(f =>
@@ -103,14 +105,55 @@ export function FolderView({
     setNewSubfolderParent(null);
   };
 
+  const handleFolderDragOver = (e, folderId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('video')) {
+      setDragOverFolder(folderId);
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleFolderDragLeave = (e, folderId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dragOverFolder === folderId) {
+      setDragOverFolder(null);
+    }
+  };
+
+  const handleFolderDrop = async (e, folderId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverFolder(null);
+
+    try {
+      const videoData = e.dataTransfer.getData('video');
+      if (videoData) {
+        const video = JSON.parse(videoData);
+        await onMoveVideo?.(video.id, folderId);
+      }
+    } catch (error) {
+      console.error('Erro ao processar drop na pasta:', error);
+    }
+  };
+
   const renderFolder = (folder, depth = 0) => {
     const isExpanded = expandedFolders.has(folder.id);
     const subfolders = folders.filter(f => f.parent_folder_id === folder.id);
     const folderVideos = videos.filter(v => v.folder_id === folder.id);
+    const isDragOver = dragOverFolder === folder.id;
 
     return (
       <div key={folder.id} style={{ marginLeft: `${depth * 20}px` }}>
-        <div className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all">
+        <div
+          className={`group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 transition-all ${
+            isDragOver ? 'border-l-blue-500 bg-blue-900/20' : 'border-l-transparent hover:border-l-red-600'
+          }`}
+          onDragOver={(e) => handleFolderDragOver(e, folder.id)}
+          onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
+          onDrop={(e) => handleFolderDrop(e, folder.id)}
+        >
           <button
             onClick={() => toggleFolder(folder.id)}
             className="text-zinc-400 hover:text-white"
@@ -182,6 +225,12 @@ export function FolderView({
             {folderVideos.map(video => (
               <div
                 key={video.id}
+                draggable
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('video', JSON.stringify(video));
+                }}
                 style={{ marginLeft: `${(depth + 1) * 20}px` }}
                 className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-blue-600 transition-all cursor-pointer"
                 onClick={() => onVideoClick(video)}
@@ -230,6 +279,12 @@ export function FolderView({
           {currentLevelVideos.map(video => (
             <div
               key={video.id}
+              draggable
+              onDragStart={(e) => {
+                e.stopPropagation();
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('video', JSON.stringify(video));
+              }}
               className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-blue-600 transition-all cursor-pointer"
               onClick={() => onVideoClick(video)}
             >

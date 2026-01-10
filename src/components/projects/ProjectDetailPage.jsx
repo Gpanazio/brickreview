@@ -34,6 +34,7 @@ export function ProjectDetailPage() {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'folders'
   const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const { token } = useAuth();
 
   useEffect(() => {
@@ -90,40 +91,135 @@ export function ProjectDetailPage() {
     }
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleFileUpload = async (e, files = null) => {
+    const fileList = files || e.target.files;
+    if (!fileList || fileList.length === 0) return;
 
     setUploading(true);
-    const uploadToast = toast.loading('Enviando vídeo...');
-    const formData = new FormData();
-    formData.append('video', file);
-    formData.append('project_id', id);
-    formData.append('title', file.name.split('.')[0]);
+
+    // Upload múltiplos arquivos
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      const uploadToast = toast.loading(`Enviando ${file.name}...`);
+      const formData = new FormData();
+      formData.append('video', file);
+      formData.append('project_id', id);
+      formData.append('title', file.name.split('.')[0]);
+      if (currentFolderId) {
+        formData.append('folder_id', currentFolderId);
+      }
+
+      try {
+        const response = await fetch('/api/videos/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+
+        if (response.ok) {
+          toast.success(`${file.name} enviado com sucesso!`, { id: uploadToast });
+        } else {
+          const errorData = await response.json().catch((parseError) => {
+            console.error('Error parsing server response:', parseError);
+            return {};
+          });
+          toast.error(errorData.error || 'Erro no upload', { id: uploadToast });
+        }
+      } catch (error) {
+        console.error('Erro no upload:', error);
+        toast.error(`Erro ao enviar ${file.name}`, { id: uploadToast });
+      }
+    }
+
+    setUploading(false);
+    fetchProjectDetails();
+    if (e?.target) e.target.value = '';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDraggingFile(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Só remove o estado se realmente saiu da área
+    if (e.currentTarget === e.target) {
+      setIsDraggingFile(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      // Filtrar apenas arquivos de vídeo
+      const videoFiles = Array.from(files).filter(file => file.type.startsWith('video/'));
+      if (videoFiles.length > 0) {
+        handleFileUpload(null, videoFiles);
+      } else {
+        toast.error('Apenas arquivos de vídeo são permitidos');
+      }
+    }
+  };
+
+  const handleCreateVersion = async (draggedVideoId, targetVideoId) => {
+    const versionToast = toast.loading('Criando nova versão...');
 
     try {
-      const response = await fetch('/api/videos/upload', {
+      const response = await fetch(`/api/videos/${draggedVideoId}/create-version`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ parent_video_id: targetVideoId })
       });
 
       if (response.ok) {
-        toast.success('Vídeo enviado com sucesso!', { id: uploadToast });
+        toast.success('Nova versão criada com sucesso!', { id: versionToast });
         fetchProjectDetails();
       } else {
-        const errorData = await response.json().catch((parseError) => {
-          console.error('Error parsing server response:', parseError);
-          return {};
-        });
-        toast.error(errorData.error || 'Erro no upload', { id: uploadToast });
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao criar versão', { id: versionToast });
       }
     } catch (error) {
-      console.error('Erro no upload:', error);
-      toast.error('Erro ao enviar vídeo', { id: uploadToast });
-    } finally {
-      setUploading(false);
-      e.target.value = '';
+      console.error('Erro ao criar versão:', error);
+      toast.error('Erro ao criar versão', { id: versionToast });
+    }
+  };
+
+  const handleMoveVideo = async (videoId, folderId) => {
+    const moveToast = toast.loading('Movendo vídeo...');
+
+    try {
+      const response = await fetch(`/api/videos/${videoId}/move`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ folder_id: folderId })
+      });
+
+      if (response.ok) {
+        toast.success('Vídeo movido com sucesso!', { id: moveToast });
+        fetchProjectDetails();
+        fetchFolders();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao mover vídeo', { id: moveToast });
+      }
+    } catch (error) {
+      console.error('Erro ao mover vídeo:', error);
+      toast.error('Erro ao mover vídeo', { id: moveToast });
     }
   };
 
@@ -209,6 +305,7 @@ export function ProjectDetailPage() {
               accept="video/*"
               onChange={handleFileUpload}
               disabled={uploading}
+              multiple
             />
             <Button
               asChild
@@ -233,7 +330,30 @@ export function ProjectDetailPage() {
       </header>
 
       {/* Lista de Vídeos */}
-      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
+      <div
+        className="flex-1 overflow-y-auto p-8 custom-scrollbar relative"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Drop Zone Overlay */}
+        <AnimatePresence>
+          {isDraggingFile && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm border-4 border-dashed border-red-600 flex items-center justify-center"
+            >
+              <div className="text-center">
+                <Upload className="w-16 h-16 text-red-600 mx-auto mb-4" />
+                <p className="brick-title text-2xl text-white mb-2">Solte os vídeos aqui</p>
+                <p className="brick-tech text-xs text-zinc-400 uppercase tracking-widest">Upload automático para {currentFolderId ? 'a pasta atual' : 'o projeto'}</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <ContextMenu>
           <ContextMenuTrigger className="min-h-full block">
         <AnimatePresence mode="wait">
@@ -254,6 +374,7 @@ export function ProjectDetailPage() {
                 onCreateFolder={handleCreateFolder}
                 onRenameFolder={fetchFolders}
                 onDeleteFolder={fetchFolders}
+                onMoveVideo={handleMoveVideo}
                 token={token}
               />
             </motion.div>
@@ -295,6 +416,7 @@ export function ProjectDetailPage() {
                       <VideoCard
                         video={video}
                         onClick={() => setSelectedVideo(video)}
+                        onCreateVersion={handleCreateVersion}
                       />
                     </motion.div>
                   ))}
@@ -329,7 +451,10 @@ export function ProjectDetailPage() {
   );
 }
 
-function VideoCard({ video, onClick }) {
+function VideoCard({ video, onClick, onMove, onCreateVersion }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDropTarget, setIsDropTarget] = useState(false);
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'approved': return 'bg-green-600';
@@ -346,11 +471,82 @@ function VideoCard({ video, onClick }) {
     }
   };
 
+  const handleDragStart = (e) => {
+    e.stopPropagation();
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('video', JSON.stringify(video));
+  };
+
+  const handleDragEnd = (e) => {
+    e.stopPropagation();
+    setIsDragging(false);
+    setIsDropTarget(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Só aceita se for um vídeo sendo arrastado
+    if (e.dataTransfer.types.includes('video')) {
+      setIsDropTarget(true);
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDropTarget(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDropTarget(false);
+
+    try {
+      const draggedVideoData = e.dataTransfer.getData('video');
+      if (draggedVideoData) {
+        const draggedVideo = JSON.parse(draggedVideoData);
+
+        // Não permitir drop no mesmo vídeo
+        if (draggedVideo.id !== video.id) {
+          onCreateVersion?.(draggedVideo.id, video.id);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao processar drop:', error);
+    }
+  };
+
   return (
-    <div 
+    <div
       onClick={onClick}
-      className="group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full"
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
+        isDragging ? 'opacity-50 scale-95' : ''
+      } ${
+        isDropTarget ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105' : ''
+      }`}
     >
+      {/* Indicador de Drop para criar versão */}
+      {isDropTarget && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute top-0 left-0 right-0 z-10 bg-blue-600 text-white text-center py-2 text-xs font-bold uppercase tracking-widest"
+        >
+          Solte para criar nova versão
+        </motion.div>
+      )}
+
       <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0">
         <img 
           src={video.thumbnail_url || 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=400'} 
