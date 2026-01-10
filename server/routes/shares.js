@@ -161,6 +161,23 @@ router.get('/:token/folder-videos', async (req, res) => {
     // Busca vídeos da pasta (usando tabela base para evitar problemas com view)
     console.log('🔍 Buscando vídeos da pasta ID:', share.folder_id);
 
+    // Debug: verificar se a pasta existe e listar seus vídeos
+    const folderCheck = await query(
+      'SELECT * FROM brickreview_folders WHERE id = $1',
+      [share.folder_id]
+    );
+    console.log('📁 Pasta existe?', folderCheck.rows.length > 0 ? 'SIM' : 'NÃO');
+    if (folderCheck.rows.length > 0) {
+      console.log('📁 Nome da pasta:', folderCheck.rows[0].name);
+    }
+
+    // Debug: contar todos os vídeos na pasta (sem filtro)
+    const allVideosCount = await query(
+      'SELECT COUNT(*) as total FROM brickreview_videos WHERE folder_id = $1',
+      [share.folder_id]
+    );
+    console.log('📊 Total de vídeos na pasta (sem filtro):', allVideosCount.rows[0].total);
+
     // Query direta na tabela base (mais confiável que a view)
     const videosResult = await query(
       `SELECT v.*,
@@ -175,12 +192,31 @@ router.get('/:token/folder-videos', async (req, res) => {
          GROUP BY video_id
        ) c ON c.video_id = v.id
        WHERE v.folder_id = $1
-         AND v.parent_video_id IS NULL
+         AND (v.parent_video_id IS NULL)
        ORDER BY v.created_at DESC`,
       [share.folder_id]
     );
 
-    console.log('📹 Vídeos encontrados:', videosResult.rows.length);
+    console.log('📹 Vídeos encontrados (com filtro parent_video_id IS NULL):', videosResult.rows.length);
+
+    // Se não encontrou nada mas existem vídeos, tentar sem o filtro
+    if (videosResult.rows.length === 0 && parseInt(allVideosCount.rows[0].total) > 0) {
+      console.log('⚠️ Tentando buscar SEM filtro de parent_video_id...');
+      const allVideos = await query(
+        `SELECT v.*, v.parent_video_id as debug_parent_id
+         FROM brickreview_videos v
+         WHERE v.folder_id = $1
+         ORDER BY v.created_at DESC`,
+        [share.folder_id]
+      );
+      console.log('📹 Vídeos sem filtro:', allVideos.rows.length);
+      if (allVideos.rows.length > 0) {
+        console.log('📹 Parent IDs dos vídeos:', allVideos.rows.map(v => ({ id: v.id, title: v.title, parent: v.debug_parent_id })));
+        // Retorna todos os vídeos se existem mas o filtro está excluindo
+        return res.json(allVideos.rows);
+      }
+    }
+
     if (videosResult.rows.length > 0) {
       console.log('📹 Primeiro vídeo:', { id: videosResult.rows[0].id, title: videosResult.rows[0].title });
     }
