@@ -1,82 +1,63 @@
-# Como Corrigir FFmpeg no Railway
+# Correção do FFmpeg no Railway
 
-## Problema
-O FFmpeg está instalado via `nixpacks.toml` mas não está sendo encontrado pelo Node.js.
+Este documento explica como o problema de detecção do FFmpeg e FFprobe foi resolvido no ambiente de produção do Railway e como garantir que ele não volte a ocorrer.
 
-## Solução 1: Adicionar Variáveis de Ambiente no Railway (RECOMENDADO)
+## O Problema
 
-1. Abra o painel do Railway
-2. Vá para o seu projeto BrickReview
-3. Clique na aba **Variables**
-4. Adicione estas variáveis:
+O Railway usa Nixpacks para criar imagens de container. Frequentemente, os binários do FFmpeg instalados via Nix não são expostos corretamente no `PATH` do sistema ou são instalados em caminhos não-padrão dentro do `/nix/store`, fazendo com que a aplicação não consiga encontrá-los.
 
-```
-FFMPEG_PATH=/nix/var/nix/profiles/default/bin/ffmpeg
-FFPROBE_PATH=/nix/var/nix/profiles/default/bin/ffprobe
-```
+Sintomas:
+- Erro `⚠️ ffmpeg não encontrado no sistema` nos logs
+- Falha ao gerar thumbnails
+- Falha ao processar vídeos
 
-5. Salve e aguarde o redeploy automático
+## A Solução (Implementada)
 
-## Solução 2: Diagnóstico (se a Solução 1 não funcionar)
+A solução definitiva consiste em uma abordagem de "defesa em profundidade" com três camadas de redundância:
 
-Se a Solução 1 não funcionar, precisamos descobrir onde o FFmpeg realmente está:
+### 1. Instalação Híbrida (APT + Nix)
+No arquivo `nixpacks.toml`, configuramos para tentar instalar o FFmpeg usando ambos os gerenciadores de pacotes:
 
-1. No painel do Railway, vá para a aba **Deployments**
-2. Clique no deployment mais recente
-3. Clique em **View Logs**
-4. No canto superior direito, clique em **Shell** para abrir um terminal
-5. Execute:
-
-```bash
-node diagnose-ffmpeg.js
+```toml
+[phases.setup]
+# Tenta via Nix (backup)
+nixPkgs = ['nodejs', 'ffmpeg-full']
+# Tenta via APT (principal - instala em /usr/bin)
+aptPkgs = ['ffmpeg']
 ```
 
-6. Copie a saída completa e me envie
-7. Com essas informações, saberei o caminho exato do FFmpeg
+O método **APT** é o preferido pois instala os binários em `/usr/bin/ffmpeg`, um local padrão que raramente falha.
 
-## Solução 3: Variáveis Alternativas
+### 2. Script de Inicialização Inteligente (`railway-start.sh`)
+O script de boot da aplicação foi fortificado para procurar os binários em múltiplos locais:
 
-Se os caminhos acima não funcionarem, tente estas alternativas:
+1. Verifica o `PATH` do sistema (`which ffmpeg`)
+2. Verifica locais padrão absolutos (`/usr/bin`, `/usr/local/bin`)
+3. Faz uma busca profunda no `/nix/store`
+4. Faz uma busca global no sistema (`find / -name ffmpeg`)
+5. Como último recurso, tenta instalar via `apt-get` em tempo de execução (se for root)
 
-### Opção A - Binários diretos do Nix Store:
-```
-FFMPEG_PATH=/nix/store/HASH-ffmpeg-VERSION/bin/ffmpeg
-FFPROBE_PATH=/nix/store/HASH-ffmpeg-VERSION/bin/ffprobe
-```
-(Substitua HASH e VERSION pelos valores reais encontrados no diagnóstico)
+### 3. Configuração de Boot
+O `package.json` e o `nixpacks.toml` foram configurados para forçar o uso do script `railway-start.sh` em vez de iniciar o node diretamente:
 
-### Opção B - Deixar o sistema encontrar:
-Não configure as variáveis e o código tentará encontrar automaticamente.
-Mas isso é mais lento e menos confiável.
-
-## Por que isso é necessário?
-
-O Nixpacks instala o FFmpeg no `/nix/store`, mas o caminho exato inclui um hash único.
-As variáveis de ambiente dizem ao Node.js exatamente onde procurar, evitando buscas lentas.
-
-## Como Verificar se Funcionou
-
-Após adicionar as variáveis e fazer o redeploy:
-
-1. Vá para os logs do Railway
-2. No início dos logs, você deve ver:
-
-```
-✅ ffmpeg path configurado via env: /nix/var/nix/profiles/default/bin/ffmpeg
-✅ ffprobe path configurado via env: /nix/var/nix/profiles/default/bin/ffprobe
+```json
+"scripts": {
+  "start": "chmod +x railway-start.sh && ./railway-start.sh"
+}
 ```
 
-3. Faça upload de um novo vídeo
-4. Você deve ver nos logs:
+## Como Manter
 
-```
-📊 Obtendo metadados do vídeo: temp-uploads/video-123.mp4
-✅ Metadados obtidos: { duration: 120, width: 1920, height: 1080, fps: 30 }
-🖼️ Gerando thumbnail...
-✅ Thumbnail gerada localmente: thumbnails/thumb-abc.jpg
-✅ Thumbnail enviada para R2: https://...
-```
+Para garantir que o problema não retorne:
 
-## Ainda Não Funcionou?
+1. **Nunca remova** a linha `aptPkgs = ['ffmpeg']` do `nixpacks.toml`.
+2. **Sempre use** o `railway-start.sh` como comando de inicialização.
+3. Se for adicionar novas dependências de sistema, prefira adicionar em `aptPkgs` se possível.
 
-Execute o `diagnose-ffmpeg.js` no Railway e me envie a saída completa.
+## Diagnóstico
+
+Se o problema voltar, verifique os logs de inicialização. O script agora emite logs detalhados:
+- `✅ FFmpeg encontrado: [caminho]`
+- `🧪 Testando execução do FFmpeg...`
+
+Se vir `⚠️ FFmpeg não encontrado`, o script listará automaticamente o conteúdo de diretórios chave para ajudar no debug.

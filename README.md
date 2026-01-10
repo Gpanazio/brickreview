@@ -210,8 +210,11 @@ brickreview/
 1. Connect GitHub repo
 2. Environment variables (ver seção abaixo)
 3. Build: `npm install && npm run build`
-4. Start: `node server/index.js`
+4. Start: `chmod +x railway-start.sh && ./railway-start.sh` (Configurado automaticamente)
 5. Volumes: `/temp-uploads`, `/thumbnails`
+
+**🔧 Configuração do FFmpeg:**
+O projeto possui configurações especiais para garantir que o FFmpeg funcione no Railway. Se tiver problemas com thumbnails ou proxies, consulte [RAILWAY_FFMPEG_FIX.md](./RAILWAY_FFMPEG_FIX.md).
 
 **⚠️ IMPORTANTE - Variáveis de Ambiente Obrigatórias no Railway:**
 
