@@ -344,8 +344,34 @@ router.get('/:token', async (req, res) => {
     } else if (share.video_id) {
       console.log('🎬 Buscando vídeo:', share.video_id);
       const videoResult = await query('SELECT * FROM brickreview_videos_with_stats WHERE id = $1', [share.video_id]);
-      data = { type: 'video', content: videoResult.rows[0] };
-      console.log('🎬 Vídeo encontrado:', videoResult.rows[0]?.title);
+      const video = videoResult.rows[0];
+
+      // Busca todas as versões deste vídeo (se for uma versão, busca o pai + irmãos; se for o original, busca os filhos)
+      let versions = [];
+      if (video.parent_video_id) {
+        // Este é uma versão, busca o vídeo pai e todas as outras versões
+        const versionsResult = await query(
+          `SELECT * FROM brickreview_videos_with_stats
+           WHERE id = $1 OR parent_video_id = $1
+           ORDER BY version_number`,
+          [video.parent_video_id]
+        );
+        versions = versionsResult.rows;
+        console.log('🎬 Vídeo é uma versão, buscando pai + versões. Total encontrado:', versions.length);
+      } else {
+        // Este é o vídeo original, busca todas as versões filhas
+        const versionsResult = await query(
+          `SELECT * FROM brickreview_videos_with_stats
+           WHERE parent_video_id = $1
+           ORDER BY version_number`,
+          [share.video_id]
+        );
+        versions = versionsResult.rows;
+        console.log('🎬 Vídeo é original, buscando versões. Total encontrado:', versions.length);
+      }
+
+      data = { type: 'video', content: video, versions };
+      console.log('🎬 Vídeo encontrado:', video?.title, 'com', versions.length, 'versões');
     }
 
     console.log('📤 Retornando resource.type:', data?.type);

@@ -157,7 +157,28 @@ export function ShareViewPage() {
   const { resource } = shareData;
 
   // Se estiver vendo um vídeo específico em uma pasta compartilhada
-  const currentVideo = selectedVideo || (resource?.type === 'video' ? resource.content : null);
+  let currentVideo = selectedVideo || (resource?.type === 'video' ? resource.content : null);
+  let currentVersions = [];
+
+  // Busca versões do vídeo (se existirem)
+  if (resource?.type === 'video' && resource.versions && resource.versions.length > 0) {
+    const allVideos = resource.versions;
+
+    // Se o vídeo compartilhado tem parent_video_id, o backend retornou [pai + todas versões]
+    // Nesse caso, precisamos separar o pai das versões
+    if (currentVideo.parent_video_id) {
+      const parentVideo = allVideos.find(v => !v.parent_video_id);
+      const childVersions = allVideos.filter(v => v.parent_video_id);
+
+      if (parentVideo) {
+        currentVideo = parentVideo; // Usa o pai como vídeo principal
+        currentVersions = childVersions; // As versões são as filhas
+      }
+    } else {
+      // O vídeo compartilhado é o original, as versões retornadas são todas filhas
+      currentVersions = allVideos;
+    }
+  }
 
   console.log('Rendering ShareViewPage:');
   console.log('- resource:', resource);
@@ -224,6 +245,7 @@ export function ShareViewPage() {
                 <div className="w-full max-w-6xl">
                   <VideoPlayer
                     video={currentVideo}
+                    versions={currentVersions}
                     isPublic={true}
                     shareToken={token}
                     accessType={shareData.access_type}
