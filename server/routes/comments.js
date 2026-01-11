@@ -5,6 +5,34 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 
 /**
+ * @route GET /api/comments/video/:videoId
+ * @desc Get all comments for a video
+ */
+router.get('/video/:videoId', authenticateToken, async (req, res) => {
+  try {
+    const { videoId } = req.params;
+
+    const comments = await query(
+      `SELECT
+        c.*,
+        COALESCE(u.username, c.visitor_name) as username,
+        u.email,
+        (SELECT COUNT(*) FROM brickreview_comments WHERE parent_comment_id = c.id) as replies_count
+       FROM brickreview_comments c
+       LEFT JOIN master_users u ON c.user_id = u.id
+       WHERE c.video_id = $1
+       ORDER BY c.timestamp ASC, c.created_at ASC`,
+      [videoId]
+    );
+
+    res.json(comments.rows);
+  } catch (error) {
+    console.error('Erro ao buscar comentários:', error);
+    res.status(500).json({ error: 'Erro ao buscar comentários' });
+  }
+});
+
+/**
  * @route POST /api/comments
  * @desc Add a comment to a video
  */
