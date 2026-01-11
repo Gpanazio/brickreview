@@ -137,12 +137,14 @@ CREATE TABLE IF NOT EXISTS brickreview_comments (
   id SERIAL PRIMARY KEY,
   video_id INTEGER NOT NULL REFERENCES brickreview_videos(id) ON DELETE CASCADE,
   parent_comment_id INTEGER REFERENCES brickreview_comments(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES master_users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES master_users(id) ON DELETE CASCADE, -- Permite NULL para guests
+  visitor_name VARCHAR(255), -- Nome do visitante quando user_id é NULL
   content TEXT NOT NULL,
   timestamp DECIMAL(10, 3), -- Timestamp do vídeo em segundos com milissegundos
   status VARCHAR(50) DEFAULT 'open', -- open, in_progress, resolved
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT user_or_visitor CHECK (user_id IS NOT NULL OR visitor_name IS NOT NULL)
 );
 
 DROP TRIGGER IF EXISTS update_brickreview_comments_updated_at ON brickreview_comments;
