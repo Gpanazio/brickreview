@@ -51,6 +51,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
   const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controla exibição do emoji picker
+  const [isLoadingVideo, setIsLoadingVideo] = useState(false); // Loading ao trocar versão
   const playerRef = useRef(null);
   const canvasRef = useRef(null);
   const videoContainerRef = useRef(null);
@@ -317,6 +318,8 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
 
   // Função para trocar de versão
   const handleVersionChange = async (versionId) => {
+    setIsLoadingVideo(true);
+    setVideoUrl(null); // Limpa URL atual para forçar loading
     setCurrentVideoId(versionId);
     const selectedVersion = allVersions.find(v => v.id === versionId);
     if (selectedVersion) {
@@ -475,14 +478,18 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           const data = await response.json();
           if (data.url) {
             setVideoUrl(data.url);
+            setIsLoadingVideo(false); // Marca como carregado
           } else {
             console.error('URL de streaming não recebida');
+            setIsLoadingVideo(false);
           }
         } else {
           console.error('Erro ao buscar URL de streaming:', response.status);
+          setIsLoadingVideo(false);
         }
       } catch (error) {
         console.error('Erro ao obter URL de streaming:', error);
+        setIsLoadingVideo(false);
       }
     };
 
