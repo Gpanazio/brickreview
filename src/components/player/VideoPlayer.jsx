@@ -463,9 +463,14 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   useEffect(() => {
     const fetchStreamUrl = async () => {
       try {
-        const response = await fetch(`/api/videos/${currentVideoId}/stream`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // Use endpoint público para guests, privado para usuários autenticados
+        const endpoint = isGuest
+          ? `/api/shares/${shareToken}/video/${currentVideoId}/stream`
+          : `/api/videos/${currentVideoId}/stream`;
+
+        const headers = isGuest ? {} : { 'Authorization': `Bearer ${token}` };
+
+        const response = await fetch(endpoint, { headers });
         if (response.ok) {
           const data = await response.json();
           if (data.url) {
@@ -484,7 +489,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
     if (currentVideoId) {
       fetchStreamUrl();
     }
-  }, [currentVideoId, token]);
+  }, [currentVideoId, token, isGuest, shareToken]);
 
   // Polling para atualizar currentTime caso o evento não dispare
   useEffect(() => {

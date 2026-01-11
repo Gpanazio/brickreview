@@ -289,6 +289,89 @@ router.get('/:token/drawings/video/:videoId', async (req, res) => {
   }
 });
 
+// GET /api/shares/:token/video/:videoId/stream - Busca URL de streaming de um vídeo (PÚBLICO)
+router.get('/:token/video/:videoId/stream', async (req, res) => {
+  try {
+    const { token, videoId } = req.params;
+
+    // Valida que o share token existe
+    const shareResult = await query(
+      `SELECT * FROM brickreview_shares WHERE token = $1`,
+      [token]
+    );
+
+    if (shareResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
+    }
+
+    const share = shareResult.rows[0];
+
+    // Verifica expiração
+    if (share.expires_at && new Date() > new Date(share.expires_at)) {
+      return res.status(410).json({ error: 'Este link expirou' });
+    }
+
+    // Verifica que o vídeo pertence ao recurso compartilhado (mesma lógica de comentários/desenhos)
+    const videoIdInt = parseInt(videoId);
+    let hasAccess = false;
+
+    if (share.video_id) {
+      const videoResult = await query(
+        `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
+        [videoIdInt]
+      );
+
+      if (videoResult.rows.length > 0) {
+        const video = videoResult.rows[0];
+        hasAccess = video.id === share.video_id ||
+                    video.parent_video_id === share.video_id ||
+                    (video.parent_video_id && await query(
+                      `SELECT id FROM brickreview_videos WHERE id = $1 AND parent_video_id = $2`,
+                      [share.video_id, video.parent_video_id]
+                    ).then(r => r.rows.length > 0));
+      }
+    } else if (share.folder_id) {
+      const videoResult = await query(
+        `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
+        [videoIdInt, share.folder_id]
+      );
+      hasAccess = videoResult.rows.length > 0;
+    } else if (share.project_id) {
+      const videoResult = await query(
+        `SELECT v.id FROM brickreview_videos v
+         JOIN brickreview_folders f ON v.folder_id = f.id
+         WHERE v.id = $1 AND f.project_id = $2`,
+        [videoIdInt, share.project_id]
+      );
+      hasAccess = videoResult.rows.length > 0;
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+    }
+
+    // Busca informações do vídeo para gerar URL de stream
+    const videoResult = await query(
+      `SELECT r2_object_key FROM brickreview_videos WHERE id = $1`,
+      [videoIdInt]
+    );
+
+    if (videoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' });
+    }
+
+    const video = videoResult.rows[0];
+
+    // Gera URL pública do R2 (ajuste conforme sua configuração)
+    const streamUrl = `${process.env.R2_PUBLIC_URL}/${video.r2_object_key}`;
+
+    res.json({ url: streamUrl });
+  } catch (err) {
+    console.error('Erro ao buscar stream de vídeo compartilhado:', err);
+    res.status(500).json({ error: 'Erro ao buscar stream' });
+  }
+});
+
 // GET /api/shares/:token/project-videos - Busca vídeos de um projeto compartilhado (PÚBLICO)
 router.get('/:token/project-videos', async (req, res) => {
   try {
