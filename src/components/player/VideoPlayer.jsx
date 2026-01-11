@@ -453,8 +453,37 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
       setShareLink(fullUrl);
 
       // Copia para clipboard
-      navigator.clipboard.writeText(fullUrl);
-      toast.success('Link copiado para área de transferência!', { id: shareToast });
+      try {
+        await navigator.clipboard.writeText(fullUrl);
+        toast.success('Link copiado para área de transferência!', { id: shareToast });
+      } catch (clipboardError) {
+        // Fallback: cria input temporário e usa execCommand
+        console.warn('Clipboard API bloqueada, usando fallback:', clipboardError);
+
+        const input = document.createElement('textarea');
+        input.value = fullUrl;
+        input.style.position = 'fixed';
+        input.style.left = '-9999px';
+        input.style.top = '0';
+        document.body.appendChild(input);
+        input.focus();
+        input.select();
+        input.setSelectionRange(0, 99999);
+
+        try {
+          const successful = document.execCommand('copy');
+          if (successful) {
+            toast.success('Link copiado para área de transferência!', { id: shareToast });
+          } else {
+            throw new Error('execCommand falhou');
+          }
+        } catch (execError) {
+          prompt('Copie o link de compartilhamento:', fullUrl);
+          toast.success('Link gerado com sucesso!', { id: shareToast });
+        }
+
+        document.body.removeChild(input);
+      }
     } catch (error) {
       console.error('Erro ao gerar link:', error);
       toast.error('Erro ao gerar link de compartilhamento', { id: shareToast });

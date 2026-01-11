@@ -135,16 +135,23 @@ export function ProjectDetailPage() {
           // Fallback: cria input temporário e usa execCommand
           console.warn('Clipboard API bloqueada, usando fallback:', clipboardError);
 
-          const input = document.createElement('input');
+          const input = document.createElement('textarea'); // Use textarea to preserve formatting if needed
           input.value = shareUrl;
           input.style.position = 'fixed';
-          input.style.opacity = '0';
+          input.style.left = '-9999px';
+          input.style.top = '0';
           document.body.appendChild(input);
+          input.focus();
           input.select();
+          input.setSelectionRange(0, 99999); // Mobile compatibility
 
           try {
-            document.execCommand('copy');
-            toast.success('Link copiado para área de transferência!', { id: loadingToast });
+            const successful = document.execCommand('copy');
+            if (successful) {
+              toast.success('Link copiado para área de transferência!', { id: loadingToast });
+            } else {
+              throw new Error('execCommand falhou');
+            }
           } catch (execError) {
             // Se ainda falhar, mostra em prompt
             prompt('Copie o link de compartilhamento:', shareUrl);
