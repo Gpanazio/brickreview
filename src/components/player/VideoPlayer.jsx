@@ -848,9 +848,8 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
             className={`relative w-full max-w-5xl ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10`}
           >
             {videoUrl ? (
-              <div className="relative w-full h-full">
+              <div key={`${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
                 <Plyr
-                  key={`${currentVideoId}-${videoUrl}`}
                   ref={playerRef}
                   source={{
                     type: 'video',
