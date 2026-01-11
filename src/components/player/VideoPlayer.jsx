@@ -317,11 +317,8 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   }, [showHistory]);
 
   // Função para trocar de versão
-  const handleVersionChange = async (versionId) => {
-    // Destrói o player atual antes de trocar
-    if (playerRef.current?.plyr) {
-      playerRef.current.plyr.destroy();
-    }
+  const handleVersionChange = (versionId) => {
+    if (versionId === currentVideoId) return;
 
     setIsLoadingVideo(true);
     setVideoUrl(null); // Limpa URL atual para forçar loading
@@ -330,8 +327,6 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
     if (selectedVersion) {
       setCurrentVideo(selectedVersion);
       setApprovalStatus(selectedVersion.latest_approval_status || 'pending');
-      // A URL será recarregada automaticamente pelo useEffect quando currentVideoId mudar
-      // O componente Plyr será remontado devido ao key={currentVideoId}
     }
   };
 
@@ -485,23 +480,21 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           console.log('[VideoPlayer] Stream URL received:', data.url);
           if (data.url) {
             setVideoUrl(data.url);
-            setIsLoadingVideo(false); // Marca como carregado
           } else {
             console.error('[VideoPlayer] URL de streaming não recebida');
-            setIsLoadingVideo(false);
           }
         } else {
           console.error('[VideoPlayer] Erro ao buscar URL de streaming:', response.status);
-          setIsLoadingVideo(false);
         }
       } catch (error) {
         console.error('[VideoPlayer] Erro ao obter URL de streaming:', error);
+      } finally {
         setIsLoadingVideo(false);
       }
     };
 
     if (currentVideoId) {
-      setIsLoadingVideo(true); // Garante que está em loading ao buscar nova URL
+      setIsLoadingVideo(true);
       fetchStreamUrl();
     }
   }, [currentVideoId, token, isGuest, shareToken]);
