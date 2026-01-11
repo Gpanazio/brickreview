@@ -127,6 +127,168 @@ router.post('/:token/comments', async (req, res) => {
   }
 });
 
+// GET /api/shares/:token/comments/video/:videoId - Busca comentários de um vídeo (PÚBLICO)
+router.get('/:token/comments/video/:videoId', async (req, res) => {
+  try {
+    const { token, videoId } = req.params;
+
+    // Valida que o share token existe
+    const shareResult = await query(
+      `SELECT * FROM brickreview_shares WHERE token = $1`,
+      [token]
+    );
+
+    if (shareResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
+    }
+
+    const share = shareResult.rows[0];
+
+    // Verifica expiração
+    if (share.expires_at && new Date() > new Date(share.expires_at)) {
+      return res.status(410).json({ error: 'Este link expirou' });
+    }
+
+    // Verifica que o vídeo pertence ao recurso compartilhado
+    const videoIdInt = parseInt(videoId);
+    let hasAccess = false;
+
+    if (share.video_id) {
+      // Share de vídeo específico - verifica se é o mesmo vídeo ou uma versão dele
+      const videoResult = await query(
+        `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
+        [videoIdInt]
+      );
+
+      if (videoResult.rows.length > 0) {
+        const video = videoResult.rows[0];
+        // Permite acesso se for o vídeo compartilhado ou se tiver o mesmo pai (versões)
+        hasAccess = video.id === share.video_id ||
+                    video.parent_video_id === share.video_id ||
+                    (video.parent_video_id && await query(
+                      `SELECT id FROM brickreview_videos WHERE id = $1 AND parent_video_id = $2`,
+                      [share.video_id, video.parent_video_id]
+                    ).then(r => r.rows.length > 0));
+      }
+    } else if (share.folder_id) {
+      // Share de pasta - verifica se o vídeo está na pasta
+      const videoResult = await query(
+        `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
+        [videoIdInt, share.folder_id]
+      );
+      hasAccess = videoResult.rows.length > 0;
+    } else if (share.project_id) {
+      // Share de projeto - verifica se o vídeo está no projeto
+      const videoResult = await query(
+        `SELECT v.id FROM brickreview_videos v
+         JOIN brickreview_folders f ON v.folder_id = f.id
+         WHERE v.id = $1 AND f.project_id = $2`,
+        [videoIdInt, share.project_id]
+      );
+      hasAccess = videoResult.rows.length > 0;
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+    }
+
+    // Busca comentários do vídeo
+    const comments = await query(
+      `SELECT
+        c.*,
+        COALESCE(u.username, c.visitor_name) as username,
+        u.email,
+        (SELECT COUNT(*) FROM brickreview_comments WHERE parent_comment_id = c.id) as replies_count
+       FROM brickreview_comments c
+       LEFT JOIN master_users u ON c.user_id = u.id
+       WHERE c.video_id = $1
+       ORDER BY c.timestamp ASC, c.created_at ASC`,
+      [videoIdInt]
+    );
+
+    res.json(comments.rows);
+  } catch (err) {
+    console.error('Erro ao buscar comentários de vídeo compartilhado:', err);
+    res.status(500).json({ error: 'Erro ao buscar comentários' });
+  }
+});
+
+// GET /api/shares/:token/drawings/video/:videoId - Busca desenhos de um vídeo (PÚBLICO)
+router.get('/:token/drawings/video/:videoId', async (req, res) => {
+  try {
+    const { token, videoId } = req.params;
+
+    // Valida que o share token existe
+    const shareResult = await query(
+      `SELECT * FROM brickreview_shares WHERE token = $1`,
+      [token]
+    );
+
+    if (shareResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
+    }
+
+    const share = shareResult.rows[0];
+
+    // Verifica expiração
+    if (share.expires_at && new Date() > new Date(share.expires_at)) {
+      return res.status(410).json({ error: 'Este link expirou' });
+    }
+
+    // Verifica que o vídeo pertence ao recurso compartilhado (mesma lógica de comentários)
+    const videoIdInt = parseInt(videoId);
+    let hasAccess = false;
+
+    if (share.video_id) {
+      const videoResult = await query(
+        `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
+        [videoIdInt]
+      );
+
+      if (videoResult.rows.length > 0) {
+        const video = videoResult.rows[0];
+        hasAccess = video.id === share.video_id ||
+                    video.parent_video_id === share.video_id ||
+                    (video.parent_video_id && await query(
+                      `SELECT id FROM brickreview_videos WHERE id = $1 AND parent_video_id = $2`,
+                      [share.video_id, video.parent_video_id]
+                    ).then(r => r.rows.length > 0));
+      }
+    } else if (share.folder_id) {
+      const videoResult = await query(
+        `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
+        [videoIdInt, share.folder_id]
+      );
+      hasAccess = videoResult.rows.length > 0;
+    } else if (share.project_id) {
+      const videoResult = await query(
+        `SELECT v.id FROM brickreview_videos v
+         JOIN brickreview_folders f ON v.folder_id = f.id
+         WHERE v.id = $1 AND f.project_id = $2`,
+        [videoIdInt, share.project_id]
+      );
+      hasAccess = videoResult.rows.length > 0;
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+    }
+
+    // Busca desenhos do vídeo
+    const drawings = await query(
+      `SELECT * FROM brickreview_drawings
+       WHERE video_id = $1
+       ORDER BY timestamp ASC`,
+      [videoIdInt]
+    );
+
+    res.json(drawings.rows);
+  } catch (err) {
+    console.error('Erro ao buscar desenhos de vídeo compartilhado:', err);
+    res.status(500).json({ error: 'Erro ao buscar desenhos' });
+  }
+});
+
 // GET /api/shares/:token/project-videos - Busca vídeos de um projeto compartilhado (PÚBLICO)
 router.get('/:token/project-videos', async (req, res) => {
   try {

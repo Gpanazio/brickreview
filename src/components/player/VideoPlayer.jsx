@@ -10,6 +10,7 @@ import {
   Pencil, Eraser, Smile, Paperclip, X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import EmojiPicker from 'emoji-picker-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +50,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const [drawings, setDrawings] = useState([]); // Desenhos salvos por timestamp
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
   const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controla exibição do emoji picker
   const playerRef = useRef(null);
   const canvasRef = useRef(null);
   const videoContainerRef = useRef(null);
@@ -329,9 +331,14 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const response = await fetch(`/api/comments/video/${currentVideoId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // Use endpoint público para guests, privado para usuários autenticados
+        const endpoint = isGuest
+          ? `/api/shares/${shareToken}/comments/video/${currentVideoId}`
+          : `/api/comments/video/${currentVideoId}`;
+
+        const headers = isGuest ? {} : { 'Authorization': `Bearer ${token}` };
+
+        const response = await fetch(endpoint, { headers });
         if (response.ok) {
           const data = await response.json();
           setComments(data.sort((a, b) => a.timestamp - b.timestamp));
@@ -342,17 +349,20 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
     };
 
     fetchComments();
-  }, [currentVideoId, token]);
+  }, [currentVideoId, token, isGuest, shareToken]);
 
   // Carrega desenhos quando a versão muda
   useEffect(() => {
     const fetchDrawings = async () => {
-      if (!token) return;
-
       try {
-        const response = await fetch(`/api/drawings/video/${currentVideoId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // Use endpoint público para guests, privado para usuários autenticados
+        const endpoint = isGuest
+          ? `/api/shares/${shareToken}/drawings/video/${currentVideoId}`
+          : `/api/drawings/video/${currentVideoId}`;
+
+        const headers = isGuest ? {} : { 'Authorization': `Bearer ${token}` };
+
+        const response = await fetch(endpoint, { headers });
         if (response.ok) {
           const data = await response.json();
           // Converte os dados do banco para o formato esperado
@@ -370,7 +380,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
     };
 
     fetchDrawings();
-  }, [currentVideoId, token]);
+  }, [currentVideoId, token, isGuest, shareToken]);
 
   // Função para fazer download do vídeo (proxy ou original)
   const handleDownload = async (type) => {
@@ -507,11 +517,11 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
     setCurrentDrawing([...currentDrawing, { x, y }]);
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = async () => {
     if (!isDrawing) return;
     setIsDrawing(false);
     if (currentDrawing.length > 0) {
-      // Salva o desenho com o timestamp atual
+      // Salva o desenho localmente primeiro
       const newDrawing = {
         timestamp: currentTime,
         points: currentDrawing,
@@ -519,7 +529,39 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
         id: Date.now()
       };
       setDrawings([...drawings, newDrawing]);
-      setCurrentDrawing([]);
+
+      // Salva no backend (apenas para usuários autenticados)
+      if (!isGuest) {
+        const saveToast = toast.loading('Salvando desenho...');
+        try {
+          const response = await fetch('/api/drawings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              video_id: currentVideoId,
+              timestamp: currentTime,
+              drawing_data: currentDrawing,
+              color: drawColor
+            })
+          });
+
+          if (response.ok) {
+            toast.success('Desenho salvo com sucesso!', { id: saveToast });
+            setCurrentDrawing([]);
+            setDrawingMode(false); // Desativa modo desenho automaticamente
+          } else {
+            toast.error('Erro ao salvar desenho', { id: saveToast });
+          }
+        } catch (error) {
+          console.error('Erro ao salvar desenho:', error);
+          toast.error('Erro ao salvar desenho', { id: saveToast });
+        }
+      } else {
+        setCurrentDrawing([]);
+      }
     }
   };
 
@@ -1062,13 +1104,34 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
                     </button>
 
                     {/* Emoji picker */}
-                    <button
-                      type="button"
-                      className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
-                      title="Adicionar emoji"
-                    >
-                      <Smile className="w-4 h-4" />
-                    </button>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className={`p-2 rounded-sm transition-colors ${
+                          showEmojiPicker
+                            ? 'text-yellow-500 bg-yellow-500/10'
+                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                        }`}
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        title="Adicionar emoji"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+
+                      {showEmojiPicker && (
+                        <div className="absolute bottom-full left-0 mb-2 z-50">
+                          <EmojiPicker
+                            onEmojiClick={(emojiData) => {
+                              setNewComment(newComment + emojiData.emoji);
+                              setShowEmojiPicker(false);
+                            }}
+                            theme="dark"
+                            width={300}
+                            height={400}
+                          />
+                        </div>
+                      )}
+                    </div>
 
                     {/* Drawing tool */}
                     <button
