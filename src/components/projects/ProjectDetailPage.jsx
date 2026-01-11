@@ -897,7 +897,7 @@ function VideoCard({ video, versions = [], onClick, onMove, onCreateVersion, onD
           alt={video.title}
         />
         <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-          <div className="w-12 h-12 bg-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-300">
+          <div className="w-12 h-12 bg-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-transform transition-opacity duration-300 transform-gpu">
             <Play className="w-6 h-6 text-white fill-current" />
           </div>
         </div>
