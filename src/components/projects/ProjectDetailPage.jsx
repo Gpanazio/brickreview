@@ -127,8 +127,32 @@ export function ProjectDetailPage() {
         const data = await response.json();
         const shareUrl = `${window.location.origin}/share/${data.token}`;
 
-        await navigator.clipboard.writeText(shareUrl);
-        toast.success('Link copiado para área de transferência!', { id: loadingToast });
+        // Tenta copiar para clipboard, com fallback para seleção manual
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success('Link copiado para área de transferência!', { id: loadingToast });
+        } catch (clipboardError) {
+          // Fallback: cria input temporário e usa execCommand
+          console.warn('Clipboard API bloqueada, usando fallback:', clipboardError);
+
+          const input = document.createElement('input');
+          input.value = shareUrl;
+          input.style.position = 'fixed';
+          input.style.opacity = '0';
+          document.body.appendChild(input);
+          input.select();
+
+          try {
+            document.execCommand('copy');
+            toast.success('Link copiado para área de transferência!', { id: loadingToast });
+          } catch (execError) {
+            // Se ainda falhar, mostra em prompt
+            prompt('Copie o link de compartilhamento:', shareUrl);
+            toast.success('Link gerado com sucesso!', { id: loadingToast });
+          }
+
+          document.body.removeChild(input);
+        }
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || 'Erro ao gerar link', { id: loadingToast });
