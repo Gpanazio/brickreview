@@ -23,7 +23,8 @@ import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal
 import { FolderView } from './components/projects/FolderView'
 import { ProjectListItem } from './components/projects/ProjectListItem'
 import { ShareViewPage } from './components/projects/ShareViewPage'
-import { Toaster, toast } from './components/ui/sonner'
+import { Toaster } from './components/ui/sonner'
+import { toast } from 'sonner'
 import { ProjectCoverPlaceholder } from './components/ui/ProjectCoverPlaceholder'
 
 // Helper para identificar URLs padrão antigas
