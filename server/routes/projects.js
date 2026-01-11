@@ -169,6 +169,49 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 });
 
 /**
+ * @route PATCH /api/projects/:id/move
+ * @desc Move project to a folder
+ */
+router.patch('/:id/move', authenticateToken, async (req, res) => {
+  const { folder_id } = req.body;
+  const projectId = req.params.id;
+
+  try {
+    // Se folder_id foi fornecido, verifica se a pasta existe e se é uma pasta raiz
+    if (folder_id) {
+      const folderCheck = await query(
+        'SELECT id, project_id FROM brickreview_folders WHERE id = $1',
+        [folder_id]
+      );
+
+      if (folderCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Pasta não encontrada' });
+      }
+
+      if (folderCheck.rows[0].project_id !== null) {
+        return res.status(400).json({ error: 'Não é possível mover um projeto para dentro de uma pasta de outro projeto' });
+      }
+    }
+
+    const result = await query(`
+      UPDATE brickreview_projects
+      SET folder_id = $1
+      WHERE id = $2
+      RETURNING *
+    `, [folder_id || null, projectId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Projeto não encontrado' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao mover projeto:', error);
+    res.status(500).json({ error: 'Erro ao mover projeto' });
+  }
+});
+
+/**
  * @route DELETE /api/projects/:id
  * @desc Delete project
  */
