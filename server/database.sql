@@ -272,11 +272,11 @@ GROUP BY v.id;
 CREATE VIEW brickreview_comments_with_user AS
 SELECT
   c.*,
-  u.username,
+  COALESCE(u.username, c.visitor_name) as username,
   u.email,
   (SELECT COUNT(*) FROM brickreview_comments WHERE parent_comment_id = c.id) as replies_count
 FROM brickreview_comments c
-JOIN master_users u ON c.user_id = u.id;
+LEFT JOIN master_users u ON c.user_id = u.id;
 
 -- View: Folders com estatísticas
 CREATE VIEW brickreview_folders_with_stats AS

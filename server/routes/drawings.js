@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js'
+import { isAdmin, requireProjectAccess, requireProjectAccessFromVideo } from '../utils/permissions.js'
 
 const router = express.Router();
 
@@ -17,12 +18,19 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 
   try {
+    const videoId = Number(video_id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'video_id inválido' })
+    }
+
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+
     const result = await query(
       `INSERT INTO brickreview_drawings (video_id, user_id, timestamp, drawing_data, color)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, video_id, user_id, timestamp, drawing_data, color, created_at`,
-      [video_id, userId, timestamp, JSON.stringify(drawing_data), color || '#FF0000']
-    );
+      [videoId, userId, timestamp, JSON.stringify(drawing_data), color || '#FF0000']
+    )
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -36,7 +44,12 @@ router.post('/', authenticateToken, async (req, res) => {
  * @desc Get all drawings for a specific video
  */
 router.get('/video/:videoId', authenticateToken, async (req, res) => {
-  const { videoId } = req.params;
+  const videoId = Number(req.params.videoId)
+  if (!Number.isInteger(videoId)) {
+    return res.status(400).json({ error: 'videoId inválido' })
+  }
+
+  if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
 
   try {
     const result = await query(
@@ -72,22 +85,33 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Verifica se o desenho existe e se pertence ao usuário
+    const drawingId = Number(id)
+    if (!Number.isInteger(drawingId)) {
+      return res.status(400).json({ error: 'ID de desenho inválido' })
+    }
+
     const checkResult = await query(
-      'SELECT user_id FROM brickreview_drawings WHERE id = $1',
-      [id]
-    );
+      `SELECT d.user_id, v.project_id
+       FROM brickreview_drawings d
+       JOIN brickreview_videos v ON v.id = d.video_id
+       WHERE d.id = $1`,
+      [drawingId]
+    )
 
     if (checkResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Desenho não encontrado' });
+      return res.status(404).json({ error: 'Desenho não encontrado' })
     }
 
-    if (checkResult.rows[0].user_id !== userId) {
-      return res.status(403).json({ error: 'Você não tem permissão para deletar este desenho' });
+    const { user_id, project_id } = checkResult.rows[0]
+
+    if (!(await requireProjectAccess(req, res, project_id))) return
+
+    if (!isAdmin(req.user) && user_id !== userId) {
+      return res.status(403).json({ error: 'Você não tem permissão para deletar este desenho' })
     }
 
-    await query('DELETE FROM brickreview_drawings WHERE id = $1', [id]);
-    res.json({ message: 'Desenho deletado com sucesso' });
+    await query('DELETE FROM brickreview_drawings WHERE id = $1', [drawingId])
+    res.json({ message: 'Desenho deletado com sucesso' })
   } catch (error) {
     console.error('Erro ao deletar desenho:', error);
     res.status(500).json({ error: 'Erro ao deletar desenho' });

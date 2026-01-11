@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js'
+import { requireProjectAccess, requireProjectAccessFromFolder } from '../utils/permissions.js'
 
 const router = express.Router();
 
@@ -10,11 +11,19 @@ const router = express.Router();
  */
 router.get('/project/:projectId', authenticateToken, async (req, res) => {
   try {
-    const result = await query(`
-      SELECT * FROM brickreview_folders_with_stats
-      WHERE project_id = $1
-      ORDER BY parent_folder_id NULLS FIRST, name ASC
-    `, [req.params.projectId]);
+    const projectId = Number(req.params.projectId)
+    if (!Number.isInteger(projectId)) {
+      return res.status(400).json({ error: 'projectId inválido' })
+    }
+
+    if (!(await requireProjectAccess(req, res, projectId))) return
+
+    const result = await query(
+      `SELECT * FROM brickreview_folders_with_stats
+       WHERE project_id = $1
+       ORDER BY parent_folder_id NULLS FIRST, name ASC`,
+      [projectId]
+    )
 
     res.json(result.rows);
   } catch (error) {
@@ -29,10 +38,17 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
  */
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    const folderId = Number(req.params.id)
+    if (!Number.isInteger(folderId)) {
+      return res.status(400).json({ error: 'ID de pasta inválido' })
+    }
+
+    if (!(await requireProjectAccessFromFolder(req, res, folderId))) return
+
     const folderResult = await query(
       'SELECT * FROM brickreview_folders_with_stats WHERE id = $1',
-      [req.params.id]
-    );
+      [folderId]
+    )
 
     if (folderResult.rows.length === 0) {
       return res.status(404).json({ error: 'Pasta não encontrada' });
@@ -77,11 +93,23 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 
   try {
+    const projectId = Number(project_id)
+    if (!Number.isInteger(projectId)) {
+      return res.status(400).json({ error: 'project_id inválido' })
+    }
+
+    if (!(await requireProjectAccess(req, res, projectId))) return
+
+    const parentFolderId = parent_folder_id ? Number(parent_folder_id) : null
+    if (parent_folder_id && !Number.isInteger(parentFolderId)) {
+      return res.status(400).json({ error: 'parent_folder_id inválido' })
+    }
+
     // Verifica se o projeto existe
     const projectCheck = await query(
       'SELECT id FROM brickreview_projects WHERE id = $1',
-      [project_id]
-    );
+      [projectId]
+    )
 
     if (projectCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Projeto não encontrado' });
@@ -91,8 +119,8 @@ router.post('/', authenticateToken, async (req, res) => {
     if (parent_folder_id) {
       const parentCheck = await query(
         'SELECT id FROM brickreview_folders WHERE id = $1 AND project_id = $2',
-        [parent_folder_id, project_id]
-      );
+        [parentFolderId, projectId]
+      )
 
       if (parentCheck.rows.length === 0) {
         return res.status(404).json({ error: 'Pasta pai não encontrada' });
@@ -103,7 +131,7 @@ router.post('/', authenticateToken, async (req, res) => {
       INSERT INTO brickreview_folders (project_id, parent_folder_id, name)
       VALUES ($1, $2, $3)
       RETURNING *
-    `, [project_id, parent_folder_id || null, name]);
+    `, [projectId, parentFolderId || null, name])
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -124,12 +152,20 @@ router.patch('/:id', authenticateToken, async (req, res) => {
   }
 
   try {
-    const result = await query(`
-      UPDATE brickreview_folders
-      SET name = $1
-      WHERE id = $2
-      RETURNING *
-    `, [name, req.params.id]);
+    const folderId = Number(req.params.id)
+    if (!Number.isInteger(folderId)) {
+      return res.status(400).json({ error: 'ID de pasta inválido' })
+    }
+
+    if (!(await requireProjectAccessFromFolder(req, res, folderId))) return
+
+    const result = await query(
+      `UPDATE brickreview_folders
+       SET name = $1
+       WHERE id = $2
+       RETURNING *`,
+      [name, folderId]
+    )
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Pasta não encontrada' });
@@ -148,16 +184,23 @@ router.patch('/:id', authenticateToken, async (req, res) => {
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
+    const folderId = Number(req.params.id)
+    if (!Number.isInteger(folderId)) {
+      return res.status(400).json({ error: 'ID de pasta inválido' })
+    }
+
+    if (!(await requireProjectAccessFromFolder(req, res, folderId))) return
+
     const result = await query(
       'DELETE FROM brickreview_folders WHERE id = $1 RETURNING id',
-      [req.params.id]
-    );
+      [folderId]
+    )
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Pasta não encontrada' });
     }
 
-    res.json({ message: 'Pasta removida com sucesso', id: req.params.id });
+    res.json({ message: 'Pasta removida com sucesso', id: folderId })
   } catch (error) {
     console.error('Erro ao remover pasta:', error);
     res.status(500).json({ error: 'Erro ao remover pasta' });
@@ -169,12 +212,20 @@ router.delete('/:id', authenticateToken, async (req, res) => {
  * @desc Move folder to another parent folder or root
  */
 router.post('/:id/move', authenticateToken, async (req, res) => {
-  const { new_parent_folder_id } = req.body;
+  const { new_parent_folder_id } = req.body
 
   try {
+    const folderId = Number(req.params.id)
+    if (!Number.isInteger(folderId)) {
+      return res.status(400).json({ error: 'ID de pasta inválido' })
+    }
+
+    const projectId = await requireProjectAccessFromFolder(req, res, folderId)
+    if (!projectId) return
+
     // Se new_parent_folder_id foi fornecido, verifica se existe e não é o mesmo folder
     if (new_parent_folder_id) {
-      if (parseInt(new_parent_folder_id) === parseInt(req.params.id)) {
+      if (parseInt(new_parent_folder_id) === folderId) {
         return res.status(400).json({ error: 'Não é possível mover uma pasta para dentro dela mesma' });
       }
 
@@ -190,8 +241,8 @@ router.post('/:id/move', authenticateToken, async (req, res) => {
       // Verifica se ambas as pastas pertencem ao mesmo projeto
       const currentFolderCheck = await query(
         'SELECT project_id FROM brickreview_folders WHERE id = $1',
-        [req.params.id]
-      );
+        [folderId]
+      )
 
       if (currentFolderCheck.rows.length === 0) {
         return res.status(404).json({ error: 'Pasta não encontrada' });
@@ -207,7 +258,7 @@ router.post('/:id/move', authenticateToken, async (req, res) => {
       SET parent_folder_id = $1
       WHERE id = $2
       RETURNING *
-    `, [new_parent_folder_id || null, req.params.id]);
+    `, [new_parent_folder_id || null, folderId])
 
     res.json(result.rows[0]);
   } catch (error) {

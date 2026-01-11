@@ -3,8 +3,9 @@ import multer from 'multer';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
-import r2Client from '../utils/r2.js';
+import { authenticateToken } from '../middleware/auth.js'
+import { requireProjectAccess, requireProjectAccessFromVideo } from '../utils/permissions.js'
+import r2Client from '../utils/r2.js'
 import { generateThumbnail, getVideoMetadata, generateProxy } from '../utils/video.js';
 import path from 'path';
 import fs from 'fs';
@@ -53,7 +54,29 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
   }
 
   if (!file || !project_id || !title) {
-    return res.status(400).json({ error: 'Dados insuficientes para o upload' });
+    return res.status(400).json({ error: 'Dados insuficientes para o upload' })
+  }
+
+  const projectId = Number(project_id)
+  if (!Number.isInteger(projectId)) {
+    return res.status(400).json({ error: 'project_id inválido' })
+  }
+
+  if (!(await requireProjectAccess(req, res, projectId))) return
+
+  const folderId = folder_id ? Number(folder_id) : null
+  if (folder_id && !Number.isInteger(folderId)) {
+    return res.status(400).json({ error: 'folder_id inválido' })
+  }
+
+  if (folderId) {
+    const folderCheck = await query(
+      'SELECT 1 FROM brickreview_folders WHERE id = $1 AND project_id = $2',
+      [folderId, projectId]
+    )
+    if (folderCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'folder_id não pertence ao projeto' })
+    }
   }
 
   const thumbDir = 'thumbnails/';
@@ -157,13 +180,13 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       proxyKey, proxyUrl,
       thumbKey, thumbUrl,
       metadata.duration, metadata.fps, metadata.width, metadata.height,
-      file.size, file.mimetype, req.user.id, folder_id || null
+      file.size, file.mimetype, req.user.id, folderId || null
     ]);
 
     // Cleanup
     fs.unlinkSync(file.path);
-    if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
-    if (fs.existsSync(proxyPath)) fs.unlinkSync(proxyPath);
+    if (thumbPath && fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath)
+    if (proxyPath && fs.existsSync(proxyPath)) fs.unlinkSync(proxyPath)
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -181,6 +204,13 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
  */
 router.get('/:id/stream', authenticateToken, async (req, res) => {
   try {
+    const videoId = Number(req.params.id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'ID de vídeo inválido' })
+    }
+
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+
     const videoResult = await query(
       'SELECT r2_key, r2_url, proxy_r2_key, proxy_url, mime_type FROM brickreview_videos WHERE id = $1',
       [req.params.id]
@@ -234,7 +264,14 @@ router.get('/:id/stream', authenticateToken, async (req, res) => {
  */
 router.get('/:id/download', authenticateToken, async (req, res) => {
   try {
-    const { type } = req.query; // 'original' or 'proxy'
+    const videoId = Number(req.params.id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'ID de vídeo inválido' })
+    }
+
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+
+    const { type } = req.query // 'original' or 'proxy'
 
     const videoResult = await query(
       'SELECT r2_key, r2_url, proxy_r2_key, proxy_url, title FROM brickreview_videos WHERE id = $1',
@@ -300,28 +337,37 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
  */
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const videoResult = await query(
-      'SELECT * FROM brickreview_videos_with_stats WHERE id = $1',
-      [req.params.id]
-    );
-
-    if (videoResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Vídeo não encontrado' });
+    const videoId = Number(req.params.id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'ID de vídeo inválido' })
     }
 
-    const video = videoResult.rows[0];
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+
+    const videoResult = await query(
+      'SELECT * FROM brickreview_videos_with_stats WHERE id = $1',
+      [videoId]
+    )
+
+    if (videoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' })
+    }
+
+    const video = videoResult.rows[0]
 
     // Busca comentários do vídeo
-    const commentsResult = await query(`
-      SELECT * FROM brickreview_comments_with_user
-      WHERE video_id = $1 AND parent_comment_id IS NULL
-      ORDER BY timestamp ASC, created_at ASC
-    `, [req.params.id]);
+    const commentsResult = await query(
+      `SELECT * FROM brickreview_comments_with_user
+       WHERE video_id = $1 AND parent_comment_id IS NULL
+       ORDER BY timestamp ASC, created_at ASC`,
+      [req.params.id]
+    )
 
     res.json({
       ...video,
-      comments: commentsResult.rows
-    });
+      comments: commentsResult.rows,
+    })
+
   } catch (error) {
     console.error('Erro ao buscar detalhes do vídeo:', error);
     res.status(500).json({ error: 'Erro ao buscar detalhes do vídeo' });
@@ -334,14 +380,36 @@ router.get('/:id', authenticateToken, async (req, res) => {
  */
 router.patch('/:id/move', authenticateToken, async (req, res) => {
   try {
-    const { folder_id } = req.body;
-    const videoId = req.params.id;
+    const { folder_id } = req.body
+    const videoId = Number(req.params.id)
+
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'ID de vídeo inválido' })
+    }
+
+    const projectId = await requireProjectAccessFromVideo(req, res, videoId)
+    if (!projectId) return
+
+    const folderId = folder_id ? Number(folder_id) : null
+    if (folder_id && !Number.isInteger(folderId)) {
+      return res.status(400).json({ error: 'folder_id inválido' })
+    }
+
+    if (folderId) {
+      const folderCheck = await query(
+        'SELECT 1 FROM brickreview_folders WHERE id = $1 AND project_id = $2',
+        [folderId, projectId]
+      )
+      if (folderCheck.rows.length === 0) {
+        return res.status(400).json({ error: 'folder_id não pertence ao projeto' })
+      }
+    }
 
     // Atualiza o folder_id do vídeo (null significa sem pasta)
     const result = await query(
       'UPDATE brickreview_videos SET folder_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-      [folder_id || null, videoId]
-    );
+      [folderId || null, videoId]
+    )
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vídeo não encontrado' });
@@ -360,8 +428,15 @@ router.patch('/:id/move', authenticateToken, async (req, res) => {
  */
 router.post('/:id/create-version', authenticateToken, async (req, res) => {
   try {
-    const { parent_video_id } = req.body;
-    const childVideoId = req.params.id;
+    const { parent_video_id } = req.body
+    const childVideoId = Number(req.params.id)
+
+    if (!Number.isInteger(childVideoId)) {
+      return res.status(400).json({ error: 'ID de vídeo inválido' })
+    }
+
+    const projectId = await requireProjectAccessFromVideo(req, res, childVideoId)
+    if (!projectId) return
 
     if (!parent_video_id) {
       return res.status(400).json({ error: 'parent_video_id é obrigatório' });
@@ -374,7 +449,7 @@ router.post('/:id/create-version', authenticateToken, async (req, res) => {
 
     // Verifica se o vídeo pai existe e busca info sobre ele
     const parentCheck = await query(
-      'SELECT id, version_number, parent_video_id FROM brickreview_videos WHERE id = $1',
+      'SELECT id, version_number, parent_video_id, project_id FROM brickreview_videos WHERE id = $1',
       [parent_video_id]
     );
 
@@ -382,9 +457,15 @@ router.post('/:id/create-version', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Vídeo pai não encontrado' });
     }
 
+    if (parentCheck.rows[0].project_id !== projectId) {
+      return res.status(400).json({ error: 'Vídeo pai não pertence ao mesmo projeto' })
+    }
+
     // Previne ciclos: parent não pode ter parent (somente vídeos raiz podem ser pais)
     if (parentCheck.rows[0].parent_video_id !== null) {
-      return res.status(400).json({ error: 'Não é possível criar versão de uma versão. Apenas vídeos raiz podem ter versões.' });
+      return res.status(400).json({
+        error: 'Não é possível criar versão de uma versão. Apenas vídeos raiz podem ter versões.',
+      })
     }
 
     // Verifica se o child já não é pai de outro vídeo (evita ciclos)
@@ -426,17 +507,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Busca informações do vídeo antes de excluir
-    const videoResult = await query(
-      'SELECT * FROM brickreview_videos WHERE id = $1',
-      [id]
-    );
-
-    if (videoResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Vídeo não encontrado' });
+    const videoId = Number(id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'ID de vídeo inválido' })
     }
 
-    const video = videoResult.rows[0];
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
 
     // TODO: Excluir arquivos do R2 (video, thumbnail, proxy)
     // Por ora, apenas exclui do banco de dados
@@ -446,9 +522,9 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     // - DeleteObjectCommand para video.proxy_r2_key
 
     // Exclui do banco de dados (CASCADE vai remover comentários, aprovações, etc.)
-    await query('DELETE FROM brickreview_videos WHERE id = $1', [id]);
+    await query('DELETE FROM brickreview_videos WHERE id = $1', [videoId])
 
-    res.json({ message: 'Vídeo excluído com sucesso', id });
+    res.json({ message: 'Vídeo excluído com sucesso', id: videoId })
   } catch (error) {
     console.error('Erro ao excluir vídeo:', error);
     res.status(500).json({ error: 'Erro ao excluir vídeo' });

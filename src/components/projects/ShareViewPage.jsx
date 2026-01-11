@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Film, Folder, Play, MessageSquare, ChevronRight, Lock } from 'lucide-react';
+import { Film, Folder, Play, MessageSquare, ChevronRight, Lock, Share2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,19 +20,22 @@ export function ShareViewPage() {
 
   const fetchShare = async (pass = null) => {
     try {
-      setLoading(true);
-      setError(null);
-      const url = `/api/shares/${token}${pass ? `?password=${pass}` : ''}`;
-      const response = await fetch(url);
+      setLoading(true)
+      setError(null)
+
+      const headers = pass ? { 'x-share-password': pass } : {}
+      const response = await fetch(`/api/shares/${token}`, { headers })
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 401 && data.requires_password) {
-          setShareData({ requires_password: true });
+          setShareData({ requires_password: true })
+          setPasswordError(!!pass)
         } else {
-          throw new Error(data.error || 'Erro ao carregar link');
+          throw new Error(data.error || 'Erro ao carregar link')
         }
       } else {
+        setPasswordError(false)
         console.log('Share data received:', data);
         console.log('Resource type:', data.resource?.type);
         setShareData(data);
@@ -58,7 +61,8 @@ export function ShareViewPage() {
   const fetchFolderVideos = async () => {
     try {
       console.log('Fetching folder videos for token:', token);
-      const response = await fetch(`/api/shares/${token}/folder-videos`);
+      const headers = password ? { 'x-share-password': password } : {}
+      const response = await fetch(`/api/shares/${token}/folder-videos`, { headers })
       console.log('Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
@@ -75,7 +79,8 @@ export function ShareViewPage() {
   const fetchProjectVideos = async () => {
     try {
       console.log('Fetching project videos for token:', token);
-      const response = await fetch(`/api/shares/${token}/project-videos`);
+      const headers = password ? { 'x-share-password': password } : {}
+      const response = await fetch(`/api/shares/${token}/project-videos`, { headers })
       console.log('Response status:', response.status);
       if (response.ok) {
         const data = await response.json();
@@ -137,14 +142,20 @@ export function ShareViewPage() {
             <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Este link exige uma senha de acesso</p>
           </div>
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <Input 
+            <Input
               type="password"
               placeholder="DIGITE A SENHA"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPasswordError(false)
+                setPassword(e.target.value)
+              }}
               className="glass-input h-12 rounded-none border-none text-center"
               required
             />
+            {passwordError && (
+              <p className="text-xs text-red-500 text-center">Senha incorreta</p>
+            )}
             <Button type="submit" className="w-full h-12 glass-button-primary border-none rounded-none font-black uppercase tracking-widest text-xs">
               Acessar Conteúdo
             </Button>
@@ -243,13 +254,15 @@ export function ShareViewPage() {
 
               <div className="w-full flex items-center justify-center bg-black border border-zinc-800 shadow-2xl p-4">
                 <div className="w-full max-w-6xl">
-                  <VideoPlayer
-                    video={currentVideo}
-                    versions={currentVersions}
-                    isPublic={true}
-                    shareToken={token}
-                    accessType={shareData.access_type}
-                  />
+                    <VideoPlayer
+                      video={currentVideo}
+                      versions={currentVersions}
+                      isPublic={true}
+                      shareToken={token}
+                      sharePassword={password || null}
+                      accessType={shareData.access_type}
+                    />
+
                 </div>
               </div>
             </div>

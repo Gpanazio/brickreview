@@ -2,8 +2,13 @@ import express from 'express';
 import multer from 'multer';
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
-import r2Client from '../utils/r2.js';
+import { authenticateToken } from '../middleware/auth.js'
+import {
+  requireProjectAccess,
+  requireProjectAccessFromFile,
+  requireProjectAccessFromFolder,
+} from '../utils/permissions.js'
+import r2Client from '../utils/r2.js'
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -74,10 +79,32 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req, res
   }
 
   if (!file || !project_id) {
-    return res.status(400).json({ error: 'Dados insuficientes para o upload' });
+    return res.status(400).json({ error: 'Dados insuficientes para o upload' })
   }
 
-  const fileName = name || file.originalname;
+  const projectId = Number(project_id)
+  if (!Number.isInteger(projectId)) {
+    return res.status(400).json({ error: 'project_id inválido' })
+  }
+
+  if (!(await requireProjectAccess(req, res, projectId))) return
+
+  const folderId = folder_id ? Number(folder_id) : null
+  if (folder_id && !Number.isInteger(folderId)) {
+    return res.status(400).json({ error: 'folder_id inválido' })
+  }
+
+  if (folderId) {
+    const folderCheck = await query(
+      'SELECT 1 FROM brickreview_folders WHERE id = $1 AND project_id = $2',
+      [folderId, projectId]
+    )
+    if (folderCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'folder_id não pertence ao projeto' })
+    }
+  }
+
+  const fileName = name || file.originalname
   const fileType = getFileType(file.mimetype);
   let thumbnailKey = null;
   let thumbnailUrl = null;
@@ -128,7 +155,7 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req, res
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `, [
-      project_id, folder_id || null, fileName, description || null,
+      projectId, folderId || null, fileName, description || null,
       fileKey, r2Url, thumbnailKey, thumbnailUrl,
       fileType, file.mimetype, file.size, width, height, req.user.id
     ]);
@@ -153,7 +180,12 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req, res
  */
 router.get('/folder/:folderId', authenticateToken, async (req, res) => {
   try {
-    const { folderId } = req.params;
+    const folderId = Number(req.params.folderId)
+    if (!Number.isInteger(folderId)) {
+      return res.status(400).json({ error: 'folderId inválido' })
+    }
+
+    if (!(await requireProjectAccessFromFolder(req, res, folderId))) return
 
     const result = await query(
       `SELECT * FROM brickreview_files
@@ -175,7 +207,12 @@ router.get('/folder/:folderId', authenticateToken, async (req, res) => {
  */
 router.get('/project/:projectId', authenticateToken, async (req, res) => {
   try {
-    const { projectId } = req.params;
+    const projectId = Number(req.params.projectId)
+    if (!Number.isInteger(projectId)) {
+      return res.status(400).json({ error: 'projectId inválido' })
+    }
+
+    if (!(await requireProjectAccess(req, res, projectId))) return
 
     const result = await query(
       `SELECT * FROM brickreview_files
@@ -197,21 +234,17 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-
-    const fileResult = await query(
-      'SELECT * FROM brickreview_files WHERE id = $1',
-      [id]
-    );
-
-    if (fileResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Arquivo não encontrado' });
+    const fileId = Number(req.params.id)
+    if (!Number.isInteger(fileId)) {
+      return res.status(400).json({ error: 'ID de arquivo inválido' })
     }
+
+    if (!(await requireProjectAccessFromFile(req, res, fileId))) return
 
     // TODO: Excluir arquivo do R2
 
-    await query('DELETE FROM brickreview_files WHERE id = $1', [id]);
-    res.json({ message: 'Arquivo excluído com sucesso', id });
+    await query('DELETE FROM brickreview_files WHERE id = $1', [fileId])
+    res.json({ message: 'Arquivo excluído com sucesso', id: fileId })
   } catch (error) {
     console.error('Erro ao excluir arquivo:', error);
     res.status(500).json({ error: 'Erro ao excluir arquivo' });

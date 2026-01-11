@@ -152,7 +152,8 @@ export function ProjectDetailPage() {
             } else {
               throw new Error('execCommand falhou');
             }
-          } catch (execError) {
+           } catch {
+
             // Se ainda falhar, mostra em prompt
             prompt('Copie o link de compartilhamento:', shareUrl);
             toast.success('Link gerado com sucesso!', { id: loadingToast });
@@ -198,7 +199,7 @@ export function ProjectDetailPage() {
     }
   };
 
-  const handleArchiveVideo = async (videoId) => {
+  const handleArchiveVideo = async (_videoId) => {
     const loadingToast = toast.loading('Arquivando vídeo...');
 
     try {
@@ -792,7 +793,7 @@ function FileCard({ file, onDelete }) {
   );
 }
 
-function VideoCard({ video, versions = [], onClick, onMove, onCreateVersion, onDelete, onArchive, onGenerateShare }) {
+function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVersion, onDelete, onArchive, onGenerateShare }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const totalVersions = versions.length + 1; // +1 para incluir a versão original
