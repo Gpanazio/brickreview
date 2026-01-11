@@ -169,7 +169,7 @@ export async function isDatabaseReady() {
       ) as exists
     `)
     return result.rows[0].exists
-  } catch (error) {
+  } catch {
     return false
   }
 }

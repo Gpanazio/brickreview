@@ -11,7 +11,7 @@ dotenv.config()
 // Valida variáveis de ambiente ANTES de fazer qualquer outra coisa
 try {
   validateEnvironment()
-} catch (error) {
+} catch {
   console.error('\n🛑 Servidor não pode iniciar devido a erros de configuração.')
   process.exit(1)
 }
@@ -25,10 +25,16 @@ const PORT = process.env.PORT || 3002
 // Middleware
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true,
-}))
+const allowAnyOrigin = !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*'
+
+app.use(
+  cors({
+    origin: allowAnyOrigin
+      ? true
+      : process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()),
+    credentials: !allowAnyOrigin,
+  })
+)
 
 // Request logging em desenvolvimento
 if (process.env.NODE_ENV !== 'production') {
@@ -83,7 +89,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Error handler
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error('❌ Unhandled error:', err)
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error',

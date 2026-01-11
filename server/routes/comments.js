@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js'
+import { requireProjectAccess, requireProjectAccessFromVideo } from '../utils/permissions.js'
 
 const router = express.Router();
 
@@ -10,7 +11,12 @@ const router = express.Router();
  */
 router.get('/video/:videoId', authenticateToken, async (req, res) => {
   try {
-    const { videoId } = req.params;
+    const videoId = Number(req.params.videoId)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'videoId inválido' })
+    }
+
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
 
     const comments = await query(
       `SELECT
@@ -44,11 +50,19 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 
   try {
-    const result = await query(`
-      INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *
-    `, [video_id, parent_comment_id, req.user.id, content, timestamp]);
+    const videoId = Number(video_id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'video_id inválido' })
+    }
+
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+
+    const result = await query(
+      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [videoId, parent_comment_id, req.user.id, content, timestamp]
+    )
 
     // Busca detalhes do comentário recém criado com dados do usuário
     const commentResult = await query(
@@ -71,14 +85,34 @@ router.patch('/:id', authenticateToken, async (req, res) => {
   const { content, status } = req.body;
 
   try {
-    const result = await query(`
-      UPDATE brickreview_comments
-      SET content = COALESCE($1, content),
-          status = COALESCE($2, status),
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3 AND (user_id = $4 OR $5 = 'admin')
-      RETURNING *
-    `, [content, status, req.params.id, req.user.id, req.user.role]);
+    const commentId = Number(req.params.id)
+    if (!Number.isInteger(commentId)) {
+      return res.status(400).json({ error: 'ID de comentário inválido' })
+    }
+
+    const projectResult = await query(
+      `SELECT v.project_id
+       FROM brickreview_comments c
+       JOIN brickreview_videos v ON v.id = c.video_id
+       WHERE c.id = $1`,
+      [commentId]
+    )
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Comentário não encontrado' })
+    }
+
+    if (!(await requireProjectAccess(req, res, projectResult.rows[0].project_id))) return
+
+    const result = await query(
+      `UPDATE brickreview_comments
+       SET content = COALESCE($1, content),
+           status = COALESCE($2, status),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3 AND (user_id = $4 OR $5 = 'admin')
+       RETURNING *`,
+      [content, status, commentId, req.user.id, req.user.role]
+    )
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Comentário não encontrado ou sem permissão' });
@@ -97,16 +131,35 @@ router.patch('/:id', authenticateToken, async (req, res) => {
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
+    const commentId = Number(req.params.id)
+    if (!Number.isInteger(commentId)) {
+      return res.status(400).json({ error: 'ID de comentário inválido' })
+    }
+
+    const projectResult = await query(
+      `SELECT v.project_id
+       FROM brickreview_comments c
+       JOIN brickreview_videos v ON v.id = c.video_id
+       WHERE c.id = $1`,
+      [commentId]
+    )
+
+    if (projectResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Comentário não encontrado' })
+    }
+
+    if (!(await requireProjectAccess(req, res, projectResult.rows[0].project_id))) return
+
     const result = await query(
       "DELETE FROM brickreview_comments WHERE id = $1 AND (user_id = $2 OR $3 = 'admin') RETURNING id",
-      [req.params.id, req.user.id, req.user.role]
-    );
+      [commentId, req.user.id, req.user.role]
+    )
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Comentário não encontrado ou sem permissão' });
     }
 
-    res.json({ message: 'Comentário removido com sucesso', id: req.params.id });
+    res.json({ message: 'Comentário removido com sucesso', id: commentId })
   } catch (error) {
     console.error('Erro ao remover comentário:', error);
     res.status(500).json({ error: 'Erro ao remover comentário' });

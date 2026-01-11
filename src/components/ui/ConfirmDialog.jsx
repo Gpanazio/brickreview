@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './button';
 import { Input } from './input';
@@ -16,13 +16,14 @@ export function ConfirmDialog({
   verificationText = "",
   verificationPlaceholder = "Digite para confirmar"
 }) {
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState('')
 
-  useEffect(() => {
-    if (isOpen) setInputValue('');
-  }, [isOpen]);
+  const handleClose = () => {
+    setInputValue('')
+    onClose()
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   const isVerified = !verificationText || inputValue.toLowerCase() === verificationText.toLowerCase();
 
@@ -34,7 +35,8 @@ export function ConfirmDialog({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+               onClick={handleClose}
+
           className="absolute inset-0 bg-black/80 backdrop-blur-md"
         />
 
@@ -83,7 +85,8 @@ export function ConfirmDialog({
           {/* Actions */}
           <div className="flex items-center gap-3">
             <Button
-              onClick={onClose}
+          onClick={handleClose}
+
               variant="ghost"
               className="flex-1 h-12 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-none uppercase tracking-widest text-xs font-black"
             >
@@ -92,7 +95,8 @@ export function ConfirmDialog({
             <Button
               onClick={() => {
                 onConfirm();
-                onClose();
+                 handleClose()
+
               }}
               disabled={!isVerified}
               className={`flex-1 h-12 border-none rounded-none uppercase tracking-widest text-xs font-black transition-all ${

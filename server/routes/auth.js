@@ -47,13 +47,15 @@ router.post('/login', async (req, res) => {
       })
     }
 
+    const role = user.role || 'client'
+
     // Gera token JWT
     const token = jwt.sign(
       {
         id: user.id,
         email: user.email,
         username: user.username,
-        role: 'admin', // Default role
+        role,
       },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
@@ -65,7 +67,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         username: user.username,
-        role: 'admin', // Default role
+        role,
       },
     })
   } catch (err) {
@@ -90,7 +92,7 @@ router.get('/verify', async (req, res) => {
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET)
     res.json({ valid: true, user })
-  } catch (err) {
+  } catch {
     res.status(403).json({ valid: false })
   }
 })

@@ -1,30 +1,105 @@
-import express from 'express';
-import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { v4 as uuidv4 } from 'uuid';
+import express from 'express'
+import bcrypt from 'bcryptjs'
+import { query } from '../db.js'
+import { authenticateToken } from '../middleware/auth.js'
+import {
+  requireProjectAccess,
+  requireProjectAccessFromFolder,
+  requireProjectAccessFromVideo,
+} from '../utils/permissions.js'
+import { v4 as uuidv4 } from 'uuid'
 
-const router = express.Router();
+const router = express.Router()
+
+function getSharePassword(req) {
+  const headerPassword = req.headers['x-share-password']
+  if (typeof headerPassword === 'string' && headerPassword.trim()) return headerPassword
+
+  const bodyPassword = req.body?.password
+  if (typeof bodyPassword === 'string' && bodyPassword.trim()) return bodyPassword
+
+  return null
+}
+
+async function enforceSharePassword(req, res, share) {
+  if (!share.password_hash) return true
+
+  const password = getSharePassword(req)
+  if (!password) {
+    res.status(401).json({ requires_password: true })
+    return false
+  }
+
+  const ok = await bcrypt.compare(password, share.password_hash)
+  if (!ok) {
+    res.status(401).json({ requires_password: true })
+    return false
+  }
+
+  return true
+}
+
+async function loadShare(req, res, token) {
+  const shareResult = await query('SELECT * FROM brickreview_shares WHERE token = $1', [token])
+
+  if (shareResult.rows.length === 0) {
+    res.status(404).json({ error: 'Link de compartilhamento não encontrado' })
+    return null
+  }
+
+  const share = shareResult.rows[0]
+
+  if (share.expires_at && new Date() > new Date(share.expires_at)) {
+    res.status(410).json({ error: 'Este link expirou' })
+    return null
+  }
+
+  const allowed = await enforceSharePassword(req, res, share)
+  return allowed ? share : null
+}
 
 // POST /api/shares - Gera um novo share link
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { project_id, folder_id, video_id, access_type, expires_in_days, password } = req.body;
-    
+    const { project_id, folder_id, video_id, access_type, expires_in_days, password } = req.body
+
     // Validação básica: pelo menos um ID deve ser fornecido
     if (!project_id && !folder_id && !video_id) {
-      return res.status(400).json({ error: 'É necessário fornecer um projeto, pasta ou vídeo para compartilhar' });
+      return res
+        .status(400)
+        .json({ error: 'É necessário fornecer um projeto, pasta ou vídeo para compartilhar' })
     }
 
-    // Gera um token curto usando a primeira parte de um UUID para evitar dependência extra de nanoid
-    const token = uuidv4().split('-')[0]; 
-    let expires_at = null;
+    // Verifica se usuário tem acesso ao recurso compartilhado
+    if (project_id) {
+      const projectId = Number(project_id)
+      if (!Number.isInteger(projectId)) {
+        return res.status(400).json({ error: 'project_id inválido' })
+      }
+      if (!(await requireProjectAccess(req, res, projectId))) return
+    } else if (folder_id) {
+      const folderId = Number(folder_id)
+      if (!Number.isInteger(folderId)) {
+        return res.status(400).json({ error: 'folder_id inválido' })
+      }
+      if (!(await requireProjectAccessFromFolder(req, res, folderId))) return
+    } else if (video_id) {
+      const videoId = Number(video_id)
+      if (!Number.isInteger(videoId)) {
+        return res.status(400).json({ error: 'video_id inválido' })
+      }
+      if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+    }
+
+    // Gera um token curto usando a primeira parte de um UUID
+    const token = uuidv4().split('-')[0]
+    let expires_at = null
     if (expires_in_days) {
-      expires_at = new Date();
-      expires_at.setDate(expires_at.getDate() + parseInt(expires_in_days));
+      expires_at = new Date()
+      expires_at.setDate(expires_at.getDate() + parseInt(expires_in_days))
     }
 
-    // Hash da senha se fornecida (simplificado aqui, ideal usar bcrypt)
-    const password_hash = password || null;
+    const password_hash = password ? await bcrypt.hash(password, 10) : null
 
     const result = await query(
       `INSERT INTO brickreview_shares 
@@ -51,22 +126,8 @@ router.post('/:token/comments', async (req, res) => {
       return res.status(400).json({ error: 'Vídeo ID, conteúdo e nome do visitante são obrigatórios' });
     }
 
-    // Valida que o share token existe e permite comentários
-    const shareResult = await query(
-      `SELECT * FROM brickreview_shares WHERE token = $1`,
-      [token]
-    );
-
-    if (shareResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
-    }
-
-    const share = shareResult.rows[0];
-
-    // Verifica expiração
-    if (share.expires_at && new Date() > new Date(share.expires_at)) {
-      return res.status(410).json({ error: 'Este link expirou' });
-    }
+    const share = await loadShare(req, res, token)
+    if (!share) return
 
     // Verifica se o acesso permite comentários
     if (share.access_type !== 'comment') {
@@ -79,40 +140,15 @@ router.post('/:token/comments', async (req, res) => {
       return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
     }
 
-    // Cria um user_id temporário baseado no nome do visitante
-    // Usamos um UUID consistente para o mesmo nome
-    const crypto = await import('crypto');
-    const guestUserId = crypto.createHash('md5').update(visitor_name.toLowerCase().trim()).digest('hex').substring(0, 8);
+    const visitorName = visitor_name.trim()
 
-    // Insere comentário como convidado
-    // IMPORTANTE: comments ainda requer user_id (UUID), mas para guests usamos um hash do nome
-    // Precisamos criar um guest user temporário OU ajustar o schema
-    // Por ora, vamos criar um guest user se não existir
-
-    // Verifica se já existe um guest user com este nome
-    let guestUser = await query(
-      `SELECT id FROM master_users WHERE username = $1 AND email LIKE 'guest+%'`,
-      [`guest_${guestUserId}`]
-    );
-
-    if (guestUser.rows.length === 0) {
-      // Cria guest user
-      guestUser = await query(
-        `INSERT INTO master_users (id, username, email, password_hash, role)
-         VALUES (gen_random_uuid(), $1, $2, 'guest', 'guest')
-         RETURNING id`,
-        [`guest_${guestUserId}`, `guest+${guestUserId}@brickreview.local`]
-      );
-    }
-
-    const userId = guestUser.rows[0].id;
-
-    // Insere o comentário
-    const commentResult = await query(`
-      INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *
-    `, [video_id, parent_comment_id, userId, content, timestamp]);
+    // Insere comentário como convidado (user_id = NULL)
+    const commentResult = await query(
+      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, visitor_name, content, timestamp)
+       VALUES ($1, $2, NULL, $3, $4, $5)
+       RETURNING *`,
+      [video_id, parent_comment_id, visitorName, content, timestamp]
+    )
 
     // Busca detalhes do comentário com dados do usuário
     const fullComment = await query(
@@ -130,24 +166,10 @@ router.post('/:token/comments', async (req, res) => {
 // GET /api/shares/:token/comments/video/:videoId - Busca comentários de um vídeo (PÚBLICO)
 router.get('/:token/comments/video/:videoId', async (req, res) => {
   try {
-    const { token, videoId } = req.params;
+    const { token, videoId } = req.params
 
-    // Valida que o share token existe
-    const shareResult = await query(
-      `SELECT * FROM brickreview_shares WHERE token = $1`,
-      [token]
-    );
-
-    if (shareResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
-    }
-
-    const share = shareResult.rows[0];
-
-    // Verifica expiração
-    if (share.expires_at && new Date() > new Date(share.expires_at)) {
-      return res.status(410).json({ error: 'Este link expirou' });
-    }
+    const share = await loadShare(req, res, token)
+    if (!share) return
 
     // Verifica que o vídeo pertence ao recurso compartilhado
     const videoIdInt = parseInt(videoId);
@@ -216,24 +238,10 @@ router.get('/:token/comments/video/:videoId', async (req, res) => {
 // GET /api/shares/:token/drawings/video/:videoId - Busca desenhos de um vídeo (PÚBLICO)
 router.get('/:token/drawings/video/:videoId', async (req, res) => {
   try {
-    const { token, videoId } = req.params;
+    const { token, videoId } = req.params
 
-    // Valida que o share token existe
-    const shareResult = await query(
-      `SELECT * FROM brickreview_shares WHERE token = $1`,
-      [token]
-    );
-
-    if (shareResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
-    }
-
-    const share = shareResult.rows[0];
-
-    // Verifica expiração
-    if (share.expires_at && new Date() > new Date(share.expires_at)) {
-      return res.status(410).json({ error: 'Este link expirou' });
-    }
+    const share = await loadShare(req, res, token)
+    if (!share) return
 
     // Verifica que o vídeo pertence ao recurso compartilhado (mesma lógica de comentários)
     const videoIdInt = parseInt(videoId);
@@ -292,24 +300,10 @@ router.get('/:token/drawings/video/:videoId', async (req, res) => {
 // GET /api/shares/:token/video/:videoId/stream - Busca URL de streaming de um vídeo (PÚBLICO)
 router.get('/:token/video/:videoId/stream', async (req, res) => {
   try {
-    const { token, videoId } = req.params;
+    const { token, videoId } = req.params
 
-    // Valida que o share token existe
-    const shareResult = await query(
-      `SELECT * FROM brickreview_shares WHERE token = $1`,
-      [token]
-    );
-
-    if (shareResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
-    }
-
-    const share = shareResult.rows[0];
-
-    // Verifica expiração
-    if (share.expires_at && new Date() > new Date(share.expires_at)) {
-      return res.status(410).json({ error: 'Este link expirou' });
-    }
+    const share = await loadShare(req, res, token)
+    if (!share) return
 
     // Verifica que o vídeo pertence ao recurso compartilhado (mesma lógica de comentários/desenhos)
     const videoIdInt = parseInt(videoId);
@@ -352,20 +346,26 @@ router.get('/:token/video/:videoId/stream', async (req, res) => {
 
     // Busca informações do vídeo para gerar URL de stream
     const videoResult = await query(
-      `SELECT r2_object_key FROM brickreview_videos WHERE id = $1`,
+      'SELECT r2_url, proxy_url, mime_type FROM brickreview_videos WHERE id = $1',
       [videoIdInt]
-    );
+    )
 
     if (videoResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Vídeo não encontrado' });
+      return res.status(404).json({ error: 'Vídeo não encontrado' })
     }
 
-    const video = videoResult.rows[0];
+    const video = videoResult.rows[0]
+    const url = video.proxy_url || video.r2_url
 
-    // Gera URL pública do R2 (ajuste conforme sua configuração)
-    const streamUrl = `${process.env.R2_PUBLIC_URL}/${video.r2_object_key}`;
+    if (!url) {
+      return res.status(500).json({ error: 'URL do vídeo não disponível' })
+    }
 
-    res.json({ url: streamUrl });
+    res.json({
+      url,
+      isProxy: !!video.proxy_url,
+      mime: video.proxy_url ? 'video/mp4' : video.mime_type || 'video/mp4',
+    })
   } catch (err) {
     console.error('Erro ao buscar stream de vídeo compartilhado:', err);
     res.status(500).json({ error: 'Erro ao buscar stream' });
@@ -375,27 +375,10 @@ router.get('/:token/video/:videoId/stream', async (req, res) => {
 // GET /api/shares/:token/project-videos - Busca vídeos de um projeto compartilhado (PÚBLICO)
 router.get('/:token/project-videos', async (req, res) => {
   try {
-    const { token } = req.params;
-    console.log('📁 Buscando vídeos do projeto compartilhado, token:', token);
+    const { token } = req.params
 
-    const shareResult = await query(
-      `SELECT * FROM brickreview_shares WHERE token = $1`,
-      [token]
-    );
-
-    if (shareResult.rows.length === 0) {
-      console.log('❌ Share não encontrado para token:', token);
-      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
-    }
-
-    const share = shareResult.rows[0];
-    console.log('✅ Share encontrado:', { id: share.id, project_id: share.project_id });
-
-    // Verifica expiração
-    if (share.expires_at && new Date() > new Date(share.expires_at)) {
-      console.log('❌ Share expirado');
-      return res.status(410).json({ error: 'Este link expirou' });
-    }
+    const share = await loadShare(req, res, token)
+    if (!share) return
 
     // Só funciona para projetos
     if (!share.project_id) {
@@ -438,27 +421,10 @@ router.get('/:token/project-videos', async (req, res) => {
 // GET /api/shares/:token/folder-videos - Busca vídeos de uma pasta compartilhada (PÚBLICO)
 router.get('/:token/folder-videos', async (req, res) => {
   try {
-    const { token } = req.params;
-    console.log('📂 Buscando vídeos da pasta compartilhada, token:', token);
+    const { token } = req.params
 
-    const shareResult = await query(
-      `SELECT * FROM brickreview_shares WHERE token = $1`,
-      [token]
-    );
-
-    if (shareResult.rows.length === 0) {
-      console.log('❌ Share não encontrado para token:', token);
-      return res.status(404).json({ error: 'Link de compartilhamento não encontrado' });
-    }
-
-    const share = shareResult.rows[0];
-    console.log('✅ Share encontrado:', { id: share.id, folder_id: share.folder_id, video_id: share.video_id });
-
-    // Verifica expiração
-    if (share.expires_at && new Date() > new Date(share.expires_at)) {
-      console.log('❌ Share expirado');
-      return res.status(410).json({ error: 'Este link expirou' });
-    }
+    const share = await loadShare(req, res, token)
+    if (!share) return
 
     // Só funciona para pastas
     if (!share.folder_id) {
@@ -539,40 +505,10 @@ router.get('/:token/folder-videos', async (req, res) => {
 // GET /api/shares/:token - Busca informações do link compartilhado (PÚBLICO)
 router.get('/:token', async (req, res) => {
   try {
-    const { token } = req.params;
-    console.log('🔗 Buscando share link, token:', token);
+    const { token } = req.params
 
-    const result = await query(
-      `SELECT * FROM brickreview_shares WHERE token = $1`,
-      [token]
-    );
-
-    if (result.rows.length === 0) {
-      console.log('❌ Share não encontrado para token:', token);
-      return res.status(404).json({ error: 'Link de compartilhamento não encontrado ou expirado' });
-    }
-
-    const share = result.rows[0];
-    console.log('✅ Share encontrado:', {
-      id: share.id,
-      project_id: share.project_id,
-      folder_id: share.folder_id,
-      video_id: share.video_id
-    });
-
-    // Verifica expiração
-    if (share.expires_at && new Date() > new Date(share.expires_at)) {
-      console.log('❌ Share expirado');
-      return res.status(410).json({ error: 'Este link de compartilhamento expirou' });
-    }
-
-    // Se o link tiver senha, o frontend precisará lidar com o desafio antes de carregar os dados reais
-    if (share.password_hash) {
-      return res.json({
-        requires_password: true,
-        access_type: share.access_type
-      });
-    }
+    const share = await loadShare(req, res, token)
+    if (!share) return
 
     // Busca os dados do recurso compartilhado
     let data = null;

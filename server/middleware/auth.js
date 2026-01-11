@@ -1,5 +1,4 @@
 import jwt from 'jsonwebtoken'
-import { query } from '../db.js'
 
 // Middleware para verificar token JWT
 export async function authenticateToken(req, res, next) {
@@ -16,7 +15,7 @@ export async function authenticateToken(req, res, next) {
     const user = jwt.verify(token, process.env.JWT_SECRET)
     req.user = user
     next()
-  } catch (err) {
+  } catch {
     return res.status(403).json({
       error: 'Token inválido ou expirado',
     })

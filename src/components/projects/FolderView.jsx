@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Folder, FolderOpen, File, FileImage, FileText, FileAudio, Plus, MoreVertical, Edit, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatVideoDuration } from '../../utils/time';
@@ -48,7 +48,7 @@ export function FolderView({
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
-  onMoveFolder,
+  onMoveFolder: _onMoveFolder,
   onMoveVideo,
   onFileDelete,
   token
@@ -59,8 +59,8 @@ export function FolderView({
   const [expandedFolders, setExpandedFolders] = useState(new Set());
   const [renamingFolder, setRenamingFolder] = useState(null);
   const [newFolderName, setNewFolderName] = useState('');
-  const [creatingFolder, setCreatingFolder] = useState(false);
-  const [newSubfolderParent, setNewSubfolderParent] = useState(null);
+  const [, setCreatingFolder] = useState(false)
+  const [, setNewSubfolderParent] = useState(null)
   const [dragOverFolder, setDragOverFolder] = useState(null);
 
   // Filtra pastas do nível atual

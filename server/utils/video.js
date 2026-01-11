@@ -19,7 +19,7 @@ function findExecutable(name, envVar) {
       console.log(`✅ ${name} encontrado via which:`, path);
       return path;
     }
-  } catch (err) {
+  } catch {
     // Continua para próxima tentativa
   }
 
@@ -47,7 +47,7 @@ function findExecutable(name, envVar) {
       console.log(`✅ ${name} encontrado no Nix store:`, nixPath);
       return nixPath;
     }
-  } catch (err) {
+  } catch {
     // Continua
   }
 

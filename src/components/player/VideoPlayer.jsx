@@ -27,7 +27,16 @@ const PLYR_OPTIONS = {
   tooltips: { controls: true, seek: true }
 };
 
-export function VideoPlayer({ video, versions = [], onBack, isPublic = false, visitorName: initialVisitorName = '', shareToken = null, accessType = 'view' }) {
+export function VideoPlayer({
+  video,
+  versions = [],
+  onBack,
+  isPublic = false,
+  visitorName: initialVisitorName = '',
+  shareToken = null,
+  sharePassword = null,
+  accessType = 'view',
+}) {
   // Determina a versão inicial (mais recente) ao montar o componente
   const getLatestVersion = useCallback(() => {
     if (versions.length === 0) return video;
@@ -44,13 +53,13 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const [newComment, setNewComment] = useState('');
   const [currentTime, setCurrentTime] = useState(0);
   const [approvalStatus, setApprovalStatus] = useState(latestVersion.latest_approval_status || 'pending');
-  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+  const [, setIsSubmittingApproval] = useState(false)
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
   const [videoUrl, setVideoUrl] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null); // ID do comentário sendo respondido
   const [replyText, setReplyText] = useState('');
-  const [shareLink, setShareLink] = useState('');
+  const [, setShareLink] = useState('')
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [visitorName, setVisitorName] = useState(initialVisitorName || localStorage.getItem('brickreview_visitor_name') || '');
   const [isDrawing, setIsDrawing] = useState(false);
@@ -60,7 +69,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
   const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controla exibição do emoji picker
-  const [isLoadingVideo, setIsLoadingVideo] = useState(false); // Loading ao trocar versão
+  const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
   const playerRef = useRef(null);
   const canvasRef = useRef(null);
   const videoContainerRef = useRef(null);
@@ -156,13 +165,17 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
       }
 
       // Use different endpoint for guest comments
-      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : '/api/comments';
+      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : '/api/comments'
       const headers = {
-        'Content-Type': 'application/json'
-      };
+        'Content-Type': 'application/json',
+      }
+
+      if (isGuest && sharePassword) {
+        headers['x-share-password'] = sharePassword
+      }
 
       if (!isGuest) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers['Authorization'] = `Bearer ${token}`
       }
 
       const body = {
@@ -218,13 +231,17 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
         localStorage.setItem('brickreview_visitor_name', visitorName.trim());
       }
       // Use different endpoint for guest replies
-      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : '/api/comments';
+      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : '/api/comments'
       const headers = {
-        'Content-Type': 'application/json'
-      };
+        'Content-Type': 'application/json',
+      }
+
+      if (isGuest && sharePassword) {
+        headers['x-share-password'] = sharePassword
+      }
 
       if (!isGuest) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers['Authorization'] = `Bearer ${token}`
       }
 
       const body = {
@@ -352,7 +369,9 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           ? `/api/shares/${shareToken}/comments/video/${currentVideoId}`
           : `/api/comments/video/${currentVideoId}`;
 
-        const headers = isGuest ? {} : { 'Authorization': `Bearer ${token}` };
+        const headers = isGuest
+          ? (sharePassword ? { 'x-share-password': sharePassword } : {})
+          : { 'Authorization': `Bearer ${token}` }
 
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
@@ -376,7 +395,9 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           ? `/api/shares/${shareToken}/drawings/video/${currentVideoId}`
           : `/api/drawings/video/${currentVideoId}`;
 
-        const headers = isGuest ? {} : { 'Authorization': `Bearer ${token}` };
+        const headers = isGuest
+          ? (sharePassword ? { 'x-share-password': sharePassword } : {})
+          : { 'Authorization': `Bearer ${token}` }
 
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
@@ -490,7 +511,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           } else {
             throw new Error('execCommand falhou');
           }
-        } catch (execError) {
+        } catch {
           prompt('Copie o link de compartilhamento:', fullUrl);
           toast.success('Link gerado com sucesso!', { id: shareToast });
         }
@@ -514,7 +535,9 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
           ? `/api/shares/${shareToken}/video/${currentVideoId}/stream`
           : `/api/videos/${currentVideoId}/stream`;
 
-        const headers = isGuest ? {} : { 'Authorization': `Bearer ${token}` };
+        const headers = isGuest
+          ? (sharePassword ? { 'x-share-password': sharePassword } : {})
+          : { 'Authorization': `Bearer ${token}` }
 
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
@@ -623,34 +646,6 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const clearDrawing = () => {
     setCurrentDrawing([]);
     setDrawings(drawings.filter(d => Math.abs(d.timestamp - currentTime) > 0.1));
-  };
-
-  const saveDrawing = async () => {
-    if (currentDrawing.length === 0) return;
-
-    try {
-      const response = await fetch('/api/drawings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          video_id: currentVideoId,
-          timestamp: currentTime,
-          drawing_data: currentDrawing,
-          color: drawColor
-        })
-      });
-
-      if (response.ok) {
-        toast.success('Desenho salvo!');
-        setCurrentDrawing([]);
-      }
-    } catch (error) {
-      console.error('Erro ao salvar desenho:', error);
-      toast.error('Erro ao salvar desenho');
-    }
   };
 
   // Renderiza os desenhos no canvas

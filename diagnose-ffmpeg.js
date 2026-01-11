@@ -21,15 +21,15 @@ console.log('2️⃣  Tentando comando "which":');
 try {
   const ffmpegWhich = execSync('which ffmpeg', { encoding: 'utf8' }).trim();
   console.log('   ✅ ffmpeg:', ffmpegWhich);
-} catch (err) {
-  console.log('   ❌ ffmpeg não encontrado via which');
+} catch {
+  console.log('   ❌ ffmpeg não encontrado via which')
 }
 
 try {
   const ffprobeWhich = execSync('which ffprobe', { encoding: 'utf8' }).trim();
   console.log('   ✅ ffprobe:', ffprobeWhich);
-} catch (err) {
-  console.log('   ❌ ffprobe não encontrado via which');
+} catch {
+  console.log('   ❌ ffprobe não encontrado via which')
 }
 console.log();
 
@@ -85,8 +85,8 @@ try {
     console.log('   ✅ Encontrados no profile padrão:');
     console.log(nixProfile.split('\n').map(l => '      ' + l).join('\n'));
   }
-} catch (err) {
-  console.log('   ℹ️  Não foi possível listar o profile do Nix');
+} catch {
+  console.log('   ℹ️  Não foi possível listar o profile do Nix')
 }
 
-console.log('\n✨ Diagnóstico completo!');
+console.log('\n✨ Diagnóstico completo!')

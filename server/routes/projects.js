@@ -2,8 +2,9 @@ import express from 'express';
 import multer from 'multer';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
-import r2Client from '../utils/r2.js';
+import { authenticateToken } from '../middleware/auth.js'
+import { requireProjectAccess } from '../utils/permissions.js'
+import r2Client from '../utils/r2.js'
 import path from 'path';
 import fs from 'fs';
 
@@ -111,6 +112,13 @@ router.post('/', authenticateToken, async (req, res) => {
  */
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
+    const projectId = Number(req.params.id)
+    if (!Number.isInteger(projectId)) {
+      return res.status(400).json({ error: 'ID de projeto inválido' })
+    }
+
+    if (!(await requireProjectAccess(req, res, projectId))) return
+
     const projectResult = await query(
       'SELECT * FROM brickreview_projects_with_stats WHERE id = $1',
       [req.params.id]
@@ -127,7 +135,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       SELECT * FROM brickreview_videos_with_stats 
       WHERE project_id = $1 
       ORDER BY created_at DESC
-    `, [req.params.id]);
+    `, [projectId])
 
     res.json({
       ...project,
@@ -144,7 +152,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * @desc Update project details
  */
 router.patch('/:id', authenticateToken, async (req, res) => {
-  const { name, description, client_name, status } = req.body;
+  const { name, description, client_name, status } = req.body
+
+  const projectId = Number(req.params.id)
+  if (!Number.isInteger(projectId)) {
+    return res.status(400).json({ error: 'ID de projeto inválido' })
+  }
+
+  if (!(await requireProjectAccess(req, res, projectId))) return
 
   try {
     const result = await query(`
@@ -155,7 +170,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
           status = COALESCE($4, status)
       WHERE id = $5
       RETURNING *
-    `, [name, description, client_name, status, req.params.id]);
+    `, [name, description, client_name, status, projectId])
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Projeto não encontrado' });
@@ -173,17 +188,24 @@ router.patch('/:id', authenticateToken, async (req, res) => {
  * @desc Delete project
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
+  const projectId = Number(req.params.id)
+  if (!Number.isInteger(projectId)) {
+    return res.status(400).json({ error: 'ID de projeto inválido' })
+  }
+
+  if (!(await requireProjectAccess(req, res, projectId))) return
+
   try {
     const result = await query(
       'DELETE FROM brickreview_projects WHERE id = $1 RETURNING id',
-      [req.params.id]
-    );
+      [projectId]
+    )
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Projeto não encontrado' });
     }
 
-    res.json({ message: 'Projeto removido com sucesso', id: req.params.id });
+    res.json({ message: 'Projeto removido com sucesso', id: projectId })
   } catch (error) {
     console.error('Erro ao remover projeto:', error);
     res.status(500).json({ error: 'Erro ao remover projeto' });
@@ -195,11 +217,21 @@ router.delete('/:id', authenticateToken, async (req, res) => {
  * @desc Upload cover image for project
  */
 router.post('/:id/cover', authenticateToken, uploadImage.single('cover'), async (req, res) => {
-  const projectId = req.params.id;
-  const file = req.file;
+  const projectId = Number(req.params.id)
+  const file = req.file
 
   if (!file) {
-    return res.status(400).json({ error: 'Nenhuma imagem foi enviada' });
+    return res.status(400).json({ error: 'Nenhuma imagem foi enviada' })
+  }
+
+  if (!Number.isInteger(projectId)) {
+    fs.unlinkSync(file.path)
+    return res.status(400).json({ error: 'ID de projeto inválido' })
+  }
+
+  if (!(await requireProjectAccess(req, res, projectId))) {
+    fs.unlinkSync(file.path)
+    return
   }
 
   try {
@@ -207,7 +239,7 @@ router.post('/:id/cover', authenticateToken, uploadImage.single('cover'), async 
     const projectCheck = await query(
       'SELECT id FROM brickreview_projects WHERE id = $1',
       [projectId]
-    );
+    )
 
     if (projectCheck.rows.length === 0) {
       fs.unlinkSync(file.path); // Remove arquivo temporário

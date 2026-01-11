@@ -1,6 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js'
+import { requireProjectAccessFromVideo } from '../utils/permissions.js'
 
 const router = express.Router();
 
@@ -21,11 +22,19 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 
   try {
-    const result = await query(`
-      INSERT INTO brickreview_approvals (video_id, user_id, status, notes)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `, [video_id, req.user.id, status, notes]);
+    const videoId = Number(video_id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'video_id inválido' })
+    }
+
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+
+    const result = await query(
+      `INSERT INTO brickreview_approvals (video_id, user_id, status, notes)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [videoId, req.user.id, status, notes]
+    )
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -40,13 +49,21 @@ router.post('/', authenticateToken, async (req, res) => {
  */
 router.get('/:video_id', authenticateToken, async (req, res) => {
   try {
-    const result = await query(`
-      SELECT a.*, u.username 
-      FROM brickreview_approvals a
-      JOIN master_users u ON a.user_id = u.id
-      WHERE a.video_id = $1
-      ORDER BY a.created_at DESC
-    `, [req.params.video_id]);
+    const videoId = Number(req.params.video_id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'video_id inválido' })
+    }
+
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+
+    const result = await query(
+      `SELECT a.*, u.username
+       FROM brickreview_approvals a
+       JOIN master_users u ON a.user_id = u.id
+       WHERE a.video_id = $1
+       ORDER BY a.created_at DESC`,
+      [videoId]
+    )
 
     res.json(result.rows);
   } catch (error) {

@@ -15,6 +15,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import './App.css'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { LoginPage } from './components/LoginPage'
@@ -243,9 +245,6 @@ function Sidebar({ collapsed, setCollapsed }) {
   )
 }
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-
 function ProjectsPage() {
   const [viewMode, setViewMode] = useState('grid')
   const [projects, setProjects] = useState([])
@@ -301,74 +300,6 @@ function ProjectsPage() {
       setLoading(false)
     }
   }
-
-  // Mock projects (como Frame.io)
-  const mockProjects = [
-    {
-      id: 1,
-      name: 'KEETA',
-      thumbnail: null,
-      color: '#FFD700',
-      updatedAt: '0mo ago',
-      team: "Brick's Team"
-    },
-    {
-      id: 2,
-      name: 'PITADA DE BRASIL',
-      thumbnail: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400',
-      color: '#FF6B35',
-      updatedAt: '7mo ago',
-      team: "Brick's Team"
-    },
-    {
-      id: 3,
-      name: 'FAMILIAS FORTES',
-      thumbnail: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=400',
-      color: '#4ECDC4',
-      updatedAt: '10mo ago',
-      team: "Brick's Team"
-    },
-    {
-      id: 4,
-      name: 'LUTS',
-      thumbnail: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400',
-      color: '#9B59B6',
-      updatedAt: '24d ago',
-      team: "Brick's Team"
-    },
-    {
-      id: 5,
-      name: 'AliExpress',
-      thumbnail: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400',
-      color: '#E74C3C',
-      updatedAt: '7mo ago',
-      team: "Brick's Team"
-    },
-    {
-      id: 6,
-      name: 'AUTOBOL',
-      thumbnail: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400',
-      color: '#3498DB',
-      updatedAt: '24d ago',
-      team: "Brick's Team"
-    },
-    {
-      id: 7,
-      name: 'AUTORAIS',
-      thumbnail: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400',
-      color: '#000000',
-      updatedAt: '10mo ago',
-      team: "Brick's Team"
-    },
-    {
-      id: 8,
-      name: 'BBC',
-      thumbnail: 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=400',
-      color: '#DC2626',
-      updatedAt: '24d ago',
-      team: "Brick's Team"
-    },
-  ]
 
   return (
     <div className="flex flex-col h-screen">
