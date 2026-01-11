@@ -7,8 +7,12 @@ Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (pret
 - ✅ Upload de vídeos via drag-drop
 - ✅ Player customizado com marcações temporais
 - ✅ Comentários frame-by-frame com threads
+- ✅ **Sistema de desenho frame-by-frame** (drawing annotations)
+- ✅ **Comentários de visitantes** (guest comments sem conta)
+- ✅ **Compartilhamento público** com controle de acesso (view/comment)
+- ✅ **Emoji picker** nos comentários
 - ✅ Sistema de aprovação de clientes
-- ✅ Versionamento de arquivos
+- ✅ Versionamento de arquivos (múltiplas versões por vídeo)
 - ✅ Notificações in-app + email
 - ✅ Cloudflare R2 para storage de vídeos
 - ✅ Railway para banco de dados e API
@@ -20,9 +24,11 @@ Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (pret
 - React 19 + Vite 7
 - Tailwind CSS 4
 - Radix UI + shadcn/ui
-- Plyr.js (video player)
+- Plyr.js (video player) com React wrapper customizado
 - React Router 7
 - Lucide React
+- emoji-picker-react (emojis em comentários)
+- Framer Motion (animações)
 
 **Backend:**
 - Node.js + Express
@@ -135,15 +141,19 @@ brickreview/
 
 ## 🗄️ Banco de Dados (Railway)
 
-### Tabelas
+### Tabelas Principais
 
-1. **review_projects** - Projetos
-2. **review_folders** - Organização em pastas
-3. **review_videos** - Vídeos (URLs do R2)
-4. **review_comments** - Comentários frame-by-frame
-5. **review_approvals** - Aprovações de clientes
-6. **review_project_members** - Membros por projeto
-7. **review_notifications** - Notificações
+1. **brickreview_projects** - Projetos
+2. **brickreview_folders** - Organização em pastas
+3. **brickreview_videos** - Vídeos (URLs do R2) com versionamento
+4. **brickreview_comments** - Comentários frame-by-frame (suporta guests via `visitor_name`)
+5. **brickreview_drawings** - Desenhos frame-by-frame
+6. **brickreview_shares** - Links de compartilhamento público
+7. **brickreview_approvals** - Aprovações de clientes
+8. **brickreview_project_members** - Membros por projeto
+9. **brickreview_notifications** - Notificações
+10. **brickreview_temp_guest_users** - Usuários temporários para guests
+11. **master_users** - Usuários (compartilhada com outros sistemas BRICK)
 
 ## 🎨 Tema BRICK
 
@@ -167,36 +177,74 @@ brickreview/
 }
 ```
 
+## 💬 Guest Comments (Comentários de Visitantes)
+
+O sistema permite que visitantes sem conta comentem em vídeos através de links de compartilhamento:
+
+### Como funciona
+1. Admin/owner gera link de compartilhamento com access type "comment"
+2. Visitante acessa via `/share/:token`
+3. Visitante fornece nome (salvo em localStorage)
+4. Comentários são salvos com `visitor_name` ao invés de `user_id`
+5. Sistema cria usuário temporário via hash do nome
+
+### Database
+- `brickreview_comments.visitor_name` - Nome do visitante
+- `brickreview_comments.user_id` - Nullable (guests não têm user_id)
+- Constraint CHECK: `user_id IS NOT NULL OR visitor_name IS NOT NULL`
+
+## 🎨 Drawing Annotations (Desenhos Frame-by-Frame)
+
+Ferramenta de desenho que permite marcar áreas específicas do vídeo em timestamps:
+
+### Recursos
+- Canvas overlay sobre o player
+- 6 cores disponíveis (vermelho, laranja, amarelo, verde, azul, branco)
+- Persistência em `brickreview_drawings`
+- Visível para todos os membros do projeto
+- Visível para guests em share links
+
+### Como usar
+1. Pause o vídeo no frame desejado
+2. Clique no botão de pincel
+3. Escolha uma cor
+4. Desenhe sobre o vídeo
+5. Salve o desenho
+
+## 🔗 Sistema de Compartilhamento
+
+### Tipos de compartilhamento
+- **Video**: Compartilha um vídeo (+ todas as versões)
+- **Folder**: Compartilha todos os vídeos de uma pasta
+- **Project**: Compartilha todos os vídeos de um projeto
+
+### Access Types
+- **view**: Apenas visualização
+- **comment**: Visualização + comentários + desenhos
+
+### Clipboard Fallback
+Implementação robusta em 3 camadas:
+1. Modern Clipboard API (`navigator.clipboard`)
+2. Legacy `execCommand('copy')`
+3. Manual `prompt()` como último recurso
+
 ## 📋 Roadmap
 
-### ✅ Fase 1: Inicialização
-- [x] Repositório criado
-- [x] Vite + React setup
-- [x] package.json completo
-- [ ] Copiar componentes UI
-- [ ] Express server
-- [ ] Tailwind config
+### ✅ Fase 1-8: CONCLUÍDAS
+- [x] Repositório e setup inicial
+- [x] Backend core (Express + PostgreSQL)
+- [x] Upload system (FFmpeg + R2)
+- [x] Video player (Plyr.js customizado)
+- [x] Comments system (threads + replies)
+- [x] Drawing annotations
+- [x] Guest access (visitor comments)
+- [x] Share system (links públicos)
 
-### Fase 2: Backend Core
-- [ ] PostgreSQL connection
-- [ ] Schema do banco
-- [ ] Rotas de autenticação
-- [ ] Multer config
-- [ ] R2 integration
-
-### Fase 3: Upload System
-- [ ] FFmpeg processing
-- [ ] DropZone component
-- [ ] Upload to R2
-- [ ] Progress tracking
-
-### Fase 4: Video Player
-- [ ] Plyr.js integration
-- [ ] Timeline com markers
-- [ ] Frame-by-frame
-- [ ] Timecode display
-
-### Fase 5-10: Ver [plano completo](.claude/plans/typed-booping-haven.md)
+### 🚧 Próximas melhorias
+- [ ] Mobile responsiveness
+- [ ] Performance optimization
+- [ ] Analytics dashboard
+- [ ] Melhorias de UX
 
 ## 🚀 Deploy
 
@@ -315,6 +363,14 @@ Usa a tabela `master_users` compartilhada com outros sistemas BRICK (brickprojec
 
 ---
 
-**Status:** 🚧 Em desenvolvimento
-**Versão:** 0.1.0
+**Status:** ✅ Em produção
+**Versão:** 0.5.0
 **Licença:** Privado (BRICK Produtora)
+
+---
+
+Para mais detalhes, consulte:
+- [FEATURES.md](FEATURES.md) - Guia completo de funcionalidades
+- [API_REFERENCE.md](API_REFERENCE.md) - Documentação da API
+- [STATUS.md](STATUS.md) - Progresso do projeto
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Guia para desenvolvedores

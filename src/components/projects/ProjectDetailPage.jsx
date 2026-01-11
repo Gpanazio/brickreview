@@ -709,11 +709,13 @@ function FileCard({ file, onDelete }) {
   };
 
   return (
-    <div
-      className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer"
-      onClick={() => window.open(file.r2_url, '_blank')}
-    >
-      <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0">
+    <ContextMenu>
+      <ContextMenuTrigger>
+        <div
+          className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer"
+          onClick={() => window.open(file.r2_url, '_blank')}
+        >
+          <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0">
         {isImage && file.thumbnail_url ? (
           <img
             src={file.thumbnail_url}
@@ -773,6 +775,20 @@ function FileCard({ file, onDelete }) {
         </div>
       </div>
     </div>
+    </ContextMenuTrigger>
+    <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirm('Excluir este arquivo?')) onDelete?.();
+          }}
+          className="focus:bg-red-600 focus:text-white cursor-pointer text-red-400"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Excluir
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
