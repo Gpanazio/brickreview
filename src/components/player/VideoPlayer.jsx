@@ -318,6 +318,11 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
 
   // Função para trocar de versão
   const handleVersionChange = async (versionId) => {
+    // Destrói o player atual antes de trocar
+    if (playerRef.current?.plyr) {
+      playerRef.current.plyr.destroy();
+    }
+
     setIsLoadingVideo(true);
     setVideoUrl(null); // Limpa URL atual para forçar loading
     setCurrentVideoId(versionId);
@@ -465,6 +470,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
 
   useEffect(() => {
     const fetchStreamUrl = async () => {
+      console.log('[VideoPlayer] Fetching stream URL for video:', currentVideoId);
       try {
         // Use endpoint público para guests, privado para usuários autenticados
         const endpoint = isGuest
@@ -476,24 +482,26 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
           const data = await response.json();
+          console.log('[VideoPlayer] Stream URL received:', data.url);
           if (data.url) {
             setVideoUrl(data.url);
             setIsLoadingVideo(false); // Marca como carregado
           } else {
-            console.error('URL de streaming não recebida');
+            console.error('[VideoPlayer] URL de streaming não recebida');
             setIsLoadingVideo(false);
           }
         } else {
-          console.error('Erro ao buscar URL de streaming:', response.status);
+          console.error('[VideoPlayer] Erro ao buscar URL de streaming:', response.status);
           setIsLoadingVideo(false);
         }
       } catch (error) {
-        console.error('Erro ao obter URL de streaming:', error);
+        console.error('[VideoPlayer] Erro ao obter URL de streaming:', error);
         setIsLoadingVideo(false);
       }
     };
 
     if (currentVideoId) {
+      setIsLoadingVideo(true); // Garante que está em loading ao buscar nova URL
       fetchStreamUrl();
     }
   }, [currentVideoId, token, isGuest, shareToken]);
@@ -820,7 +828,7 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
             {videoUrl ? (
               <div className="relative w-full h-full">
                 <Plyr
-                  key={currentVideoId}
+                  key={`${currentVideoId}-${videoUrl}`}
                   ref={playerRef}
                   source={{
                     type: 'video',
