@@ -40,26 +40,22 @@ const getFileColor = (fileType) => {
 
 export function FolderView({
   folders,
-  videos = [],
+  videos,
   files = [],
-  projects = [],
   currentFolderId,
   onFolderClick,
   onVideoClick,
-  onProjectClick,
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
   onMoveFolder,
   onMoveVideo,
-  onMoveProject,
   onFileDelete,
   token
 }) {
   const normalizedFolders = Array.isArray(folders) ? folders : [];
   const normalizedVideos = Array.isArray(videos) ? videos : [];
   const normalizedFiles = Array.isArray(files) ? files : [];
-  const normalizedProjects = Array.isArray(projects) ? projects : [];
   const [expandedFolders, setExpandedFolders] = useState(new Set());
   const [renamingFolder, setRenamingFolder] = useState(null);
   const [newFolderName, setNewFolderName] = useState('');
@@ -83,12 +79,6 @@ export function FolderView({
   const currentLevelFiles = normalizedFiles.filter(f =>
     f.folder_id === currentFolderId ||
     (!currentFolderId && f.folder_id === null)
-  );
-
-  // Filtra projetos do nível atual
-  const currentLevelProjects = normalizedProjects.filter(p =>
-    p.folder_id === currentFolderId ||
-    (!currentFolderId && p.folder_id === null)
   );
 
   const toggleFolder = (folderId) => {
@@ -177,7 +167,7 @@ export function FolderView({
   const handleFolderDragOver = (e, folderId) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.dataTransfer.types.includes('video') || e.dataTransfer.types.includes('project')) {
+    if (e.dataTransfer.types.includes('video')) {
       setDragOverFolder(folderId);
       e.dataTransfer.dropEffect = 'move';
     }
@@ -201,13 +191,6 @@ export function FolderView({
       if (videoData) {
         const video = JSON.parse(videoData);
         await onMoveVideo?.(video.id, folderId);
-        return;
-      }
-
-      const projectData = e.dataTransfer.getData('project');
-      if (projectData) {
-        const project = JSON.parse(projectData);
-        await onMoveProject?.(project.id, folderId);
       }
     } catch (error) {
       console.error('Erro ao processar drop na pasta:', error);
@@ -264,7 +247,6 @@ export function FolderView({
     const subfolders = normalizedFolders.filter(f => f.parent_folder_id === folder.id);
     const folderVideos = normalizedVideos.filter(v => v.folder_id === folder.id);
     const folderFiles = normalizedFiles.filter(f => f.folder_id === folder.id);
-    const folderProjects = normalizedProjects.filter(p => p.folder_id === folder.id);
     const isDragOver = dragOverFolder === folder.id;
 
     return (
@@ -307,7 +289,7 @@ export function FolderView({
           )}
 
           <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-            {(folder.videos_count || 0) + folderFiles.length + (folder.projects_count || folderProjects.length)} itens
+            {(folder.videos_count || 0) + folderFiles.length} itens
           </span>
 
           <DropdownMenu>
@@ -345,28 +327,6 @@ export function FolderView({
         {isExpanded && (
           <div>
             {subfolders.map(subfolder => renderFolder(subfolder, depth + 1))}
-            {folderProjects.map(project => (
-              <div
-                key={`proj-${project.id}`}
-                draggable
-                onDragStart={(e) => {
-                  e.stopPropagation();
-                  e.dataTransfer.effectAllowed = 'move';
-                  e.dataTransfer.setData('project', JSON.stringify(project));
-                }}
-                style={{ marginLeft: `${(depth + 1) * 20}px` }}
-                className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all cursor-pointer"
-                onClick={() => onProjectClick?.(project)}
-              >
-                <Folder className="w-4 h-4 text-amber-500/50" />
-                <span className="flex-1 text-sm text-zinc-300 hover:text-white uppercase tracking-tight">
-                  {project.name}
-                </span>
-                <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-                  Projeto
-                </span>
-              </div>
-            ))}
             {folderVideos.map(video => (
               <div
                 key={video.id}
@@ -416,36 +376,6 @@ export function FolderView({
       {/* Pastas do nível atual */}
       {currentLevelFolders.map(folder => renderFolder(folder))}
 
-      {/* Projetos do nível atual (sem pasta) */}
-      {currentLevelProjects.length > 0 && (
-        <div className="mt-4">
-          <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-3">
-            Projetos
-          </div>
-          {currentLevelProjects.map(project => (
-            <div
-              key={`proj-root-${project.id}`}
-              draggable
-              onDragStart={(e) => {
-                e.stopPropagation();
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('project', JSON.stringify(project));
-              }}
-              className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-red-600 transition-all cursor-pointer"
-              onClick={() => onProjectClick?.(project)}
-            >
-              <Folder className="w-4 h-4 text-amber-500/50" />
-              <span className="flex-1 text-sm text-zinc-300 hover:text-white uppercase tracking-tight">
-                {project.name}
-              </span>
-              <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-                Projeto
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Vídeos do nível atual (sem pasta) */}
       {currentLevelVideos.length > 0 && (
         <div className="mt-4">
@@ -486,9 +416,9 @@ export function FolderView({
         </div>
       )}
 
-      {currentLevelFolders.length === 0 && currentLevelVideos.length === 0 && currentLevelFiles.length === 0 && currentLevelProjects.length === 0 && (
+      {currentLevelFolders.length === 0 && currentLevelVideos.length === 0 && currentLevelFiles.length === 0 && (
         <div className="text-center py-8 text-zinc-600 text-xs uppercase tracking-wider">
-          Nada para exibir neste nível
+          Nenhuma pasta, vídeo ou arquivo neste nível
         </div>
       )}
     </div>

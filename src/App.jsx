@@ -20,11 +20,9 @@ import { AuthProvider, useAuth } from './hooks/useAuth'
 import { LoginPage } from './components/LoginPage'
 import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
 import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal'
-import { FolderView } from './components/projects/FolderView'
 import { ProjectListItem } from './components/projects/ProjectListItem'
 import { ShareViewPage } from './components/projects/ShareViewPage'
 import { Toaster } from './components/ui/sonner'
-import { toast } from 'sonner'
 import { ProjectCoverPlaceholder } from './components/ui/ProjectCoverPlaceholder'
 
 // Helper para identificar URLs padrão antigas
@@ -251,8 +249,6 @@ import { Label } from "@/components/ui/label"
 function ProjectsPage() {
   const [viewMode, setViewMode] = useState('grid')
   const [projects, setProjects] = useState([])
-  const [folders, setFolders] = useState([])
-  const [currentFolderId, setCurrentFolderId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -262,68 +258,7 @@ function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects()
-    fetchFolders()
   }, [])
-
-  const fetchFolders = async () => {
-    try {
-      const response = await fetch('/api/folders/root', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const data = await response.json()
-      setFolders(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Erro ao buscar pastas:', error)
-    }
-  }
-
-  const handleCreateFolder = async (name, parentFolderId = null) => {
-    try {
-      const response = await fetch('/api/folders', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name,
-          parent_folder_id: parentFolderId
-          // project_id is null for root folders
-        })
-      })
-
-      if (response.ok) {
-        fetchFolders()
-      }
-    } catch (error) {
-      console.error('Erro ao criar pasta:', error)
-    }
-  }
-
-  const handleMoveProject = async (projectId, folderId) => {
-    const moveToast = toast.loading('Movendo projeto...')
-    try {
-      const response = await fetch(`/api/projects/${projectId}/move`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ folder_id: folderId })
-      })
-
-      if (response.ok) {
-        toast.success('Projeto movido', { id: moveToast })
-        fetchProjects()
-        fetchFolders()
-      } else {
-        toast.error('Erro ao mover projeto', { id: moveToast })
-      }
-    } catch (error) {
-      console.error('Erro ao mover projeto:', error)
-      toast.error('Erro ao mover projeto', { id: moveToast })
-    }
-  }
 
   const handleCreateProject = async (e) => {
     e.preventDefault()
@@ -586,17 +521,6 @@ function ProjectsPage() {
             <Grid className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setViewMode('folders')}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === 'folders' 
-                ? 'bg-zinc-800 text-white shadow-sm' 
-                : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-            title="Folder View (OS Mode)"
-          >
-            <FolderOpen className="w-4 h-4" />
-          </button>
-          <button
             onClick={() => setViewMode('list')}
             className={`p-1.5 rounded-md transition-all ${
               viewMode === 'list' 
@@ -640,25 +564,6 @@ function ProjectsPage() {
             >
               Criar seu primeiro projeto
             </Button>
-          </motion.div>
-        ) : viewMode === 'folders' ? (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-panel border border-zinc-800/30 rounded-none p-6"
-          >
-            <FolderView
-              folders={folders}
-              projects={projects}
-              currentFolderId={currentFolderId}
-              onFolderClick={(folder) => setCurrentFolderId(folder.id)}
-              onProjectClick={(project) => window.location.href = `/project/${project.id}`}
-              onCreateFolder={handleCreateFolder}
-              onRenameFolder={fetchFolders}
-              onDeleteFolder={fetchFolders}
-              onMoveProject={handleMoveProject}
-              token={token}
-            />
           </motion.div>
         ) : viewMode === 'grid' ? (
           <motion.div 

@@ -24,25 +24,6 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
 });
 
 /**
- * @route GET /api/folders/root
- * @desc Get all root folders (for Home OS mode)
- */
-router.get('/root', authenticateToken, async (req, res) => {
-  try {
-    const result = await query(`
-      SELECT * FROM brickreview_folders_with_stats
-      WHERE project_id IS NULL
-      ORDER BY parent_folder_id NULLS FIRST, name ASC
-    `);
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Erro ao buscar pastas raiz:', error);
-    res.status(500).json({ error: 'Erro ao buscar pastas raiz' });
-  }
-});
-
-/**
  * @route GET /api/folders/:id
  * @desc Get folder details with subfolders and videos
  */
@@ -91,37 +72,30 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   const { project_id, parent_folder_id, name } = req.body;
 
-  if (!name) {
-    return res.status(400).json({ error: 'name é obrigatório' });
+  if (!project_id || !name) {
+    return res.status(400).json({ error: 'project_id e name são obrigatórios' });
   }
 
   try {
-    // Se project_id foi fornecido, verifica se o projeto existe
-    if (project_id) {
-      const projectCheck = await query(
-        'SELECT id FROM brickreview_projects WHERE id = $1',
-        [project_id]
-      );
+    // Verifica se o projeto existe
+    const projectCheck = await query(
+      'SELECT id FROM brickreview_projects WHERE id = $1',
+      [project_id]
+    );
 
-      if (projectCheck.rows.length === 0) {
-        return res.status(404).json({ error: 'Projeto não encontrado' });
-      }
+    if (projectCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Projeto não encontrado' });
     }
 
     // Se parent_folder_id foi fornecido, verifica se existe
     if (parent_folder_id) {
       const parentCheck = await query(
-        'SELECT id, project_id FROM brickreview_folders WHERE id = $1',
-        [parent_folder_id]
+        'SELECT id FROM brickreview_folders WHERE id = $1 AND project_id = $2',
+        [parent_folder_id, project_id]
       );
 
       if (parentCheck.rows.length === 0) {
         return res.status(404).json({ error: 'Pasta pai não encontrada' });
-      }
-
-      // Se estamos criando pasta dentro de uma pasta de projeto, herdamos o project_id
-      if (parentCheck.rows[0].project_id && !project_id) {
-        return res.status(400).json({ error: 'Pasta pai pertence a um projeto, mas project_id não foi fornecido' });
       }
     }
 
@@ -129,7 +103,7 @@ router.post('/', authenticateToken, async (req, res) => {
       INSERT INTO brickreview_folders (project_id, parent_folder_id, name)
       VALUES ($1, $2, $3)
       RETURNING *
-    `, [project_id || null, parent_folder_id || null, name]);
+    `, [project_id, parent_folder_id || null, name]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
