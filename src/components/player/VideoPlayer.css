@@ -58,7 +58,7 @@
 
 .plyr__control--overlaid:hover {
     background: #EF4444; /* red-500 */
-    transform: scale(1.1);
+    transform: translate(-50%, -50%) scale(1.1);
 }
 
 .plyr__control--overlaid svg {

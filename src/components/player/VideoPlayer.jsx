@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import Plyr from 'plyr-react';
 import 'plyr-react/plyr.css';
 import './VideoPlayer.css'; // Importa o CSS customizado
@@ -18,16 +18,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const PLYR_OPTIONS = {
+  controls: [
+    'play-large', 'play', 'progress', 'current-time', 
+    'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'
+  ],
+  keyboard: { focused: true, global: true },
+  tooltips: { controls: true, seek: true }
+};
+
 export function VideoPlayer({ video, versions = [], onBack, isPublic = false, visitorName: initialVisitorName = '', shareToken = null, accessType = 'view' }) {
   // Determina a versão inicial (mais recente) ao montar o componente
-  const getLatestVersion = () => {
+  const getLatestVersion = useCallback(() => {
     if (versions.length === 0) return video;
     // Encontra a versão com maior version_number
     const sorted = [video, ...versions].sort((a, b) => b.version_number - a.version_number);
     return sorted[0];
-  };
+  }, [video, versions]);
 
-  const latestVersion = getLatestVersion();
+  const latestVersion = useMemo(() => getLatestVersion(), [getLatestVersion]);
 
   const [currentVideoId, setCurrentVideoId] = useState(latestVersion.id);
   const [currentVideo, setCurrentVideo] = useState(latestVersion);
@@ -105,20 +114,24 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
   const videoFPS = currentVideo.fps || 30;
   const frameTime = 1 / videoFPS;
 
-  const plyrOptions = {
-    controls: [
-      'play-large', 'play', 'progress', 'current-time', 
-      'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'
-    ],
-    keyboard: { focused: true, global: true },
-    tooltips: { controls: true, seek: true }
-  };
-
-  const handleTimeUpdate = (e) => {
+  const handleTimeUpdate = useCallback((e) => {
     if (e.detail?.plyr?.currentTime !== undefined) {
       setCurrentTime(e.detail.plyr.currentTime);
     }
-  };
+  }, []);
+
+  const videoSource = useMemo(() => {
+    if (!videoUrl) return null;
+    return {
+      type: 'video',
+      sources: [
+        {
+          src: videoUrl,
+          type: currentVideo.mime_type || 'video/mp4'
+        }
+      ]
+    };
+  }, [videoUrl, currentVideo.mime_type]);
 
   const addComment = async (e) => {
     e.preventDefault();
@@ -847,21 +860,13 @@ export function VideoPlayer({ video, versions = [], onBack, isPublic = false, vi
             ref={videoContainerRef}
             className={`relative w-full max-w-5xl ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10`}
           >
-            {videoUrl ? (
+            {videoSource ? (
               <div key={`${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
                 <Plyr
                   ref={playerRef}
-                  source={{
-                    type: 'video',
-                    sources: [
-                      {
-                        src: videoUrl,
-                        type: currentVideo.mime_type || 'video/mp4'
-                      }
-                    ]
-                  }}
+                  source={videoSource}
                   options={{
-                    ...plyrOptions,
+                    ...PLYR_OPTIONS,
                     autoplay: false,
                   }}
                   onTimeUpdate={handleTimeUpdate}
