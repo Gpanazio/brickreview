@@ -57,12 +57,18 @@ export function ShareViewPage() {
     try {
       const headers = password ? { 'x-share-password': password } : {}
       const response = await fetch(`/api/shares/${token}/folder-videos`, { headers })
-      if (response.ok) {
-        const data = await response.json();
-        setVideos(data);
+      const data = await response.json().catch(() => [])
+
+      if (!response.ok) {
+        console.error('Erro ao buscar vídeos da pasta:', data)
+        setVideos([])
+        return
       }
+
+      setVideos(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error('Erro ao buscar vídeos da pasta:', err);
+      setVideos([])
     }
   };
 
@@ -70,12 +76,18 @@ export function ShareViewPage() {
     try {
       const headers = password ? { 'x-share-password': password } : {}
       const response = await fetch(`/api/shares/${token}/project-videos`, { headers })
-      if (response.ok) {
-        const data = await response.json();
-        setVideos(data);
+      const data = await response.json().catch(() => [])
+
+      if (!response.ok) {
+        console.error('Erro ao buscar vídeos do projeto:', data)
+        setVideos([])
+        return
       }
+
+      setVideos(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error('Erro ao buscar vídeos do projeto:', err);
+      setVideos([])
     }
   };
 

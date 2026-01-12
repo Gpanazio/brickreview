@@ -1263,7 +1263,11 @@ export function VideoPlayer({
                   {/* Comentário Principal */}
                   <div
                     className="group glass-card p-3 border-l-2 border-l-transparent hover:border-l-red-600 transition-all cursor-pointer"
-                    onClick={() => {
+                    onClick={(e) => {
+                      const target = e.target;
+                      if (target?.closest?.('[data-comment-actions]')) return;
+                      if (target?.closest?.('button, a, input, textarea, form, label')) return;
+
                       const ts = parseTimestampSeconds(comment.timestamp);
                       if (ts !== null) seekTo(ts);
                     }}
@@ -1282,54 +1286,55 @@ export function VideoPlayer({
 
                     {/* Botão de Responder - disponível para todos */}
                     {canComment && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReplyingTo(replyingTo === comment.id ? null : comment.id);
-                        }}
-                        className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-600 hover:text-red-500 transition-colors"
-                      >
-                        <Reply className="w-3 h-3" />
-                        {replyingTo === comment.id ? 'Cancelar' : 'Responder'}
-                      </button>
-                    )}
-
-                    {/* Input de Resposta */}
-                    {replyingTo === comment.id && (
-                      <form
-                        onSubmit={addReply}
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-3 space-y-2"
-                      >
-                        {/* Guest name input for replies */}
-                        {isGuest && canComment && (
-                          <input
-                            type="text"
-                            value={visitorName}
-                            onChange={(e) => setVisitorName(e.target.value)}
-                            placeholder="Seu nome"
-                            className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
-                            required={isGuest}
-                          />
-                        )}
-                        <textarea
-                          value={replyText}
-                          onChange={(e) => setReplyText(e.target.value)}
-                          onFocus={() => {
-                            if (drawingMode) setDrawingMode(false);
-                          }}
-                          placeholder="Escreva sua resposta..."
-                          className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
-                          autoFocus
-                        />
+                      <div data-comment-actions onClick={(e) => e.stopPropagation()}>
                         <button
-                          type="submit"
-                          disabled={!replyText.trim()}
-                          className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                          }}
+                          className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
                         >
-                          Enviar Resposta
+                          <Reply className="w-3 h-3" />
+                          {replyingTo === comment.id ? 'Cancelar' : 'Responder'}
                         </button>
-                      </form>
+
+                        {replyingTo === comment.id && (
+                          <form
+                            onSubmit={addReply}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-3 space-y-2"
+                          >
+                            {/* Guest name input for replies */}
+                            {isGuest && canComment && (
+                              <input
+                                type="text"
+                                value={visitorName}
+                                onChange={(e) => setVisitorName(e.target.value)}
+                                placeholder="Seu nome"
+                                className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
+                                required={isGuest}
+                              />
+                            )}
+                            <textarea
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              onFocus={() => {
+                                if (drawingMode) setDrawingMode(false);
+                              }}
+                              placeholder="Escreva sua resposta..."
+                              className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
+                              autoFocus
+                            />
+                            <button
+                              type="submit"
+                              disabled={!replyText.trim()}
+                              className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                            >
+                              Enviar Resposta
+                            </button>
+                          </form>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -1340,6 +1345,7 @@ export function VideoPlayer({
                         <div
                           key={reply.id}
                           className="glass-card p-3 bg-zinc-900/30"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <CornerDownRight className="w-3 h-3 text-zinc-600" />

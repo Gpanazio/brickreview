@@ -99,10 +99,21 @@ export function ProjectDetailPage() {
       const response = await fetch(`/api/projects/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await response.json();
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const message = data.error || 'Erro ao buscar detalhes do projeto';
+        toast.error(message);
+        setProject(null);
+        return;
+      }
+
       setProject(data);
     } catch (error) {
       console.error('Erro ao buscar detalhes do projeto:', error);
+      toast.error('Erro ao buscar detalhes do projeto');
+      setProject(null);
     } finally {
       setLoading(false);
     }
@@ -113,10 +124,20 @@ export function ProjectDetailPage() {
       const response = await fetch(`/api/folders/project/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await response.json();
+
+      const data = await response.json().catch(() => ([]));
+
+      if (!response.ok) {
+        const message = data?.error || 'Erro ao buscar pastas';
+        toast.error(message);
+        setFolders([]);
+        return;
+      }
+
       setFolders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao buscar pastas:', error);
+      toast.error('Erro ao buscar pastas');
       setFolders([]);
     }
   };
@@ -126,10 +147,20 @@ export function ProjectDetailPage() {
       const response = await fetch(`/api/files/project/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const data = await response.json();
+
+      const data = await response.json().catch(() => ([]));
+
+      if (!response.ok) {
+        const message = data?.error || 'Erro ao buscar arquivos';
+        toast.error(message);
+        setFiles([]);
+        return;
+      }
+
       setFiles(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Erro ao buscar arquivos:', error);
+      toast.error('Erro ao buscar arquivos');
       setFiles([]);
     }
   };

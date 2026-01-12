@@ -114,6 +114,13 @@
     background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%);
     opacity: 0;
     transition: opacity 0.5s ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glass-card > * {
+    position: relative;
+    z-index: 1;
   }
 
   .glass-card:hover {
