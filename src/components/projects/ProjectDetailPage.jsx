@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { VideoPlayer } from '../player/VideoPlayer';
@@ -8,10 +8,9 @@ import { formatVideoDuration } from '../../utils/time';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, Upload, Play, Clock, MessageSquare,
+  ChevronLeft, ChevronRight, Upload, Play, Clock, MessageSquare,
   CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree,
-  FolderPlus, History, Share2, Trash2, Archive, Folder, FolderOpen,
-  ArrowLeft
+  FolderPlus, History, Share2, Trash2, Archive, Folder, FolderOpen
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -47,6 +46,21 @@ export function ProjectDetailPage() {
   const [shareLink, setShareLink] = useState('');
   const [showShareDialog, setShowShareDialog] = useState(false);
   const { token } = useAuth();
+
+  const breadcrumbs = useMemo(() => {
+    const path = [];
+    let currentId = currentFolderId;
+    while (currentId) {
+      const folder = folders.find(f => f.id === currentId);
+      if (folder) {
+        path.unshift(folder);
+        currentId = folder.parent_folder_id;
+      } else {
+        break;
+      }
+    }
+    return path;
+  }, [currentFolderId, folders]);
 
   useEffect(() => {
     fetchProjectDetails();
@@ -426,11 +440,10 @@ export function ProjectDetailPage() {
     (!currentFolderId && f.folder_id === null)
   );
 
-  const handleGoUp = () => {
-    if (!currentFolderId) return;
-    const currentFolder = folders.find(f => f.id === currentFolderId);
-    setCurrentFolderId(currentFolder?.parent_folder_id || null);
+  const handleRenameFolder = () => {
+    fetchFolders();
   };
+
 
   return (
     <div className="flex flex-col h-full bg-[#050505]">
@@ -542,7 +555,28 @@ export function ProjectDetailPage() {
 
         <ContextMenu>
           <ContextMenuTrigger className="min-h-full block">
-        <AnimatePresence mode="wait">
+            {/* Breadcrumbs Navigation */}
+            <div className="flex items-center gap-2 mb-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+              <button 
+                onClick={() => setCurrentFolderId(null)}
+                className={`hover:text-white transition-colors whitespace-nowrap ${!currentFolderId ? 'text-white' : ''}`}
+              >
+                {project?.name || 'Projeto'}
+              </button>
+              {breadcrumbs.map((folder, index) => (
+                <div key={folder.id} className="flex items-center gap-2">
+                  <ChevronRight className="w-3 h-3 text-zinc-800" />
+                  <button 
+                    onClick={() => setCurrentFolderId(folder.id)}
+                    className={`hover:text-white transition-colors whitespace-nowrap ${index === breadcrumbs.length - 1 ? 'text-white' : ''}`}
+                  >
+                    {folder.name}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <AnimatePresence mode="wait">
           {viewMode === 'folders' ? (
             <motion.div 
               key="folders"
@@ -593,25 +627,6 @@ export function ProjectDetailPage() {
                   }}
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
                 >
-                  {/* Go Up Card */}
-                  {currentFolderId && (
-                    <motion.div
-                      variants={{
-                        hidden: { opacity: 0, scale: 0.95 },
-                        show: { opacity: 1, scale: 1 }
-                      }}
-                      className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer hover:bg-zinc-900/50"
-                      onClick={handleGoUp}
-                    >
-                      <div className="aspect-video bg-zinc-950 flex flex-col items-center justify-center border-b border-zinc-800/50">
-                        <ArrowLeft className="w-8 h-8 text-zinc-700 group-hover:text-red-600 transition-colors" />
-                      </div>
-                      <div className="p-5 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all flex-1">
-                        <h3 className="brick-title text-sm text-zinc-500 uppercase">Voltar</h3>
-                      </div>
-                    </motion.div>
-                  )}
-
                   {/* Folder Cards */}
                   {currentLevelFolders.map((folder) => (
                     <motion.div
