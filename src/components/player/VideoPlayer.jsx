@@ -265,6 +265,7 @@ export function VideoPlayer({
 
   const addReply = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!replyText.trim() || !replyingTo) return;
 
 
@@ -1261,15 +1262,13 @@ export function VideoPlayer({
                 <div key={comment.id} className="space-y-2">
                   {/* Comentário Principal */}
                   <div
-                    className="group glass-card p-3 border-l-2 border-l-transparent hover:border-l-red-600 transition-all"
+                    className="group glass-card p-3 border-l-2 border-l-transparent hover:border-l-red-600 transition-all cursor-pointer"
+                    onClick={() => {
+                      const ts = parseTimestampSeconds(comment.timestamp);
+                      if (ts !== null) seekTo(ts);
+                    }}
                   >
-                    <div
-                      className="cursor-pointer"
-                      onClick={() => {
-                        const ts = parseTimestampSeconds(comment.timestamp);
-                        if (ts !== null) seekTo(ts);
-                      }}
-                    >
+                    <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
                           {parseTimestampSeconds(comment.timestamp) !== null ? formatTime(parseTimestampSeconds(comment.timestamp)) : '—'}
@@ -1297,7 +1296,11 @@ export function VideoPlayer({
 
                     {/* Input de Resposta */}
                     {replyingTo === comment.id && (
-                      <form onSubmit={addReply} className="mt-3 space-y-2">
+                      <form
+                        onSubmit={addReply}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-3 space-y-2"
+                      >
                         {/* Guest name input for replies */}
                         {isGuest && canComment && (
                           <input
