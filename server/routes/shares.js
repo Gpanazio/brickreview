@@ -58,6 +58,58 @@ async function loadShare(req, res, token) {
   return allowed ? share : null
 }
 
+// Helper para verificar se o share permite acesso a um vídeo específico (incluindo versões)
+async function checkShareAccess(share, videoId) {
+  const videoIdInt = Number(videoId)
+  if (!Number.isInteger(videoIdInt)) return false
+
+  const videoResult = await query(
+    'SELECT id, parent_video_id, project_id, folder_id FROM brickreview_videos WHERE id = $1',
+    [videoIdInt]
+  )
+  if (videoResult.rows.length === 0) return false
+
+  const video = videoResult.rows[0]
+
+  if (share.video_id) {
+    if (video.id === share.video_id) return true
+    if (video.parent_video_id === share.video_id) return true
+
+    const sharedVideoResult = await query(
+      'SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1',
+      [share.video_id]
+    )
+
+    if (sharedVideoResult.rows.length === 0) return false
+
+    const sharedVideo = sharedVideoResult.rows[0]
+
+    // Se o vídeo alvo é o pai do compartilhado
+    if (sharedVideo.parent_video_id === video.id) return true
+
+    // Se ambos têm o mesmo pai (irmãos/versões)
+    if (
+      video.parent_video_id &&
+      sharedVideo.parent_video_id &&
+      video.parent_video_id === sharedVideo.parent_video_id
+    ) {
+      return true
+    }
+
+    return false
+  }
+
+  if (share.folder_id) {
+    return video.folder_id === share.folder_id
+  }
+
+  if (share.project_id) {
+    return video.project_id === share.project_id
+  }
+
+  return false
+}
+
 // POST /api/shares - Gera um novo share link
 router.post('/', authenticateToken, async (req, res) => {
   try {
@@ -131,9 +183,8 @@ router.post('/:token/comments', async (req, res) => {
 
     // Comentários são permitidos para qualquer link compartilhado (BRICK review mode)
 
-    // Verifica que o vídeo pertence ao recurso compartilhado
-    // (para evitar que alguém comente em vídeos não compartilhados)
-    if (share.video_id && share.video_id !== parseInt(video_id)) {
+    // Verifica que o vídeo pertence ao recurso compartilhado (incluindo versões)
+    if (!(await checkShareAccess(share, video_id))) {
       return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
     }
 
@@ -168,45 +219,12 @@ router.get('/:token/comments/video/:videoId', async (req, res) => {
     const share = await loadShare(req, res, token)
     if (!share) return
 
-    // Verifica que o vídeo pertence ao recurso compartilhado
-    const videoIdInt = parseInt(videoId);
-    let hasAccess = false;
-
-    if (share.video_id) {
-      // Share de vídeo específico - verifica se é o mesmo vídeo ou uma versão dele
-      const resVideo = await query(
-        `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
-        [videoIdInt]
-      );
-
-      if (resVideo.rows.length > 0) {
-        const video = resVideo.rows[0];
-        // Permite acesso se for o vídeo compartilhado ou se tiver o mesmo pai (versões)
-        hasAccess = video.id === share.video_id ||
-                    video.parent_video_id === share.video_id ||
-                    (video.parent_video_id && await query(
-                      `SELECT id FROM brickreview_videos WHERE id = $1 AND parent_video_id = $2`,
-                      [share.video_id, video.parent_video_id]
-                    ).then(r => r.rows.length > 0));
-      }
-    } else if (share.folder_id) {
-      // Share de pasta - verifica se o vídeo está na pasta
-      const resVideo = await query(
-        `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
-        [videoIdInt, share.folder_id]
-      );
-      hasAccess = resVideo.rows.length > 0;
-    } else if (share.project_id) {
-      // Share de projeto - verifica se o vídeo está no projeto
-      const resVideo = await query(
-        `SELECT v.id FROM brickreview_videos v
-         WHERE v.id = $1 AND v.project_id = $2`,
-        [videoIdInt, share.project_id]
-      );
-      hasAccess = resVideo.rows.length > 0;
+    const videoIdInt = Number(videoId)
+    if (!Number.isInteger(videoIdInt)) {
+      return res.status(400).json({ error: 'videoId inválido' })
     }
 
-    if (!hasAccess) {
+    if (!(await checkShareAccess(share, videoIdInt))) {
       return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
     }
 
@@ -239,42 +257,13 @@ router.get('/:token/drawings/video/:videoId', async (req, res) => {
     const share = await loadShare(req, res, token)
     if (!share) return
 
-    // Verifica que o vídeo pertence ao recurso compartilhado (mesma lógica de comentários)
-    const videoIdInt = parseInt(videoId);
-    let hasAccess = false;
-
-    if (share.video_id) {
-      const resVideo = await query(
-        `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
-        [videoIdInt]
-      );
-
-      if (resVideo.rows.length > 0) {
-        const video = resVideo.rows[0];
-        hasAccess = video.id === share.video_id ||
-                    video.parent_video_id === share.video_id ||
-                    (video.parent_video_id && await query(
-                      `SELECT id FROM brickreview_videos WHERE id = $1 AND parent_video_id = $2`,
-                      [share.video_id, video.parent_video_id]
-                    ).then(r => r.rows.length > 0));
-      }
-    } else if (share.folder_id) {
-      const resVideo = await query(
-        `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
-        [videoIdInt, share.folder_id]
-      );
-      hasAccess = resVideo.rows.length > 0;
-    } else if (share.project_id) {
-      const resVideo = await query(
-        `SELECT v.id FROM brickreview_videos v
-         WHERE v.id = $1 AND v.project_id = $2`,
-        [videoIdInt, share.project_id]
-      );
-      hasAccess = resVideo.rows.length > 0;
+    const videoIdInt = Number(videoId)
+    if (!Number.isInteger(videoIdInt)) {
+      return res.status(400).json({ error: 'videoId inválido' })
     }
 
-    if (!hasAccess) {
-      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+    if (!(await checkShareAccess(share, videoIdInt))) {
+      return res.status(403).json({ error: 'Acesso negado ao vídeo' })
     }
 
     // Busca desenhos do vídeo
@@ -301,37 +290,12 @@ router.get('/:token/video/:videoId/stream', async (req, res) => {
     const share = await loadShare(req, res, token)
     if (!share) return
 
-    const videoIdInt = parseInt(videoId);
-    let hasAccess = false;
-
-    // Busca o vídeo e suas informações de hierarquia
-    const resInfo = await query(
-      `SELECT id, parent_video_id, project_id, folder_id FROM brickreview_videos WHERE id = $1`,
-      [videoIdInt]
-    );
-
-    if (resInfo.rows.length > 0) {
-      const video = resInfo.rows[0];
-
-      if (share.video_id) {
-        hasAccess = video.id === share.video_id || video.parent_video_id === share.video_id;
-        if (!hasAccess) {
-            const sharedVideoRes = await query('SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1', [share.video_id]);
-            const sharedVideo = sharedVideoRes.rows[0];
-            if (sharedVideo) {
-                hasAccess = video.parent_video_id === sharedVideo.id || 
-                           sharedVideo.parent_video_id === video.id ||
-                           (video.parent_video_id && video.parent_video_id === sharedVideo.parent_video_id);
-            }
-        }
-      } else if (share.folder_id) {
-        hasAccess = video.folder_id === share.folder_id;
-      } else if (share.project_id) {
-        hasAccess = video.project_id === share.project_id;
-      }
+    const videoIdInt = Number(videoId)
+    if (!Number.isInteger(videoIdInt)) {
+      return res.status(400).json({ error: 'videoId inválido' })
     }
 
-    if (!hasAccess) {
+    if (!(await checkShareAccess(share, videoIdInt))) {
       return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
     }
 
@@ -502,36 +466,12 @@ router.get('/:token/video/:videoId/download', async (req, res) => {
     const share = await loadShare(req, res, token);
     if (!share) return;
 
-    const videoIdInt = parseInt(videoId);
-    let hasAccess = false;
-
-    const resInfo = await query(
-      `SELECT id, parent_video_id, project_id, folder_id FROM brickreview_videos WHERE id = $1`,
-      [videoIdInt]
-    );
-
-    if (resInfo.rows.length > 0) {
-      const video = resInfo.rows[0];
-
-      if (share.video_id) {
-        hasAccess = video.id === share.video_id || video.parent_video_id === share.video_id;
-        if (!hasAccess) {
-            const sharedVideoRes = await query('SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1', [share.video_id]);
-            const sharedVideo = sharedVideoRes.rows[0];
-            if (sharedVideo) {
-                hasAccess = video.parent_video_id === sharedVideo.id || 
-                           sharedVideo.parent_video_id === video.id ||
-                           (video.parent_video_id && video.parent_video_id === sharedVideo.parent_video_id);
-            }
-        }
-      } else if (share.folder_id) {
-        hasAccess = video.folder_id === share.folder_id;
-      } else if (share.project_id) {
-        hasAccess = video.project_id === share.project_id;
-      }
+    const videoIdInt = Number(videoId)
+    if (!Number.isInteger(videoIdInt)) {
+      return res.status(400).json({ error: 'videoId inválido' })
     }
 
-    if (!hasAccess) {
+    if (!(await checkShareAccess(share, videoIdInt))) {
       return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
     }
 

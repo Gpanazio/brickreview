@@ -1,7 +1,7 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
-import { requireProjectAccess, requireProjectAccessFromVideo } from '../utils/permissions.js'
+import { requireProjectAccess } from '../utils/permissions.js'
 
 const router = express.Router();
 
@@ -16,7 +16,11 @@ router.get('/video/:videoId', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'videoId inválido' })
     }
 
-    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+    // Permite leitura livre para qualquer usuário autenticado
+    const videoExists = await query('SELECT 1 FROM brickreview_videos WHERE id = $1', [videoId])
+    if (videoExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' })
+    }
 
     const comments = await query(
       `SELECT
@@ -55,7 +59,11 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'video_id inválido' })
     }
 
-    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+    // Permite comentário/reply livre para qualquer usuário autenticado
+    const videoExists = await query('SELECT 1 FROM brickreview_videos WHERE id = $1', [videoId])
+    if (videoExists.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado' })
+    }
 
     const result = await query(
       `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp)
