@@ -4,6 +4,9 @@ import { toast } from 'sonner';
 import { Upload, Copy, Archive, Trash2, Image as ImageIcon, ZoomIn, ZoomOut, Move, Share2, Check, Globe } from 'lucide-react';
 
 export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token }) {
+  const [showCoverUrlPicker, setShowCoverUrlPicker] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [settingCoverFromUrl, setSettingCoverFromUrl] = useState(false);
   const [showCoverEditor, setShowCoverEditor] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
@@ -40,8 +43,70 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   };
 
   const projectData = projectDetails || project;
-  const projectSize = projectData.videos?.reduce((acc, v) => acc + (v.file_size || 0), 0) || 0;
-  const projectSizeGB = (projectSize / (1024 * 1024 * 1024)).toFixed(2);
+  const rootVideos = (projectData.videos || []).filter((v) => v.parent_video_id == null);
+  const versionsCount = Math.max(0, (projectData.videos?.length || 0) - rootVideos.length);
+
+  const formatBytes = (bytes) => {
+    const value = Number(bytes);
+    if (!Number.isFinite(value) || value <= 0) return '0 B';
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let unitIndex = 0;
+    let size = value;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex += 1;
+    }
+
+    const decimals = unitIndex === 0 ? 0 : unitIndex === 1 ? 0 : 1;
+    return `${size.toFixed(decimals)} ${units[unitIndex]}`;
+  };
+
+  const projectSizeBytes = rootVideos.reduce((acc, v) => acc + (Number(v.file_size) || 0), 0);
+  const projectSizeLabel = formatBytes(projectSizeBytes);
+
+  const openGoogleImages = () => {
+    const query = `${projectName || projectData.name}${projectData.client_name ? ` ${projectData.client_name}` : ''} capa`;
+    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`, '_blank', 'noopener,noreferrer');
+    setShowCoverUrlPicker(true);
+  };
+
+  const handleSetCoverFromUrl = async () => {
+    const url = coverImageUrl.trim();
+    if (!url) return;
+
+    setSettingCoverFromUrl(true);
+    const coverToast = toast.loading('Atualizando imagem de capa...');
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/cover-url`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url })
+      });
+
+      if (response.ok) {
+        toast.success('Imagem de capa atualizada!', { id: coverToast });
+        await fetchProjectDetails();
+        onProjectUpdate();
+        setCoverImageUrl('');
+        setShowCoverUrlPicker(false);
+        onClose();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Erro ao atualizar imagem de capa', { id: coverToast });
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar imagem de capa por URL:', error);
+      toast.error('Erro ao atualizar imagem de capa', { id: coverToast });
+    } finally {
+      setSettingCoverFromUrl(false);
+    }
+  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -419,11 +484,13 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-400">Total de itens:</span>
-                <span className="text-white font-bold">{projectData.videos?.length || 0} vídeos</span>
+                <span className="text-white font-bold">
+                  {rootVideos.length} vídeos{versionsCount > 0 ? ` (+${versionsCount} versões)` : ''}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-400">Tamanho total:</span>
-                <span className="text-white font-bold">{projectSizeGB} GB</span>
+                <span className="text-white font-bold">{projectSizeLabel}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-400">Status:</span>
@@ -454,6 +521,46 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
               Alterar Imagem de Capa
             </label>
           </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full justify-start glass-button border border-zinc-800 rounded-none"
+            onClick={openGoogleImages}
+          >
+            <Globe className="w-4 h-4 mr-3" />
+            Buscar no Google Imagens
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full justify-start glass-button border border-zinc-800 rounded-none"
+            onClick={() => setShowCoverUrlPicker((v) => !v)}
+          >
+            <Upload className="w-4 h-4 mr-3" />
+            Usar URL de Imagem
+          </Button>
+
+          {showCoverUrlPicker && (
+            <div className="p-3 border border-zinc-800 bg-black space-y-2">
+              <label className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                Cole a URL direta da imagem (JPG/PNG/WebP)
+              </label>
+              <input
+                type="url"
+                value={coverImageUrl}
+                onChange={(e) => setCoverImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full bg-black border border-zinc-800 text-white px-3 py-2 text-xs focus:border-red-600 outline-none transition-colors rounded-none"
+              />
+              <Button
+                className="w-full glass-button-primary border-none rounded-none"
+                disabled={settingCoverFromUrl || !coverImageUrl.trim()}
+                onClick={handleSetCoverFromUrl}
+              >
+                {settingCoverFromUrl ? 'Aplicando...' : 'Aplicar URL como capa'}
+              </Button>
+            </div>
+          )}
 
           <Button
             variant="ghost"

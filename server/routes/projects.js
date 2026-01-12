@@ -287,6 +287,121 @@ router.post('/:id/cover', authenticateToken, uploadImage.single('cover'), async 
 });
 
 /**
+ * @route POST /api/projects/:id/cover-url
+ * @desc Set cover image from remote URL
+ */
+router.post('/:id/cover-url', authenticateToken, async (req, res) => {
+  const projectId = Number(req.params.id)
+  const { url } = req.body || {}
+
+  if (!Number.isInteger(projectId)) {
+    return res.status(400).json({ error: 'ID de projeto inválido' })
+  }
+
+  if (typeof url !== 'string' || !url.trim()) {
+    return res.status(400).json({ error: 'URL da imagem é obrigatória' })
+  }
+
+  if (!(await requireProjectAccess(req, res, projectId))) {
+    return
+  }
+
+  let parsedUrl
+  try {
+    parsedUrl = new URL(url)
+  } catch {
+    return res.status(400).json({ error: 'URL inválida' })
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    return res.status(400).json({ error: 'URL deve ser http(s)' })
+  }
+
+  const hostname = parsedUrl.hostname.toLowerCase()
+  const blockedHosts = new Set(['localhost', '127.0.0.1', '::1', '0.0.0.0'])
+  if (blockedHosts.has(hostname)) {
+    return res.status(400).json({ error: 'Host não permitido' })
+  }
+
+  // Block obvious private IP ranges (best-effort SSRF guard)
+  if (/^10\./.test(hostname) || /^192\.168\./.test(hostname) || /^169\.254\./.test(hostname)) {
+    return res.status(400).json({ error: 'Host não permitido' })
+  }
+  const match172 = hostname.match(/^172\.(\d+)\./)
+  if (match172) {
+    const second = Number(match172[1])
+    if (second >= 16 && second <= 31) {
+      return res.status(400).json({ error: 'Host não permitido' })
+    }
+  }
+
+  try {
+    const projectCheck = await query('SELECT id FROM brickreview_projects WHERE id = $1', [projectId])
+    if (projectCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Projeto não encontrado' })
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+      },
+    })
+
+    if (!response.ok) {
+      return res.status(400).json({ error: 'Não foi possível baixar a imagem' })
+    }
+
+    const contentType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
+    const extByType = {
+      'image/jpeg': '.jpg',
+      'image/jpg': '.jpg',
+      'image/png': '.png',
+      'image/webp': '.webp',
+    }
+
+    const ext = extByType[contentType]
+    if (!ext) {
+      return res.status(400).json({ error: 'Tipo de imagem não suportado (use JPG, PNG ou WebP)' })
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    const maxBytes = 10 * 1024 * 1024
+    if (buffer.length > maxBytes) {
+      return res.status(413).json({ error: 'Imagem muito grande (máx 10MB)' })
+    }
+
+    const r2Key = `project-covers/${projectId}/${Date.now()}-cover${ext}`
+
+    await r2Client.send(new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: r2Key,
+      Body: buffer,
+      ContentType: contentType,
+    }))
+
+    const coverUrl = `${process.env.R2_PUBLIC_URL}/${r2Key}`
+
+    const result = await query(
+      `UPDATE brickreview_projects
+       SET cover_image_r2_key = $1, cover_image_url = $2
+       WHERE id = $3
+       RETURNING *`,
+      [r2Key, coverUrl, projectId]
+    )
+
+    res.json({
+      message: 'Imagem de capa atualizada com sucesso',
+      project: result.rows[0],
+    })
+  } catch (error) {
+    console.error('Erro ao atualizar capa por URL:', error)
+    res.status(500).json({ error: 'Erro ao atualizar capa por URL' })
+  }
+})
+
+/**
  * @route DELETE /api/projects/:id/cover
  * @desc Remove cover image from project
  */
