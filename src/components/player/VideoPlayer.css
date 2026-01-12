@@ -106,8 +106,8 @@
   pointer-events: auto !important;
 }
 
-/* Esconde o botão central quando pausado para não obstruir a visão/desenhos */
-.plyr--paused .plyr__control--overlaid {
+/* Esconde o botão central APENAS quando estiver no modo desenho para não obstruir */
+.is-drawing .plyr__control--overlaid {
   display: none !important;
 }
 
@@ -119,12 +119,15 @@
   background: #000 !important;
   height: 100% !important;
   width: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
 }
 
 /* Garante que o container do Plyr ocupe todo o espaço sem forçar proporções que cortem o vídeo */
 .plyr--full-ui.plyr--video {
   height: 100% !important;
   width: 100% !important;
+  max-height: 100% !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
@@ -135,6 +138,7 @@
 .plyr__video-wrapper {
     height: 100% !important;
     width: 100% !important;
+    padding-bottom: 0 !important; /* Remove hack de aspect-ratio do Plyr que causa zoom em videos verticais */
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;

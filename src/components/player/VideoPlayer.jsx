@@ -883,7 +883,7 @@ export function VideoPlayer({
         <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden">
           <div
             ref={videoContainerRef}
-            className={`relative w-full h-full flex items-center justify-center bg-black`}
+            className={`relative w-full h-full flex items-center justify-center bg-black ${drawingMode ? 'is-drawing' : ''}`}
           >
             {videoSource ? (
               <div key={`player-${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
