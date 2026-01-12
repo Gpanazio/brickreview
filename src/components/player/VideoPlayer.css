@@ -124,6 +124,7 @@
 }
 
 /* Garante que o container do Plyr ocupe todo o espaço sem forçar proporções que cortem o vídeo */
+.plyr,
 .plyr--full-ui.plyr--video {
   height: 100% !important;
   width: 100% !important;
@@ -133,6 +134,7 @@
   align-items: center !important;
   justify-content: center !important;
   background: #000;
+  aspect-ratio: unset !important; /* Remove qualquer aspect-ratio que o Plyr tente injetar */
 }
 
 .plyr__video-wrapper {
@@ -142,4 +144,5 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    aspect-ratio: unset !important;
 }

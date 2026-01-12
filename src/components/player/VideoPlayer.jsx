@@ -32,6 +32,7 @@ const PLYR_OPTIONS = {
   ],
   keyboard: { focused: true, global: true },
   tooltips: { controls: true, seek: true },
+  ratio: null, // Desativa cálculo automático de aspect-ratio do Plyr
   debug: true, // Enable debug logs
   blankVideo: '' // Prevent blank video loading issues
 };
