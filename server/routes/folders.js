@@ -19,24 +19,30 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
     if (!(await requireProjectAccess(req, res, projectId))) return
 
     const result = await query(
-      `SELECT f.*,
-        COALESCE(
-          (
-            SELECT json_agg(v.thumbnail_url)
-            FROM (
-              SELECT thumbnail_url
-              FROM brickreview_videos
-              WHERE folder_id = f.id
-              AND thumbnail_url IS NOT NULL
-              ORDER BY created_at DESC
-              LIMIT 3
-            ) v
-          ),
-          '[]'
-        ) as previews
-       FROM brickreview_folders_with_stats f
-       WHERE project_id = $1
-       ORDER BY parent_folder_id NULLS FIRST, name ASC`,
+      `WITH ranked_videos AS (
+        SELECT
+          folder_id,
+          thumbnail_url,
+          created_at,
+          ROW_NUMBER() OVER (PARTITION BY folder_id ORDER BY created_at DESC) as rn
+        FROM brickreview_videos
+        WHERE thumbnail_url IS NOT NULL
+      ),
+      folder_previews AS (
+        SELECT
+          folder_id,
+          json_agg(thumbnail_url ORDER BY created_at DESC) as previews
+        FROM ranked_videos
+        WHERE rn <= 3
+        GROUP BY folder_id
+      )
+      SELECT
+        f.*,
+        COALESCE(fp.previews, '[]'::json) as previews
+      FROM brickreview_folders_with_stats f
+      LEFT JOIN folder_previews fp ON f.id = fp.folder_id
+      WHERE project_id = $1
+      ORDER BY parent_folder_id NULLS FIRST, name ASC`,
       [projectId]
     )
 
