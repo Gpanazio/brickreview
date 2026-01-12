@@ -112,9 +112,13 @@
 }
 
 /* Garante que o vídeo use object-fit contain para não cropagem no modo full-size */
-.plyr video {
+.plyr video,
+.plyr__video-wrapper video,
+.plyr__poster {
   object-fit: contain !important;
-  background: #000;
+  background: #000 !important;
+  height: 100% !important;
+  width: 100% !important;
 }
 
 /* Garante que o container do Plyr ocupe todo o espaço sem forçar proporções que cortem o vídeo */
@@ -122,7 +126,16 @@
   height: 100% !important;
   width: 100% !important;
   display: flex !important;
+  flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
   background: #000;
+}
+
+.plyr__video-wrapper {
+    height: 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
