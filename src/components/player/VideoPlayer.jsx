@@ -235,6 +235,7 @@ export function VideoPlayer({
         setComments([...comments, comment].sort((a, b) => a.timestamp - b.timestamp));
         setNewComment('');
         setAttachedFile(null);
+        setDrawingMode(false);
         toast.success('Comentário adicionado com sucesso!');
       } else {
         const errorData = await response.json();
@@ -303,6 +304,7 @@ export function VideoPlayer({
         setComments([...comments, reply]);
         setReplyText('');
         setReplyingTo(null);
+        setDrawingMode(false);
         toast.success('Resposta adicionada com sucesso!');
       } else {
         const errorData = await response.json();
@@ -330,7 +332,7 @@ export function VideoPlayer({
   const seekTo = (time) => {
     if (playerRef.current?.plyr) {
       playerRef.current.plyr.currentTime = time;
-      playerRef.current.plyr.play();
+      playerRef.current.plyr.pause();
     }
   };
 
@@ -1249,6 +1251,9 @@ export function VideoPlayer({
                         <textarea
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
+                          onFocus={() => {
+                            if (drawingMode) setDrawingMode(false);
+                          }}
                           placeholder="Escreva sua resposta..."
                           className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
                           autoFocus
@@ -1358,6 +1363,10 @@ export function VideoPlayer({
                 <textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
+                  onFocus={() => {
+                    // Fecha o modo desenho ao focar no campo de texto para limpar a UI
+                    if (drawingMode) setDrawingMode(false);
+                  }}
                   placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
                   className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 pb-12 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
                   disabled={isGuest && !canComment}
