@@ -1006,7 +1006,10 @@ function FolderCard({ folder, onClick, onDelete }) {
                   {previews.length > 1 && (
                     <div className="col-span-1 row-span-2 flex flex-col gap-[1px]">
                       {[previews[1], previews[2]].map((previewSrc, index) => (
-                        <div key={index} className="flex-1 bg-zinc-800 overflow-hidden relative">
+                        <div
+                          key={previewSrc || `placeholder-${index}`}
+                          className="flex-1 bg-zinc-800 overflow-hidden relative"
+                        >
                           {previewSrc ? (
                             <img
                               src={previewSrc}
