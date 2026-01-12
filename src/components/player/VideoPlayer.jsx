@@ -82,7 +82,7 @@ export function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(currentVideo?.duration || 0);
   const [isMuted, setIsMuted] = useState(false);
   const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
   const playerRef = useRef(null);
@@ -329,6 +329,7 @@ export function VideoPlayer({
   };
 
   const formatTime = (seconds) => {
+    if (isNaN(seconds) || seconds === null) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -393,6 +394,9 @@ export function VideoPlayer({
 
   // Carrega comentários quando a versão muda
   useEffect(() => {
+    if (currentVideo?.duration) {
+      setDuration(currentVideo.duration);
+    }
     const fetchComments = async () => {
       try {
         // Use endpoint público para guests, privado para usuários autenticados
@@ -953,13 +957,13 @@ export function VideoPlayer({
           >
             {/* Buffered progress (opcional, se quiser implementar) */}
             <div 
-              className="absolute top-0 left-0 h-full bg-red-600 transition-all duration-100 ease-linear"
-              style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+              className="absolute top-0 left-0 h-full bg-red-600"
+              style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
             />
             {/* Scrubber Handle on Hover */}
             <div 
               className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-              style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
+              style={{ left: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
             />
           </div>
 
