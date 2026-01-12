@@ -991,7 +991,7 @@ function FolderCard({ folder, onClick, onDelete }) {
                   >
                     <img
                       src={previews[0]}
-                      alt=""
+                      alt={`Pré-visualização 1 para a pasta ${folder.name}`}
                       className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                     />
                     {previews.length > 1 && (
@@ -1005,31 +1005,19 @@ function FolderCard({ folder, onClick, onDelete }) {
 
                   {previews.length > 1 && (
                     <div className="col-span-1 row-span-2 flex flex-col gap-[1px]">
-                      <div className="flex-1 bg-zinc-800 overflow-hidden relative">
-                        {previews[1] ? (
-                          <img
-                            src={previews[1]}
-                            alt=""
-                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-zinc-800/50" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 bg-zinc-800 overflow-hidden relative">
-                        {previews[2] ? (
-                          <img
-                            src={previews[2]}
-                            alt=""
-                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                            <div className="w-full h-full bg-zinc-800/30 pattern-grid-lg opacity-20" />
-                          </div>
-                        )}
-                      </div>
+                      {[previews[1], previews[2]].map((previewSrc, index) => (
+                        <div key={index} className="flex-1 bg-zinc-800 overflow-hidden relative">
+                          {previewSrc ? (
+                            <img
+                              src={previewSrc}
+                              alt={`Pré-visualização ${index + 2} para a pasta ${folder.name}`}
+                              className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-zinc-800/50" />
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
