@@ -43,7 +43,7 @@ export function VideoPlayer({
   visitorName: initialVisitorName = '',
   shareToken = null,
   sharePassword = null,
-  accessType = 'view',
+  accessType: _accessType = 'view',
 }) {
   // Determina a versão inicial (mais recente) ao montar o componente
   const getLatestVersion = useCallback(() => {
@@ -101,7 +101,7 @@ export function VideoPlayer({
 
   // Guest mode: no token, use visitor name for identification
   const isGuest = isPublic || !token;
-  const canComment = isGuest ? (accessType === 'comment') : true;
+  const canComment = true;
   const canApprove = !isGuest; // Only authenticated users can approve
   const canShare = !isGuest; // Only authenticated users can generate share links
   const canDownload = true; // Everyone can download (as requested)
@@ -179,9 +179,15 @@ export function VideoPlayer({
     };
   }, [videoUrl, currentVideo.mime_type]);
 
+  const parseTimestampSeconds = (value) => {
+    if (value === null || value === undefined) return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  };
+
   const compareCommentsByTimestamp = (a, b) => {
-    const aTs = Number.isFinite(Number(a?.timestamp)) ? Number(a.timestamp) : null;
-    const bTs = Number.isFinite(Number(b?.timestamp)) ? Number(b.timestamp) : null;
+    const aTs = parseTimestampSeconds(a?.timestamp);
+    const bTs = parseTimestampSeconds(b?.timestamp);
 
     if (aTs === null && bTs === null) {
       return new Date(a.created_at) - new Date(b.created_at);
@@ -197,11 +203,6 @@ export function VideoPlayer({
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    // Guests can only comment if access_type is 'comment'
-    if (isGuest && !canComment) {
-      toast.error('Você não tem permissão para comentar');
-      return;
-    }
 
     // Guests must provide a name
     if (isGuest && !visitorName.trim()) {
@@ -266,11 +267,6 @@ export function VideoPlayer({
     e.preventDefault();
     if (!replyText.trim() || !replyingTo) return;
 
-    // Guests can only reply if access_type is 'comment'
-    if (isGuest && !canComment) {
-      toast.error('Você não tem permissão para responder');
-      return;
-    }
 
     // Guests must provide a name
     if (isGuest && !visitorName.trim()) {
@@ -345,20 +341,35 @@ export function VideoPlayer({
   };
 
   const seekTo = (time) => {
-    const targetTime = Number(time);
-    if (!Number.isFinite(targetTime)) return;
+    const targetTime = parseTimestampSeconds(time);
+    if (targetTime === null) return;
 
     pendingSeekTimeRef.current = targetTime;
 
     const plyr = playerRef.current?.plyr;
-    if (!plyr) return;
+    const media = plyr?.media;
+    if (!plyr || !media) return;
 
-    const readyState = plyr.media?.readyState;
-    if (typeof readyState === 'number' && readyState < 1) return;
+    const applyPendingSeek = () => {
+      const pending = pendingSeekTimeRef.current;
+      if (!Number.isFinite(pending)) return;
+      try {
+        plyr.currentTime = pending;
+        plyr.pause();
+        pendingSeekTimeRef.current = null;
+      } catch {
+        // ignore; will retry on next media event
+      }
+    };
 
-    plyr.currentTime = targetTime;
-    plyr.pause();
-    pendingSeekTimeRef.current = null;
+    // If media isn't ready yet, schedule a retry when metadata is available.
+    if (typeof media.readyState === 'number' && media.readyState < 1) {
+      media.addEventListener('loadedmetadata', applyPendingSeek, { once: true });
+      media.addEventListener('canplay', applyPendingSeek, { once: true });
+      return;
+    }
+
+    applyPendingSeek();
   };
 
   const formatTime = (seconds) => {
@@ -1255,13 +1266,13 @@ export function VideoPlayer({
                     <div
                       className="cursor-pointer"
                       onClick={() => {
-                        const ts = Number(comment.timestamp);
-                        if (Number.isFinite(ts)) seekTo(ts);
+                        const ts = parseTimestampSeconds(comment.timestamp);
+                        if (ts !== null) seekTo(ts);
                       }}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
-                          {Number.isFinite(Number(comment.timestamp)) ? formatTime(Number(comment.timestamp)) : '—'}
+                          {parseTimestampSeconds(comment.timestamp) !== null ? formatTime(parseTimestampSeconds(comment.timestamp)) : '—'}
                         </span>
                         <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                           {comment.username}

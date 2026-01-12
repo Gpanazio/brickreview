@@ -129,10 +129,7 @@ router.post('/:token/comments', async (req, res) => {
     const share = await loadShare(req, res, token)
     if (!share) return
 
-    // Verifica se o acesso permite comentários
-    if (share.access_type !== 'comment') {
-      return res.status(403).json({ error: 'Este link não permite comentários' });
-    }
+    // Comentários são permitidos para qualquer link compartilhado (BRICK review mode)
 
     // Verifica que o vídeo pertence ao recurso compartilhado
     // (para evitar que alguém comente em vídeos não compartilhados)
