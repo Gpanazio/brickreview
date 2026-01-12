@@ -92,6 +92,7 @@ export function VideoPlayer({
 
   const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
   const playerRef = useRef(null);
+  const pendingSeekTimeRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -246,7 +247,7 @@ export function VideoPlayer({
 
       if (response.ok) {
         const comment = await response.json();
-        setComments([...comments, comment].sort(compareCommentsByTimestamp));
+        setComments((prev) => [...prev, comment].sort(compareCommentsByTimestamp));
         setNewComment('');
         setAttachedFile(null);
         setDrawingMode(false);
@@ -315,7 +316,7 @@ export function VideoPlayer({
 
       if (response.ok) {
         const reply = await response.json();
-        setComments([...comments, reply]);
+        setComments((prev) => [...prev, reply]);
         setReplyText('');
         setReplyingTo(null);
         setDrawingMode(false);
@@ -332,22 +333,32 @@ export function VideoPlayer({
 
   // Organiza comentários em threads (pais e respostas)
   const organizeComments = () => {
-    const parentComments = comments.filter(c => !c.parent_comment_id);
+    const parentComments = comments.filter(c => c.parent_comment_id == null);
     return parentComments
       .sort(compareCommentsByTimestamp)
       .map(parent => ({
         ...parent,
         replies: comments
-          .filter(c => c.parent_comment_id === parent.id)
+          .filter(c => c.parent_comment_id != null && String(c.parent_comment_id) === String(parent.id))
           .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
       }));
   };
 
   const seekTo = (time) => {
-    if (playerRef.current?.plyr) {
-      playerRef.current.plyr.currentTime = time;
-      playerRef.current.plyr.pause();
-    }
+    const targetTime = Number(time);
+    if (!Number.isFinite(targetTime)) return;
+
+    pendingSeekTimeRef.current = targetTime;
+
+    const plyr = playerRef.current?.plyr;
+    if (!plyr) return;
+
+    const readyState = plyr.media?.readyState;
+    if (typeof readyState === 'number' && readyState < 1) return;
+
+    plyr.currentTime = targetTime;
+    plyr.pause();
+    pendingSeekTimeRef.current = null;
   };
 
   const formatTime = (seconds) => {
@@ -644,7 +655,16 @@ export function VideoPlayer({
     playerRef.current = { plyr: player };
 
     // Se temos um currentTime salvo (ex: trocou qualidade), busca esse tempo ao carregar
+    // Se houver um seek pendente (ex: clique em comentário antes do player ficar pronto), aplica primeiro.
     player.on('ready', () => {
+      const pendingSeekTime = pendingSeekTimeRef.current;
+      if (Number.isFinite(pendingSeekTime)) {
+        player.currentTime = pendingSeekTime;
+        player.pause();
+        pendingSeekTimeRef.current = null;
+        return;
+      }
+
       if (currentTime > 0.1) {
         player.currentTime = currentTime;
       }
@@ -1222,14 +1242,13 @@ export function VideoPlayer({
                     <div
                       className="cursor-pointer"
                       onClick={() => {
-                        if (comment.timestamp !== null && comment.timestamp !== undefined) {
-                          seekTo(Number(comment.timestamp));
-                        }
+                        const ts = Number(comment.timestamp);
+                        if (Number.isFinite(ts)) seekTo(ts);
                       }}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
-                          {formatTime(comment.timestamp)}
+                          {Number.isFinite(Number(comment.timestamp)) ? formatTime(Number(comment.timestamp)) : '—'}
                         </span>
                         <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                           {comment.username}
