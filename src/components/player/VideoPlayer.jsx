@@ -368,6 +368,19 @@ export function VideoPlayer({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const formatTimecode = (seconds) => {
+    const fpsInt = Math.max(1, Math.round(videoFPS || 30));
+    const safeSeconds = Number(seconds);
+    if (!Number.isFinite(safeSeconds) || safeSeconds < 0) return `0:00:00`;
+
+    const totalFrames = Math.floor(safeSeconds * fpsInt);
+    const mins = Math.floor(totalFrames / (fpsInt * 60));
+    const secs = Math.floor(totalFrames / fpsInt) % 60;
+    const frames = totalFrames % fpsInt;
+
+    return `${mins}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
+  };
+
   const handleApproval = async (status) => {
     setIsSubmittingApproval(true);
     try {
@@ -1117,10 +1130,10 @@ export function VideoPlayer({
               
               <div className="flex flex-col items-center min-w-[100px]">
                 <div className="brick-tech text-white font-bold text-lg tabular-nums tracking-tight leading-none">
-                  {formatTime(currentTime)}
+                  {formatTimecode(currentTime)}
                 </div>
                 <div className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest mt-0.5">
-                  {formatTime(duration)}
+                  {formatTimecode(duration)}
                 </div>
               </div>
 
@@ -1362,7 +1375,7 @@ export function VideoPlayer({
                 {hasTimestamp ? (
                   <div className="flex items-center gap-2 text-zinc-500">
                     <Clock className="w-3 h-3" />
-                    <span className="text-red-500">{formatTime(currentTime)}</span>
+                    <span className="text-red-500">{formatTimecode(currentTime)}</span>
                   </div>
                 ) : (
                   <div className="text-zinc-500">
