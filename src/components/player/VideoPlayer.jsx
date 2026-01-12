@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import Plyr from 'plyr-react';
-import 'plyr-react/plyr.css';
+import Plyr from 'plyr';
+import 'plyr/dist/plyr.css';
 import './VideoPlayer.css'; // Importa o CSS customizado
 import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -74,6 +74,7 @@ export function VideoPlayer({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controla exibição do emoji picker
   const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
   const playerRef = useRef(null);
+  const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const videoContainerRef = useRef(null);
   const { token } = useAuth();
@@ -566,6 +567,32 @@ export function VideoPlayer({
     }
   }, [currentVideoId, token, isGuest, shareToken]);
 
+  // Inicializa o player Plyr nativo
+  useEffect(() => {
+    if (!videoSource || !videoRef.current) return;
+
+    console.log('[VideoPlayer] Initializing native Plyr instance');
+    const player = new Plyr(videoRef.current, {
+      ...PLYR_OPTIONS,
+      autoplay: false,
+    });
+
+    // Define a fonte inicial
+    player.source = videoSource;
+
+    // Mantém compatibilidade com o resto do código que usa playerRef.current.plyr
+    playerRef.current = { plyr: player };
+
+    // Cleanup ao desmontar ou trocar de fonte
+    return () => {
+      console.log('[VideoPlayer] Destroying Plyr instance');
+      if (player) {
+        player.destroy();
+      }
+      playerRef.current = null;
+    };
+  }, [videoSource]);
+
   // Polling para atualizar currentTime caso o evento não dispare
   useEffect(() => {
     const interval = setInterval(() => {
@@ -859,13 +886,11 @@ export function VideoPlayer({
           >
             {videoSource ? (
               <div key={`player-${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
-                <Plyr
-                  ref={playerRef}
-                  source={videoSource}
-                  options={{
-                    ...PLYR_OPTIONS,
-                    autoplay: false,
-                  }}
+                <video
+                  ref={videoRef}
+                  className="plyr-react plyr"
+                  crossOrigin="anonymous"
+                  playsInline
                 />
                 {/* Canvas overlay for drawing */}
                 <canvas
