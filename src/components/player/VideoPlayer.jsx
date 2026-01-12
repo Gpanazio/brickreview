@@ -17,6 +17,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 const PLYR_OPTIONS = {
   controls: [
@@ -61,8 +68,9 @@ export function VideoPlayer({
   const [videoUrl, setVideoUrl] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null); // ID do comentário sendo respondido
   const [replyText, setReplyText] = useState('');
-  const [, setShareLink] = useState('')
+  const [shareLink, setShareLink] = useState('')
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [visitorName, setVisitorName] = useState(initialVisitorName || localStorage.getItem('brickreview_visitor_name') || '');
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingMode, setDrawingMode] = useState(false); // Se está no modo desenho
@@ -510,12 +518,9 @@ export function VideoPlayer({
           description: "O link de revisão já está na sua área de transferência."
         });
       } else {
-        // Se tudo falhar, mostra o link para o usuário copiar manualmente de forma amigável
-        toast.error('Cópia automática falhou', {
-            id: shareToast,
-            description: "Por favor, copie o link gerado: " + fullUrl,
-            duration: 10000
-        });
+        // Se tudo falhar, abre o dialog customizado
+        toast.dismiss(shareToast);
+        setShowShareDialog(true);
       }
     } catch (error) {
       console.error('Erro ao gerar link:', error);
@@ -1256,6 +1261,38 @@ export function VideoPlayer({
           </div>
         )}
       </div>
+
+      {/* Share Link Dialog Fallback */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="brick-title text-xl uppercase tracking-tighter text-white">Link de Revisão</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
+              Não foi possível copiar automaticamente. Copie o link abaixo:
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                readOnly
+                value={shareLink}
+                className="bg-zinc-900 border-zinc-800 rounded-none text-xs text-zinc-300 focus:ring-red-600 h-10"
+                onClick={(e) => e.target.select()}
+              />
+              <Button
+                variant="ghost"
+                className="bg-red-600 hover:bg-red-700 text-white rounded-none h-10 px-4 text-[10px] font-black uppercase tracking-widest"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareLink);
+                  toast.success("Copiado!");
+                }}
+              >
+                Copiar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

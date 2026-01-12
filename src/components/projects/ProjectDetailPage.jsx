@@ -25,6 +25,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 export function ProjectDetailPage() {
   const { id } = useParams();
@@ -37,6 +44,8 @@ export function ProjectDetailPage() {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'folders'
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const { token } = useAuth();
 
   useEffect(() => {
@@ -150,6 +159,7 @@ export function ProjectDetailPage() {
       if (response.ok) {
         const data = await response.json();
         const shareUrl = `${window.location.origin}/share/${data.token}`;
+        setShareLink(shareUrl);
 
         const copied = await copyToClipboard(shareUrl);
         if (copied) {
@@ -158,11 +168,8 @@ export function ProjectDetailPage() {
             description: "O link de revisão já está na sua área de transferência."
           });
         } else {
-          toast.error('Cópia automática falhou', {
-            id: loadingToast,
-            description: "Por favor, copie o link gerado: " + shareUrl,
-            duration: 10000
-          });
+          toast.dismiss(loadingToast);
+          setShowShareDialog(true);
         }
       } else {
         const errorData = await response.json();
@@ -746,6 +753,38 @@ export function ProjectDetailPage() {
           </ContextMenuContent>
         </ContextMenu>
       </div>
+
+      {/* Share Link Dialog Fallback */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="brick-title text-xl uppercase tracking-tighter text-white">Link de Revisão</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
+              Não foi possível copiar automaticamente. Copie o link abaixo:
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                readOnly
+                value={shareLink}
+                className="bg-zinc-900 border-zinc-800 rounded-none text-xs text-zinc-300 focus:ring-red-600 h-10"
+                onClick={(e) => e.target.select()}
+              />
+              <Button
+                variant="ghost"
+                className="bg-red-600 hover:bg-red-700 text-white rounded-none h-10 px-4 text-[10px] font-black uppercase tracking-widest"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareLink);
+                  toast.success("Copiado!");
+                }}
+              >
+                Copiar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
