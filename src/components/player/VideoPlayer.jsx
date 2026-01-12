@@ -113,8 +113,8 @@ export function VideoPlayer({
 
     const ratio = currentVideo.width / currentVideo.height;
 
-    // Vertical: limita altura
-    if (ratio < 1) return 'max-h-[80vh]';
+    // Vertical: limita altura e largura
+    if (ratio < 1) return 'max-h-[85vh] max-w-[45vh]';
     // Horizontal: sem limite específico
     return 'max-h-[70vh]';
   };
@@ -853,11 +853,12 @@ export function VideoPlayer({
         <div className="flex-1 bg-black flex items-center justify-center p-8">
           <div
             ref={videoContainerRef}
-            className={`relative w-full max-w-5xl ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10`}
+            className={`relative w-full ${currentVideo.width && currentVideo.height && (currentVideo.width / currentVideo.height) >= 1 ? 'max-w-5xl' : ''} ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10`}
           >
             {videoSource ? (
-              <div key={`${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
+              <div className="relative w-full h-full">
                 <Plyr
+                  key={`${currentVideoId}-${videoUrl}`}
                   ref={playerRef}
                   source={videoSource}
                   options={{

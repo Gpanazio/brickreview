@@ -53,12 +53,13 @@
   border: 2px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
   padding: 20px;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease, transform 0.2s ease;
+  transform: translate(-50%, -50%);
 }
 
 .plyr__control--overlaid:hover {
-    background: #EF4444; /* red-500 */
-    transform: translate(-50%, -50%) scale(1.1);
+  background: #EF4444; /* red-500 */
+  transform: translate(-50%, -50%) scale(1.05);
 }
 
 .plyr__control--overlaid svg {
