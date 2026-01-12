@@ -10,7 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Upload, Play, Clock, MessageSquare,
   CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree,
-  FolderPlus, History, Share2, Trash2, Archive
+  FolderPlus, History, Share2, Trash2, Archive, Folder, FolderOpen,
+  ArrowLeft
 } from 'lucide-react';
 import {
   ContextMenu,
@@ -401,6 +402,27 @@ export function ProjectDetailPage() {
     );
   }
 
+  const currentLevelFolders = folders.filter(f =>
+    f.parent_folder_id === currentFolderId ||
+    (!currentFolderId && f.parent_folder_id === null)
+  );
+
+  const currentLevelVideos = (project?.videos || []).filter(v =>
+    v.folder_id === currentFolderId ||
+    (!currentFolderId && v.folder_id === null)
+  );
+
+  const currentLevelFiles = files.filter(f =>
+    f.folder_id === currentFolderId ||
+    (!currentFolderId && f.folder_id === null)
+  );
+
+  const handleGoUp = () => {
+    if (!currentFolderId) return;
+    const currentFolder = folders.find(f => f.id === currentFolderId);
+    setCurrentFolderId(currentFolder?.parent_folder_id || null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#050505]">
       {/* Header do Projeto */}
@@ -542,7 +564,7 @@ export function ProjectDetailPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              {(!project.videos || project.videos.length === 0) && files.length === 0 && uploadQueue.length === 0 ? (
+              {currentLevelFolders.length === 0 && currentLevelVideos.length === 0 && currentLevelFiles.length === 0 && uploadQueue.length === 0 && !currentFolderId ? (
                 <div className="flex flex-col items-center justify-center h-80 border border-dashed border-zinc-800 bg-zinc-950/10">
                   <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
                     <FileVideo className="w-8 h-8 text-zinc-700" />
@@ -562,6 +584,52 @@ export function ProjectDetailPage() {
                   }}
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
                 >
+                  {/* Go Up Card */}
+                  {currentFolderId && (
+                    <motion.div
+                      variants={{
+                        hidden: { opacity: 0, scale: 0.95 },
+                        show: { opacity: 1, scale: 1 }
+                      }}
+                      className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer hover:bg-zinc-900/50"
+                      onClick={handleGoUp}
+                    >
+                      <div className="aspect-video bg-zinc-950 flex flex-col items-center justify-center border-b border-zinc-800/50">
+                        <ArrowLeft className="w-8 h-8 text-zinc-700 group-hover:text-red-600 transition-colors" />
+                      </div>
+                      <div className="p-5 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all flex-1">
+                        <h3 className="brick-title text-sm text-zinc-500 uppercase">Voltar</h3>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Folder Cards */}
+                  {currentLevelFolders.map((folder) => (
+                    <motion.div
+                      key={`folder-card-${folder.id}`}
+                      variants={{
+                        hidden: { opacity: 0, scale: 0.95 },
+                        show: { opacity: 1, scale: 1 }
+                      }}
+                    >
+                      <FolderCard 
+                        folder={folder} 
+                        onClick={() => setCurrentFolderId(folder.id)}
+                        onDelete={() => {
+                          if (confirm('Tem certeza que deseja excluir esta pasta?')) {
+                            fetch(`/api/folders/${folder.id}`, {
+                              method: 'DELETE',
+                              headers: { 'Authorization': `Bearer ${token}` }
+                            }).then(() => {
+                              toast.success('Pasta excluída');
+                              fetchFolders();
+                            });
+                          }
+                        }}
+                      />
+                    </motion.div>
+                  ))}
+
                   {/* Uploading Cards */}
                   {uploadQueue.map((upload) => (
                     <motion.div
@@ -601,10 +669,10 @@ export function ProjectDetailPage() {
                     </motion.div>
                   ))}
 
-                  {project.videos
+                  {currentLevelVideos
                     .filter(v => !v.parent_video_id) // Só mostra vídeos raiz (não versões)
                     .map((video) => {
-                      const versions = project.videos.filter(v => v.parent_video_id === video.id);
+                      const versions = (project?.videos || []).filter(v => v.parent_video_id === video.id);
                       return (
                         <motion.div
                           key={video.id}
@@ -627,7 +695,7 @@ export function ProjectDetailPage() {
                     })}
 
                   {/* File Cards */}
-                  {files.map((file) => (
+                  {currentLevelFiles.map((file) => (
                     <motion.div
                       key={`file-${file.id}`}
                       variants={{
@@ -687,6 +755,44 @@ const formatFileSize = (bytes) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
+
+function FolderCard({ folder, onClick, onDelete }) {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger>
+        <div
+          className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer hover:bg-zinc-900/30 transition-colors"
+          onClick={onClick}
+        >
+          <div className="aspect-video bg-zinc-950 flex items-center justify-center border-b border-zinc-800/30 relative overflow-hidden">
+            <Folder className="w-16 h-16 text-zinc-800 group-hover:text-red-600/50 group-hover:scale-110 transition-all duration-500" />
+            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/50 text-[8px] font-black text-zinc-500 uppercase tracking-widest">
+              Folder
+            </div>
+          </div>
+          <div className="p-5 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all flex-1">
+            <h3 className="brick-title text-sm text-white truncate mb-1 uppercase">{folder.name}</h3>
+            <p className="brick-tech text-[10px] text-zinc-600 uppercase tracking-widest">
+              {(folder.videos_count || 0) + (folder.subfolders_count || 0)} Itens
+            </p>
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete?.();
+          }}
+          className="focus:bg-red-600 focus:text-white cursor-pointer text-red-400"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Excluir Pasta
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
 
 function FileCard({ file, onDelete }) {
   const isImage = file.file_type === 'image';
