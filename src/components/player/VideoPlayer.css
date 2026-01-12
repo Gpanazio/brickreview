@@ -105,3 +105,8 @@
   z-index: 50 !important;
   pointer-events: auto !important;
 }
+
+/* Esconde o botão central quando pausado para não obstruir a visão/desenhos */
+.plyr--paused .plyr__control--overlaid {
+  display: none !important;
+}

@@ -26,7 +26,6 @@ const PLYR_OPTIONS = {
   keyboard: { focused: true, global: true },
   tooltips: { controls: true, seek: true },
   debug: true, // Enable debug logs
-  loadSprite: false, // Avoid loading external sprite
   blankVideo: '' // Prevent blank video loading issues
 };
 
