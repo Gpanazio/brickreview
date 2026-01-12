@@ -200,11 +200,13 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
 /**
  * @route GET /api/videos/:id/stream
- * @desc Get the video URL for streaming (Prioritizes proxy, then original)
+ * @desc Get the video URL for streaming (Supports quality selection)
  */
 router.get('/:id/stream', authenticateToken, async (req, res) => {
   try {
     const videoId = Number(req.params.id)
+    const { quality } = req.query; // 'original' or 'proxy' (default)
+
     if (!Number.isInteger(videoId)) {
       return res.status(400).json({ error: 'ID de vídeo inválido' })
     }
@@ -222,15 +224,25 @@ router.get('/:id/stream', authenticateToken, async (req, res) => {
 
     const { r2_key, r2_url, proxy_r2_key, proxy_url, mime_type } = videoResult.rows[0];
 
-    // Prioriza o proxy se existir
-    const streamKey = proxy_r2_key || r2_key;
-    const streamUrl = proxy_url || r2_url;
+    // Se quality for 'original', tenta usar o original. 
+    // Senão (ou se original falhar), tenta o proxy.
+    let streamKey, streamUrl, isOriginal;
+
+    if (quality === 'original') {
+      streamKey = r2_key;
+      streamUrl = r2_url;
+      isOriginal = true;
+    } else {
+      streamKey = proxy_r2_key || r2_key;
+      streamUrl = proxy_url || r2_url;
+      isOriginal = !proxy_url;
+    }
 
     if (process.env.R2_PUBLIC_URL && streamUrl && streamUrl.includes(process.env.R2_PUBLIC_URL)) {
       return res.json({
         url: streamUrl,
-        mime: 'video/mp4', // Proxy sempre será MP4
-        isProxy: !!proxy_url,
+        mime: isOriginal ? (mime_type || 'video/mp4') : 'video/mp4',
+        isProxy: !isOriginal,
       });
     }
 
@@ -249,8 +261,8 @@ router.get('/:id/stream', authenticateToken, async (req, res) => {
 
     res.json({
       url: signedUrl,
-      isProxy: !!proxy_url,
-      mime: mime_type || 'video/mp4',
+      isProxy: !isOriginal,
+      mime: isOriginal ? (mime_type || 'video/mp4') : 'video/mp4',
     });
   } catch (error) {
     console.error('Erro crítico ao gerar URL de streaming:', error);

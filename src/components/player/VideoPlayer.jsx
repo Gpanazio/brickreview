@@ -82,8 +82,14 @@ export function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [duration, setDuration] = useState(currentVideo?.duration || 0);
+  const [quality, setQuality] = useState(() => {
+    // H.264 (mp4) defaults to original, everything else to proxy
+    const mime = latestVersion.mime_type || '';
+    return (mime.includes('mp4') || mime.includes('h264')) ? 'original' : 'proxy';
+  });
+  const [duration, setDuration] = useState(latestVersion.duration || 0);
   const [isMuted, setIsMuted] = useState(false);
+
   const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
   const playerRef = useRef(null);
   const videoRef = useRef(null);
@@ -389,6 +395,10 @@ export function VideoPlayer({
     if (selectedVersion) {
       setCurrentVideo(selectedVersion);
       setApprovalStatus(selectedVersion.latest_approval_status || 'pending');
+      
+      // Ajusta qualidade padrão para a nova versão
+      const mime = selectedVersion.mime_type || '';
+      setQuality((mime.includes('mp4') || mime.includes('h264')) ? 'original' : 'proxy');
     }
   };
 
@@ -550,12 +560,12 @@ export function VideoPlayer({
 
   useEffect(() => {
     const fetchStreamUrl = async () => {
-      console.log('[VideoPlayer] Fetching stream URL for video:', currentVideoId);
+      console.log('[VideoPlayer] Fetching stream URL for video:', currentVideoId, 'Quality:', quality);
       try {
         // Use endpoint público para guests, privado para usuários autenticados
         const endpoint = isGuest
-          ? `/api/shares/${shareToken}/video/${currentVideoId}/stream`
-          : `/api/videos/${currentVideoId}/stream`;
+          ? `/api/shares/${shareToken}/video/${currentVideoId}/stream?quality=${quality}`
+          : `/api/videos/${currentVideoId}/stream?quality=${quality}`;
 
         const headers = isGuest
           ? (sharePassword ? { 'x-share-password': sharePassword } : {})
@@ -566,7 +576,11 @@ export function VideoPlayer({
           const data = await response.json();
           console.log('[VideoPlayer] Stream URL received:', data.url);
           if (data.url) {
+            // Se mudou o vídeo ou qualidade, salvamos o tempo atual
+            const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
             setVideoUrl(data.url);
+            
+            // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
           } else {
             console.error('[VideoPlayer] URL de streaming não recebida');
           }
@@ -584,7 +598,7 @@ export function VideoPlayer({
       setIsLoadingVideo(true);
       fetchStreamUrl();
     }
-  }, [currentVideoId, token, isGuest, shareToken]);
+  }, [currentVideoId, token, isGuest, shareToken, quality]);
 
   // Inicializa o player Plyr nativo
   useEffect(() => {
@@ -612,6 +626,13 @@ export function VideoPlayer({
 
     // Mantém compatibilidade com o resto do código que usa playerRef.current.plyr
     playerRef.current = { plyr: player };
+
+    // Se temos um currentTime salvo (ex: trocou qualidade), busca esse tempo ao carregar
+    player.on('ready', () => {
+      if (currentTime > 0.1) {
+        player.currentTime = currentTime;
+      }
+    });
 
     // Cleanup ao desmontar ou trocar de fonte
     return () => {
@@ -1008,6 +1029,41 @@ export function VideoPlayer({
                       {speed}x
                     </DropdownMenuItem>
                   ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
+
+              {/* Quality Selector */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`text-[10px] font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
+                      quality === 'original' ? 'text-red-500' : 'text-zinc-500 hover:text-white'
+                    }`}
+                  >
+                    {quality === 'original' ? 'ORIG' : '720p'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" className="bg-zinc-950 border-zinc-800 rounded-none min-w-[100px]">
+                  <DropdownMenuItem
+                    onClick={() => setQuality('proxy')}
+                    className={`text-[10px] cursor-pointer font-bold ${
+                      quality === 'proxy' ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                    }`}
+                  >
+                    Auto (720p)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setQuality('original')}
+                    className={`text-[10px] cursor-pointer font-bold ${
+                      quality === 'original' ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                    }`}
+                  >
+                    Original (Máx)
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

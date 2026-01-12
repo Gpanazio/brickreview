@@ -299,6 +299,7 @@ router.get('/:token/drawings/video/:videoId', async (req, res) => {
 router.get('/:token/video/:videoId/stream', async (req, res) => {
   try {
     const { token, videoId } = req.params
+    const { quality } = req.query // 'original' or 'proxy'
 
     const share = await loadShare(req, res, token)
     if (!share) return
@@ -347,12 +348,20 @@ router.get('/:token/video/:videoId/stream', async (req, res) => {
     }
 
     const videoData = resStream.rows[0]
-    const url = videoData.proxy_url || videoData.r2_url
+    
+    let url, isOriginal;
+    if (quality === 'original') {
+      url = videoData.r2_url;
+      isOriginal = true;
+    } else {
+      url = videoData.proxy_url || videoData.r2_url;
+      isOriginal = !videoData.proxy_url;
+    }
 
     res.json({
       url,
-      isProxy: !!videoData.proxy_url,
-      mime: videoData.proxy_url ? 'video/mp4' : videoData.mime_type || 'video/mp4',
+      isProxy: !isOriginal,
+      mime: isOriginal ? (videoData.mime_type || 'video/mp4') : 'video/mp4',
     })
   } catch (err) {
     console.error('Erro ao buscar stream de vídeo compartilhado:', err);
