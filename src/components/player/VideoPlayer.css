@@ -123,6 +123,8 @@ video.plyr-react {
   width: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Garante que o container do Plyr ocupe todo o espaço sem forçar proporções que cortem o vídeo */
@@ -131,10 +133,11 @@ video.plyr-react {
   height: 100% !important;
   width: 100% !important;
   max-height: 100% !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  margin: 0 !important;
+  padding: 0 !important;
   background: #000;
   aspect-ratio: unset !important; /* Remove qualquer aspect-ratio que o Plyr tente injetar */
 }
@@ -142,7 +145,12 @@ video.plyr-react {
 .plyr__video-wrapper {
     height: 100% !important;
     width: 100% !important;
-    padding-bottom: 0 !important; /* Remove hack de aspect-ratio do Plyr que causa zoom em videos verticais */
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #000 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
