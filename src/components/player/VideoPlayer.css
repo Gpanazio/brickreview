@@ -99,6 +99,19 @@
   z-index: 3 !important;
 }
 
+/* Quando estiver no modo desenho, o canvas deve ficar ACIMA de tudo do player para capturar cliques */
+.is-drawing canvas {
+  pointer-events: auto !important;
+  z-index: 100 !important;
+}
+
+/* Esconde os controles do Plyr durante o desenho para não interferir */
+.is-drawing .plyr__controls,
+.is-drawing .plyr__control--overlaid {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* Botão de play no centro - fixo e acima do canvas */
 .plyr__control--overlaid {
   position: absolute !important;

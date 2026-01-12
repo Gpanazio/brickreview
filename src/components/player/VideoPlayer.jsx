@@ -75,6 +75,7 @@ export function VideoPlayer({
   const [visitorName, setVisitorName] = useState(initialVisitorName || localStorage.getItem('brickreview_visitor_name') || '');
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingMode, setDrawingMode] = useState(false); // Se está no modo desenho
+  const [attachedFile, setAttachedFile] = useState(null);
   const [drawColor, setDrawColor] = useState('#FF0000');
   const [drawings, setDrawings] = useState([]); // Desenhos salvos por timestamp
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
@@ -84,6 +85,7 @@ export function VideoPlayer({
   const playerRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
   const videoContainerRef = useRef(null);
   const { token } = useAuth();
 
@@ -93,6 +95,13 @@ export function VideoPlayer({
   const canApprove = !isGuest; // Only authenticated users can approve
   const canShare = !isGuest; // Only authenticated users can generate share links
   const canDownload = true; // Everyone can download (as requested)
+
+  // Pause video when entering drawing mode
+  useEffect(() => {
+    if (drawingMode && playerRef.current?.plyr) {
+      playerRef.current.plyr.pause();
+    }
+  }, [drawingMode]);
 
   // Constrói lista completa de versões (vídeo original + versões)
   // Ordena da versão mais recente para a mais antiga
@@ -216,6 +225,7 @@ export function VideoPlayer({
         const comment = await response.json();
         setComments([...comments, comment].sort((a, b) => a.timestamp - b.timestamp));
         setNewComment('');
+        setAttachedFile(null);
         toast.success('Comentário adicionado com sucesso!');
       } else {
         const errorData = await response.json();
@@ -832,7 +842,7 @@ export function VideoPlayer({
                     className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                   >
                     <Download className="w-3 h-3 mr-2" />
-                    Baixar Original (HD)
+                    Baixar Original
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -915,28 +925,30 @@ export function VideoPlayer({
         </div>
 
         {/* Barra de Controles Customizados (Frame by Frame) */}
-        <div className="p-4 border-t border-zinc-800/50 glass-panel flex items-center justify-center gap-8">
+        <div className="p-4 border-t border-zinc-800/30 glass-panel flex items-center justify-center gap-6">
           <Button
             variant="ghost"
-            size="sm"
-            className="text-zinc-500 hover:text-white"
+            size="icon"
+            className="h-10 w-10 rounded-none border border-zinc-800 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all"
             onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime }}
           >
-            <ChevronLeft className="w-4 h-4 mr-2" /> -1 FRAME
+            <ChevronLeft className="w-5 h-5" />
           </Button>
-          <div className="brick-tech text-red-600 font-bold text-xl tabular-nums">
-            {formatTime(currentTime)}
-            <div className="text-[10px] text-zinc-600 tracking-widest font-bold uppercase text-center mt-1">
-              {videoFPS} FPS
+          
+          <div className="flex flex-col items-center">
+            <div className="brick-tech text-white font-bold text-xl tabular-nums tracking-tight">
+              {formatTime(currentTime)}
             </div>
+            <div className="w-12 h-0.5 bg-red-600 mt-1 opacity-50" />
           </div>
+
           <Button
             variant="ghost"
-            size="sm"
-            className="text-zinc-500 hover:text-white"
+            size="icon"
+            className="h-10 w-10 rounded-none border border-zinc-800 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all"
             onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime }}
           >
-            +1 FRAME <ChevronRight className="w-4 h-4 ml-2" />
+            <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
       </div>
@@ -1138,6 +1150,18 @@ export function VideoPlayer({
               )}
 
               <div className="relative">
+                {attachedFile && (
+                  <div className="absolute bottom-full left-0 mb-2 flex items-center gap-2 bg-red-600/10 border border-red-600/20 px-2 py-1">
+                    <Paperclip className="w-3 h-3 text-red-500" />
+                    <span className="text-[10px] text-zinc-300 truncate max-w-[150px]">{attachedFile.name}</span>
+                    <button 
+                      onClick={() => setAttachedFile(null)}
+                      className="text-zinc-500 hover:text-white"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
                 <textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
@@ -1164,9 +1188,20 @@ export function VideoPlayer({
                     </button>
 
                     {/* Attachment */}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      onChange={(e) => setAttachedFile(e.target.files[0])}
+                    />
                     <button
                       type="button"
-                      className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`p-2 rounded-sm transition-colors ${
+                        attachedFile
+                          ? 'text-red-500 bg-red-500/10'
+                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                      }`}
                       title="Anexar arquivo"
                     >
                       <Paperclip className="w-4 h-4" />
