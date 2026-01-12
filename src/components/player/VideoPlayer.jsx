@@ -1439,7 +1439,7 @@ export function VideoPlayer({
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
             <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
-              Não foi possível copiar automaticamente. Copie o link abaixo:
+              Link de revisão criado, copie o link abaixo:
             </p>
             <div className="flex items-center gap-2">
               <Input
