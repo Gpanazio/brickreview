@@ -83,43 +83,19 @@ export function VideoPlayer({
   const canComment = isGuest ? (accessType === 'comment') : true;
   const canApprove = !isGuest; // Only authenticated users can approve
   const canShare = !isGuest; // Only authenticated users can generate share links
-  const canDownload = !isGuest; // Only authenticated users can download
+  const canDownload = true; // Everyone can download (as requested)
 
   // Constrói lista completa de versões (vídeo original + versões)
   // Ordena da versão mais recente para a mais antiga
   const allVersions = [video, ...versions].sort((a, b) => b.version_number - a.version_number);
 
-  // Calcula aspect ratio do vídeo
+  // Calcula aspect ratio do vídeo - Simplificado para permitir preenchimento total
   const getAspectRatioClass = () => {
-    if (!currentVideo.width || !currentVideo.height) {
-      return 'aspect-video'; // fallback para 16:9
-    }
-
-    const ratio = currentVideo.width / currentVideo.height;
-
-    // Horizontal (>= 16:9)
-    if (ratio >= 1.7) return 'aspect-video';
-    // Quase horizontal (>= 4:3)
-    if (ratio >= 1.3) return 'aspect-[4/3]';
-    // Quadrado (~1:1)
-    if (ratio >= 0.9 && ratio <= 1.1) return 'aspect-square';
-    // Vertical (9:16 e similares)
-    if (ratio <= 0.6) return 'aspect-[9/16]';
-    // Outros verticais
-    return 'aspect-[3/4]';
+    return 'w-full h-full';
   };
 
   const getMaxHeightClass = () => {
-    if (!currentVideo.width || !currentVideo.height) {
-      return 'max-h-[70vh]';
-    }
-
-    const ratio = currentVideo.width / currentVideo.height;
-
-    // Vertical: limita altura e largura
-    if (ratio < 1) return 'max-h-[85vh] max-w-[45vh]';
-    // Horizontal: sem limite específico
-    return 'max-h-[70vh]';
+    return 'h-full max-h-none';
   };
 
   // Use precise FPS from metadata, fallback to 30 if not available
@@ -424,9 +400,15 @@ export function VideoPlayer({
   // Função para fazer download do vídeo (proxy ou original)
   const handleDownload = async (type) => {
     try {
-      const response = await fetch(`/api/videos/${currentVideoId}/download?type=${type}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const headers = isGuest 
+        ? (sharePassword ? { 'x-share-password': sharePassword } : {})
+        : { 'Authorization': `Bearer ${token}` };
+
+      const endpoint = isGuest
+        ? `/api/shares/${shareToken}/video/${currentVideoId}/download?type=${type}`
+        : `/api/videos/${currentVideoId}/download?type=${type}`;
+
+      const response = await fetch(endpoint, { headers });
 
       if (response.ok) {
         const data = await response.json();
@@ -491,34 +473,16 @@ export function VideoPlayer({
       // Copia para clipboard
       try {
         await navigator.clipboard.writeText(fullUrl);
-        toast.success('Link copiado para área de transferência!', { id: shareToast });
+        toast.success('Link copiado!', {
+          id: shareToast,
+          description: "O link de revisão já está na sua área de transferência."
+        });
       } catch (clipboardError) {
-        // Fallback: cria input temporário e usa execCommand
-        console.warn('Clipboard API bloqueada, usando fallback:', clipboardError);
-
-        const input = document.createElement('textarea');
-        input.value = fullUrl;
-        input.style.position = 'fixed';
-        input.style.left = '-9999px';
-        input.style.top = '0';
-        document.body.appendChild(input);
-        input.focus();
-        input.select();
-        input.setSelectionRange(0, 99999);
-
-        try {
-          const successful = document.execCommand('copy');
-          if (successful) {
-            toast.success('Link copiado para área de transferência!', { id: shareToast });
-          } else {
-            throw new Error('execCommand falhou');
-          }
-        } catch {
-          prompt('Copie o link de compartilhamento:', fullUrl);
-          toast.success('Link gerado com sucesso!', { id: shareToast });
-        }
-
-        document.body.removeChild(input);
+        console.warn('Clipboard API falhou:', clipboardError);
+        toast.error('Erro ao copiar link automaticamente', {
+          id: shareToast,
+          description: "O link foi gerado mas não pôde ser copiado."
+        });
       }
     } catch (error) {
       console.error('Erro ao gerar link:', error);
@@ -878,10 +842,10 @@ export function VideoPlayer({
           </div>
         </div>
 
-        <div className="flex-1 bg-black flex items-center justify-center p-8">
+        <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden">
           <div
             ref={videoContainerRef}
-            className={`relative w-full ${currentVideo.width && currentVideo.height && (currentVideo.width / currentVideo.height) >= 1 ? 'max-w-5xl' : ''} ${getAspectRatioClass()} ${getMaxHeightClass()} shadow-2xl ring-1 ring-white/10`}
+            className={`relative w-full h-full flex items-center justify-center bg-black`}
           >
             {videoSource ? (
               <div key={`player-${currentVideoId}-${videoUrl}`} className="relative w-full h-full">

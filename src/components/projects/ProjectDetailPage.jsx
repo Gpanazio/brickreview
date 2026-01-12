@@ -128,39 +128,19 @@ export function ProjectDetailPage() {
         const data = await response.json();
         const shareUrl = `${window.location.origin}/share/${data.token}`;
 
-        // Tenta copiar para clipboard, com fallback para seleção manual
+        // Tenta copiar para clipboard
         try {
           await navigator.clipboard.writeText(shareUrl);
-          toast.success('Link copiado para área de transferência!', { id: loadingToast });
+          toast.success('Link copiado!', {
+            id: loadingToast,
+            description: "O link de revisão já está na sua área de transferência."
+          });
         } catch (clipboardError) {
-          // Fallback: cria input temporário e usa execCommand
-          console.warn('Clipboard API bloqueada, usando fallback:', clipboardError);
-
-          const input = document.createElement('textarea'); // Use textarea to preserve formatting if needed
-          input.value = shareUrl;
-          input.style.position = 'fixed';
-          input.style.left = '-9999px';
-          input.style.top = '0';
-          document.body.appendChild(input);
-          input.focus();
-          input.select();
-          input.setSelectionRange(0, 99999); // Mobile compatibility
-
-          try {
-            const successful = document.execCommand('copy');
-            if (successful) {
-              toast.success('Link copiado para área de transferência!', { id: loadingToast });
-            } else {
-              throw new Error('execCommand falhou');
-            }
-           } catch {
-
-            // Se ainda falhar, mostra em prompt
-            prompt('Copie o link de compartilhamento:', shareUrl);
-            toast.success('Link gerado com sucesso!', { id: loadingToast });
-          }
-
-          document.body.removeChild(input);
+          console.warn('Clipboard API falhou:', clipboardError);
+          toast.error('Erro ao copiar link automaticamente', {
+            id: loadingToast,
+            description: "O link foi gerado mas não pôde ser copiado."
+          });
         }
       } else {
         const errorData = await response.json();
