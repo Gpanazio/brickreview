@@ -126,34 +126,6 @@ export function VideoPlayer({
   const videoFPS = currentVideo.fps || 30;
   const frameTime = 1 / videoFPS;
 
-  const handleTimeUpdate = useCallback((e) => {
-    if (e.detail?.plyr?.currentTime !== undefined) {
-      setCurrentTime(e.detail.plyr.currentTime);
-    }
-  }, []);
-
-  const handleReady = useCallback((e) => {
-    console.log('[VideoPlayer] Player ready:', e);
-    if (playerRef.current?.plyr) {
-      const player = playerRef.current.plyr;
-      console.log('[VideoPlayer] Player state:', {
-        paused: player.paused,
-        currentTime: player.currentTime,
-        duration: player.duration,
-        readyState: player.media?.readyState
-      });
-    }
-    setIsLoadingVideo(false);
-  }, []);
-
-  const handleLoadedData = useCallback((e) => {
-    console.log('[VideoPlayer] Video loaded:', e);
-    if (playerRef.current?.plyr) {
-      const player = playerRef.current.plyr;
-      console.log('[VideoPlayer] Media loaded, readyState:', player.media?.readyState);
-    }
-  }, []);
-
   const videoSource = useMemo(() => {
     if (!videoUrl) return null;
     console.log('[VideoPlayer] Creating video source:', {
@@ -605,77 +577,8 @@ export function VideoPlayer({
     return () => clearInterval(interval);
   }, []);
 
-  // Ensure player is ready and can play
-  useEffect(() => {
-    if (!playerRef.current?.plyr) return;
+>>>>>>
 
-    const player = playerRef.current.plyr;
-
-    const onCanPlay = () => {
-      console.log('[VideoPlayer] Video can play');
-      setIsLoadingVideo(false);
-    };
-
-    const onError = (event) => {
-      console.error('[VideoPlayer] Video error:', event);
-      if (player.media) {
-        console.error('[VideoPlayer] Media error code:', player.media.error?.code);
-        console.error('[VideoPlayer] Media error message:', player.media.error?.message);
-      }
-      setIsLoadingVideo(false);
-    };
-
-    const onLoadStart = () => {
-      console.log('[VideoPlayer] Video load start');
-    };
-
-    const onPlay = () => {
-      console.log('[VideoPlayer] Video started playing');
-    };
-
-    const onPause = () => {
-      console.log('[VideoPlayer] Video paused', {
-        currentTime: player.currentTime,
-        duration: player.duration,
-        readyState: player.media?.readyState,
-        networkState: player.media?.networkState,
-        paused: player.paused,
-        ended: player.ended
-      });
-    };
-
-    const onStalled = () => {
-      console.warn('[VideoPlayer] Video stalled - buffering issue detected');
-    };
-
-    const onWaiting = () => {
-      console.warn('[VideoPlayer] Video waiting for data');
-    };
-
-    const onSuspend = () => {
-      console.warn('[VideoPlayer] Video suspended (browser stopped fetching)');
-    };
-
-    player.on('canplay', onCanPlay);
-    player.on('error', onError);
-    player.on('loadstart', onLoadStart);
-    player.on('play', onPlay);
-    player.on('pause', onPause);
-    player.on('stalled', onStalled);
-    player.on('waiting', onWaiting);
-    player.on('suspend', onSuspend);
-
-    return () => {
-      player.off('canplay', onCanPlay);
-      player.off('error', onError);
-      player.off('loadstart', onLoadStart);
-      player.off('play', onPlay);
-      player.off('pause', onPause);
-      player.off('stalled', onStalled);
-      player.off('waiting', onWaiting);
-      player.off('suspend', onSuspend);
-    };
-  }, [videoUrl]);
 
   // Canvas drawing handlers
   const startDrawing = (e) => {
@@ -966,9 +869,6 @@ export function VideoPlayer({
                     ...PLYR_OPTIONS,
                     autoplay: false,
                   }}
-                  onTimeUpdate={handleTimeUpdate}
-                  onReady={handleReady}
-                  onLoadedData={handleLoadedData}
                 />
                 {/* Canvas overlay for drawing */}
                 <canvas
