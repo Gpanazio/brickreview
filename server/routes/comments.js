@@ -144,27 +144,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'ID de comentário inválido' })
     }
 
-    const projectResult = await query(
-      `SELECT v.project_id
-       FROM brickreview_comments c
-       JOIN brickreview_videos v ON v.id = c.video_id
-       WHERE c.id = $1`,
+    // Permite que qualquer usuário autenticado delete comentários (inclui comentários de guests)
+    const result = await query(
+      'DELETE FROM brickreview_comments WHERE id = $1 RETURNING id',
       [commentId]
     )
 
-    if (projectResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Comentário não encontrado' })
-    }
-
-    if (!(await requireProjectAccess(req, res, projectResult.rows[0].project_id))) return
-
-    const result = await query(
-      "DELETE FROM brickreview_comments WHERE id = $1 AND (user_id = $2 OR $3 = 'admin') RETURNING id",
-      [commentId, req.user.id, req.user.role]
-    )
-
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Comentário não encontrado ou sem permissão' });
+      return res.status(404).json({ error: 'Comentário não encontrado' });
     }
 
     res.json({ message: 'Comentário removido com sucesso', id: commentId })

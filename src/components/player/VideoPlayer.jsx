@@ -6,7 +6,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, ChevronRight, MessageSquare, Clock,
-  CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2,
+  CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2, Trash2,
   Pencil, Eraser, Smile, Paperclip, X,
   Play, Pause, Volume2, VolumeX, Maximize, Settings, Gauge
 } from 'lucide-react';
@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const PLYR_OPTIONS = {
   controls: [], // Desativa controles padrão para usar customizados
@@ -64,6 +65,15 @@ export function VideoPlayer({
   const [, setIsSubmittingApproval] = useState(false)
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: 'Confirmar ação',
+    message: 'Tem certeza que deseja continuar?',
+    confirmText: 'Confirmar',
+    cancelText: 'Cancelar',
+    variant: 'danger',
+    onConfirm: null,
+  });
   const [videoUrl, setVideoUrl] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null); // ID do comentário sendo respondido
   const [replyText, setReplyText] = useState('');
@@ -102,7 +112,8 @@ export function VideoPlayer({
   // Guest mode: no token, use visitor name for identification
   const isGuest = isPublic || !token;
   const canComment = true;
-  const canApprove = !isGuest; // Only authenticated users can approve
+  const canApprove = !isGuest;
+  const canDeleteComments = !!token; // Only authenticated users can approve
   const canShare = !isGuest; // Only authenticated users can generate share links
   const canDownload = true; // Everyone can download (as requested)
 
@@ -329,6 +340,62 @@ export function VideoPlayer({
   };
 
   // Organiza comentários em threads (pais e respostas)
+  const openConfirmDialog = ({ title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', variant = 'danger', onConfirm }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      variant,
+      onConfirm,
+    });
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  const handleDeleteComment = (commentId) => {
+    if (!canDeleteComments) return;
+
+    openConfirmDialog({
+      title: 'Excluir comentário',
+      message: 'Tem certeza que deseja excluir este comentário? Respostas vinculadas também serão removidas.',
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      onConfirm: async () => {
+        const deleteToast = toast.loading('Excluindo comentário...');
+        try {
+          const response = await fetch(`/api/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            toast.error(data.error || 'Erro ao excluir comentário', { id: deleteToast });
+            return;
+          }
+
+          toast.success('Comentário excluído', { id: deleteToast });
+          setComments((prev) => prev.filter((c) => String(c.id) !== String(commentId) && String(c.parent_comment_id) !== String(commentId)));
+          if (String(replyingTo) === String(commentId)) {
+            setReplyingTo(null);
+            setReplyText('');
+          }
+        } catch (error) {
+          console.error('Erro ao excluir comentário:', error);
+          toast.error('Erro ao excluir comentário', { id: deleteToast });
+        }
+      },
+    });
+  };
+
   const organizeComments = () => {
     const parentComments = comments.filter(c => c.parent_comment_id == null);
     return parentComments
@@ -848,7 +915,8 @@ export function VideoPlayer({
   }, [drawings, currentDrawing, currentTime, drawColor]);
 
   return (
-    <div className="flex h-full bg-[#050505] overflow-hidden">
+    <>
+      <div className="flex h-full bg-[#050505] overflow-hidden">
       {/* Área do Player */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
@@ -1277,9 +1345,25 @@ export function VideoPlayer({
                         <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
                           {parseTimestampSeconds(comment.timestamp) !== null ? formatTime(parseTimestampSeconds(comment.timestamp)) : '—'}
                         </span>
-                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                          {comment.username}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                            {comment.username}
+                          </span>
+                          {canDeleteComments && (
+                            <button
+                              type="button"
+                              data-comment-actions
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteComment(comment.id);
+                              }}
+                              className="text-zinc-600 hover:text-red-500 transition-colors"
+                              title="Excluir comentário"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
                     </div>
@@ -1352,14 +1436,31 @@ export function VideoPlayer({
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                               {reply.username}
                             </span>
-                            <span className="text-[9px] text-zinc-600">
-                              {new Date(reply.created_at).toLocaleString('pt-BR', {
-                                day: '2-digit',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
+
+                            <div className="ml-auto flex items-center gap-2">
+                              <span className="text-[9px] text-zinc-600">
+                                {new Date(reply.created_at).toLocaleString('pt-BR', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              {canDeleteComments && (
+                                <button
+                                  type="button"
+                                  data-comment-actions
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteComment(reply.id);
+                                  }}
+                                  className="text-zinc-600 hover:text-red-500 transition-colors"
+                                  title="Excluir comentário"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <p className="text-sm text-zinc-400 leading-relaxed">{reply.content}</p>
 
@@ -1602,5 +1703,17 @@ export function VideoPlayer({
         </DialogContent>
       </Dialog>
     </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeConfirmDialog}
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        variant={confirmDialog.variant}
+      />
+    </>
   );
 }
