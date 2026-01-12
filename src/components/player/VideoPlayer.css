@@ -110,3 +110,19 @@
 .plyr--paused .plyr__control--overlaid {
   display: none !important;
 }
+
+/* Garante que o vídeo use object-fit contain para não cropagem no modo full-size */
+.plyr video {
+  object-fit: contain !important;
+  background: #000;
+}
+
+/* Garante que o container do Plyr ocupe todo o espaço sem forçar proporções que cortem o vídeo */
+.plyr--full-ui.plyr--video {
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #000;
+}

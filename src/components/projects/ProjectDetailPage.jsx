@@ -111,6 +111,29 @@ export function ProjectDetailPage() {
   const handleGenerateVideoShare = async (videoId) => {
     const loadingToast = toast.loading('Gerando link de compartilhamento...');
 
+    // Helper para cópia robusta
+    const copyToClipboard = async (text) => {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (err) { console.warn(err); }
+
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return successful;
+      } catch (err) { return false; }
+    };
+
     try {
       const response = await fetch('/api/shares', {
         method: 'POST',
@@ -128,18 +151,17 @@ export function ProjectDetailPage() {
         const data = await response.json();
         const shareUrl = `${window.location.origin}/share/${data.token}`;
 
-        // Tenta copiar para clipboard
-        try {
-          await navigator.clipboard.writeText(shareUrl);
+        const copied = await copyToClipboard(shareUrl);
+        if (copied) {
           toast.success('Link copiado!', {
             id: loadingToast,
             description: "O link de revisão já está na sua área de transferência."
           });
-        } catch (clipboardError) {
-          console.warn('Clipboard API falhou:', clipboardError);
-          toast.error('Erro ao copiar link automaticamente', {
+        } else {
+          toast.error('Cópia automática falhou', {
             id: loadingToast,
-            description: "O link foi gerado mas não pôde ser copiado."
+            description: "Por favor, copie o link gerado: " + shareUrl,
+            duration: 10000
           });
         }
       } else {

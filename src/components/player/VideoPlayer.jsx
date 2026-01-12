@@ -98,6 +98,37 @@ export function VideoPlayer({
     return 'h-full max-h-none';
   };
 
+  // Helper para cópia robusta para clipboard
+  const copyToClipboard = async (text) => {
+    // Tenta API moderna
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (err) {
+      console.warn('Clipboard API falhou, tentando fallback', err);
+    }
+
+    // Fallback para execCommand
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (err) {
+      console.error('Fallback de cópia falhou', err);
+      return false;
+    }
+  };
+
   // Use precise FPS from metadata, fallback to 30 if not available
   const videoFPS = currentVideo.fps || 30;
   const frameTime = 1 / videoFPS;
@@ -470,18 +501,20 @@ export function VideoPlayer({
       const fullUrl = `${window.location.origin}/share/${data.token}`;
       setShareLink(fullUrl);
 
-      // Copia para clipboard
-      try {
-        await navigator.clipboard.writeText(fullUrl);
+      // Copia para clipboard usando o helper robusto
+      const copied = await copyToClipboard(fullUrl);
+      
+      if (copied) {
         toast.success('Link copiado!', {
           id: shareToast,
           description: "O link de revisão já está na sua área de transferência."
         });
-      } catch (clipboardError) {
-        console.warn('Clipboard API falhou:', clipboardError);
-        toast.error('Erro ao copiar link automaticamente', {
-          id: shareToast,
-          description: "O link foi gerado mas não pôde ser copiado."
+      } else {
+        // Se tudo falhar, mostra o link para o usuário copiar manualmente de forma amigável
+        toast.error('Cópia automática falhou', {
+            id: shareToast,
+            description: "Por favor, copie o link gerado: " + fullUrl,
+            duration: 10000
         });
       }
     } catch (error) {
