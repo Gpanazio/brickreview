@@ -114,7 +114,9 @@
 /* Garante que o vídeo use object-fit contain para não cropagem no modo full-size */
 .plyr video,
 .plyr__video-wrapper video,
-.plyr__poster {
+.plyr__poster,
+video.plyr,
+video.plyr-react {
   object-fit: contain !important;
   background: #000 !important;
   height: 100% !important;
