@@ -4,15 +4,16 @@ import { toast } from 'sonner';
 import { 
   Upload, Copy, Archive, Trash2, 
   Image as ImageIcon, ZoomIn, ZoomOut, Move, 
-  Share2, Check, Globe, ArrowLeft, Link as LinkIcon, Search
+  Share2, Check, Globe, ArrowLeft, Link as LinkIcon, Search, RefreshCw
 } from 'lucide-react';
 
 export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token }) {
-  // Estados de Navegação: 'main', 'cover-selection', 'cover-editor'
+  // Estados de Navegação: 'main', 'cover-selection', 'cover-editor', 'cover-browser'
   const [viewMode, setViewMode] = useState('main'); 
   
-  // Estados do Editor de Capa e Upload
+  // Estados do Editor de Capa, Browser e Upload
   const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [searchQuery, setSearchQuery] = useState(''); // Estado para a busca do Google
   const [settingCoverFromUrl, setSettingCoverFromUrl] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
@@ -43,6 +44,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       const data = await response.json();
       setProjectDetails(data);
       setProjectName(data.name);
+      // Inicializa a busca com o nome do projeto
+      setSearchQuery(`${data.name}${data.client_name ? ` ${data.client_name}` : ''} wallpaper`);
     } catch (error) {
       console.error('Erro ao buscar detalhes do projeto:', error);
     } finally {
@@ -73,17 +76,20 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
   // --- Funções de Capa ---
 
-  const openGoogleImages = () => {
-    const query = `${projectName || projectData.name}${projectData.client_name ? ` ${projectData.client_name}` : ''} wallpaper`;
-    window.open(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}&tbs=isz:l`, '_blank', 'noopener,noreferrer');
-    toast.info("Copie o endereço da imagem no Google e cole na opção de URL.");
+  // Função unificada para salvar a capa (seja arquivo ou URL)
+  const handleSaveCover = async () => {
+    if (selectedFile) {
+      await handleCoverUpload();
+    } else if (coverImageUrl) {
+      await handleSetCoverFromUrl();
+    }
   };
 
   const handleSetCoverFromUrl = async () => {
     const url = coverImageUrl.trim();
     if (!url) return;
 
-    setSettingCoverFromUrl(true);
+    setUploadingCover(true); // Reutilizando estado de loading visual
     const coverToast = toast.loading('Atualizando imagem de capa...');
 
     try {
@@ -110,7 +116,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       console.error('Erro ao atualizar capa por URL:', error);
       toast.error('Erro ao atualizar imagem de capa', { id: coverToast });
     } finally {
-      setSettingCoverFromUrl(false);
+      setUploadingCover(false);
     }
   };
 
@@ -119,6 +125,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!file) return;
 
     setSelectedFile(file);
+    setCoverImageUrl(''); // Limpa URL se selecionou arquivo
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewImage(reader.result);
@@ -127,6 +134,15 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       setViewMode('cover-editor'); // Vai para o editor
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleUrlPreview = () => {
+    if (!coverImageUrl.trim()) return;
+    setPreviewImage(coverImageUrl);
+    setSelectedFile(null); // Limpa arquivo se usou URL
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+    setViewMode('cover-editor');
   };
 
   // --- Lógica do Editor (Zoom/Pan) ---
@@ -166,8 +182,6 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     const uploadToast = toast.loading('Enviando imagem de capa...');
     const formData = new FormData();
     formData.append('cover', selectedFile);
-    // Nota: Em uma implementação real de crop, enviaríamos os dados de crop/zoom aqui também
-    // ou processaríamos o canvas no cliente antes de enviar.
 
     try {
       const response = await fetch(`/api/projects/${project.id}/cover`, {
@@ -313,13 +327,99 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
   // --- RENDERIZADORES DE VIEW ---
 
+  // MINI NAVEGADOR
+  const renderCoverBrowser = () => {
+    const googleUrl = `https://www.google.com/search?igu=1&tbm=isch&q=${encodeURIComponent(searchQuery)}`;
+
+    return (
+      <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-200">
+        {/* Barra de Endereço Fake */}
+        <div className="flex items-center gap-2 mb-2 p-2 bg-zinc-900 border border-zinc-800">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setViewMode('cover-selection')}
+            className="h-6 w-6 rounded-none hover:bg-zinc-800 shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div className="flex-1 flex items-center bg-black border border-zinc-800 px-2 h-8">
+            <Search className="w-3 h-3 text-zinc-500 mr-2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} // "Enter" apenas tira o foco para simular envio, o iframe atualiza reativamente ou podemos forçar refresh
+              className="flex-1 bg-transparent border-none text-xs text-white outline-none placeholder:text-zinc-700 font-mono"
+              placeholder="Pesquisar imagem..."
+            />
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 rounded-none hover:bg-zinc-800 shrink-0"
+            onClick={() => {
+              // Força refresh do iframe mudando levemente a query ou recarregando
+              const current = searchQuery;
+              setSearchQuery('');
+              setTimeout(() => setSearchQuery(current), 10);
+            }}
+          >
+            <RefreshCw className="w-3 h-3" />
+          </Button>
+        </div>
+
+        {/* Viewport do "Navegador" */}
+        <div className="flex-1 border border-zinc-800 bg-white relative overflow-hidden">
+          <iframe 
+            src={googleUrl} 
+            className="w-full h-full border-none"
+            title="Google Images Search"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          />
+          {/* Overlay de instrução sutil */}
+          <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur text-white text-[9px] px-3 py-1 uppercase tracking-widest border border-white/10 pointer-events-none">
+            Botão Direito &gt; Copiar Endereço da Imagem
+          </div>
+        </div>
+
+        {/* Barra de Ação Inferior */}
+        <div className="mt-3 p-3 bg-zinc-900/50 border border-zinc-800">
+          <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold mb-2 block">
+            Cole a URL da imagem escolhida:
+          </label>
+          <div className="flex gap-2">
+            <div className="flex-1 flex items-center bg-black border border-zinc-800 px-2 h-9">
+              <LinkIcon className="w-3 h-3 text-zinc-500 mr-2" />
+              <input 
+                type="url"
+                value={coverImageUrl}
+                onChange={(e) => setCoverImageUrl(e.target.value)}
+                placeholder="https://..."
+                className="flex-1 bg-transparent border-none text-xs text-white outline-none"
+                autoFocus
+              />
+            </div>
+            <Button
+              className="glass-button-primary border-none rounded-none h-9 px-6 font-bold uppercase tracking-widest text-[10px]"
+              disabled={!coverImageUrl.trim()}
+              onClick={handleUrlPreview}
+            >
+              Editar <ArrowLeft className="w-3 h-3 ml-2 rotate-180" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderCoverEditor = () => (
     <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-200">
       <div className="flex items-center gap-3 mb-4">
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={() => setViewMode('cover-selection')}
+          onClick={() => setViewMode(selectedFile ? 'cover-selection' : 'cover-browser')}
           className="h-8 w-8 rounded-none hover:bg-zinc-800"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -328,7 +428,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       </div>
 
       <div
-        className="relative aspect-[4/3] rounded-none overflow-hidden border border-zinc-800 mb-4 bg-zinc-950 cursor-move"
+        className="relative aspect-[4/3] rounded-none overflow-hidden border border-zinc-800 mb-4 bg-zinc-950 cursor-move group"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -338,7 +438,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
           <img
             src={previewImage}
             alt="Preview"
-            className="absolute inset-0 w-full h-full object-contain select-none"
+            className="absolute inset-0 w-full h-full object-contain select-none transition-transform will-change-transform"
             style={{
               transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
               transition: isDragging ? 'none' : 'transform 0.1s'
@@ -346,6 +446,12 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
             draggable={false}
           />
         )}
+        
+        {/* Grid Overlay para referência visual */}
+        <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-20 transition-opacity">
+            <div className="w-full h-full border border-white/20" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '33.3% 33.3%' }}></div>
+        </div>
+
         <div className="absolute top-2 left-2 bg-black/80 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest flex items-center gap-2 pointer-events-none">
           <Move className="w-3 h-3" />
           Arraste e Zoom
@@ -390,17 +496,22 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         <Button
           variant="ghost"
           className="flex-1 glass-button border border-zinc-800 rounded-none"
-          onClick={() => setViewMode('cover-selection')}
+          onClick={() => setViewMode(selectedFile ? 'cover-selection' : 'cover-browser')}
           disabled={uploadingCover}
         >
           Cancelar
         </Button>
         <Button
           className="flex-1 glass-button-primary border-none rounded-none"
-          onClick={handleCoverUpload}
+          onClick={handleSaveCover}
           disabled={uploadingCover}
         >
-          {uploadingCover ? 'Salvando...' : 'Confirmar'}
+          {uploadingCover ? (
+            <div className="flex items-center">
+                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                Salvando...
+            </div>
+          ) : 'Confirmar e Salvar'}
         </Button>
       </div>
     </div>
@@ -440,29 +551,29 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
           </label>
         </div>
 
-        {/* Opção 2: Google Images */}
+        {/* Opção 2: Google Images (Agora vai para o Mini Navegador) */}
         <div 
-          onClick={openGoogleImages}
+          onClick={() => setViewMode('cover-browser')}
           className="p-4 border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-900/50 transition-colors group cursor-pointer flex items-center gap-4"
         >
           <div className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:border-blue-500 transition-colors">
-            <Search className="w-5 h-5 text-zinc-400 group-hover:text-blue-500" />
+            <Globe className="w-5 h-5 text-zinc-400 group-hover:text-blue-500" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wide">Buscar no Google</h3>
-            <p className="text-[10px] text-zinc-500">Abre nova aba. Copie o link da imagem.</p>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wide">Buscar na Web</h3>
+            <p className="text-[10px] text-zinc-500">Pesquise e selecione diretamente aqui</p>
           </div>
         </div>
 
-        {/* Opção 3: URL */}
+        {/* Opção 3: URL Direta (Fallback) */}
         <div className="p-4 border border-zinc-800 bg-zinc-900/30">
           <div className="flex items-center gap-4 mb-3">
             <div className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center">
               <LinkIcon className="w-5 h-5 text-zinc-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wide">Usar URL</h3>
-              <p className="text-[10px] text-zinc-500">Cole o link direto da imagem</p>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wide">Colar URL</h3>
+              <p className="text-[10px] text-zinc-500">Se você já tem o link direto</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -474,11 +585,11 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
               className="flex-1 bg-black border border-zinc-800 text-white px-3 py-2 text-xs focus:border-red-600 outline-none transition-colors rounded-none placeholder:text-zinc-700"
             />
             <Button
-              className="glass-button-primary border-none rounded-none h-auto"
-              disabled={settingCoverFromUrl || !coverImageUrl.trim()}
-              onClick={handleSetCoverFromUrl}
+              className="glass-button-primary border-none rounded-none h-auto w-10 px-0 flex items-center justify-center"
+              disabled={!coverImageUrl.trim()}
+              onClick={handleUrlPreview}
             >
-              {settingCoverFromUrl ? '...' : <Check className="w-4 h-4" />}
+              <ArrowLeft className="w-4 h-4 rotate-180" />
             </Button>
           </div>
         </div>
@@ -625,11 +736,14 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       onClick={onClose}
     >
       <div
-        className="glass-panel p-6 max-w-md w-full mx-4 rounded-none border border-zinc-800 h-auto max-h-[85vh] flex flex-col overflow-hidden"
+        className={`glass-panel p-6 w-full mx-4 rounded-none border border-zinc-800 flex flex-col overflow-hidden transition-all duration-300 ${
+          viewMode === 'cover-browser' ? 'max-w-4xl h-[80vh]' : 'max-w-md h-auto max-h-[85vh]'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {viewMode === 'main' && renderMainView()}
         {viewMode === 'cover-selection' && renderCoverSelection()}
+        {viewMode === 'cover-browser' && renderCoverBrowser()}
         {viewMode === 'cover-editor' && renderCoverEditor()}
       </div>
     </div>
