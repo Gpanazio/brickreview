@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, ChevronRight, MessageSquare, Clock,
   CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2,
-  Pencil, Eraser, Smile, Paperclip, X
+  Pencil, Eraser, Smile, Paperclip, X,
+  Play, Pause, Volume2, VolumeX, Maximize, Settings, Gauge
 } from 'lucide-react';
 import { toast } from 'sonner';
 import EmojiPicker from 'emoji-picker-react';
@@ -26,10 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 const PLYR_OPTIONS = {
-  controls: [
-    'play-large', 'play', 'progress', 'current-time',
-    'mute', 'volume', 'captions', 'settings', 'pip', 'fullscreen'
-  ],
+  controls: [], // Desativa controles padrão para usar customizados
   keyboard: { focused: true, global: true },
   tooltips: { controls: true, seek: true },
   ratio: null, // Desativa cálculo automático de aspect-ratio do Plyr
@@ -81,6 +79,11 @@ export function VideoPlayer({
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
   const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controla exibição do emoji picker
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [duration, setDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
   const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
   const playerRef = useRef(null);
   const videoRef = useRef(null);
@@ -592,6 +595,17 @@ export function VideoPlayer({
     // Define a fonte inicial
     player.source = videoSource;
 
+    // Event Listeners para sincronizar estado
+    player.on('play', () => setIsPlaying(true));
+    player.on('pause', () => setIsPlaying(false));
+    player.on('timeupdate', () => setCurrentTime(player.currentTime));
+    player.on('durationchange', () => setDuration(player.duration));
+    player.on('volumechange', () => {
+      setVolume(player.volume);
+      setIsMuted(player.muted);
+    });
+    player.on('ratechange', () => setPlaybackSpeed(player.speed));
+
     // Mantém compatibilidade com o resto do código que usa playerRef.current.plyr
     playerRef.current = { plyr: player };
 
@@ -924,32 +938,151 @@ export function VideoPlayer({
           </div>
         </div>
 
-        {/* Barra de Controles Customizados (Frame by Frame) */}
-        <div className="p-4 border-t border-zinc-800/30 glass-panel flex items-center justify-center gap-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-none border border-zinc-800 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all"
-            onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime }}
+        {/* Barra de Controles Unificada (Frame.io style) */}
+        <div className="bg-[#0a0a0a] border-t border-zinc-800/50 flex flex-col relative z-30">
+          {/* Progress Scrubber */}
+          <div 
+            className="w-full h-2 bg-zinc-900 cursor-pointer relative group"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const pos = (e.clientX - rect.left) / rect.width;
+              if (playerRef.current?.plyr) {
+                playerRef.current.plyr.currentTime = pos * (playerRef.current.plyr.duration || duration);
+              }
+            }}
           >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          
-          <div className="flex flex-col items-center">
-            <div className="brick-tech text-white font-bold text-xl tabular-nums tracking-tight">
-              {formatTime(currentTime)}
-            </div>
-            <div className="w-12 h-0.5 bg-red-600 mt-1 opacity-50" />
+            {/* Buffered progress (opcional, se quiser implementar) */}
+            <div 
+              className="absolute top-0 left-0 h-full bg-red-600 transition-all duration-100 ease-linear"
+              style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+            />
+            {/* Scrubber Handle on Hover */}
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
+            />
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-none border border-zinc-800 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all"
-            onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime }}
-          >
-            <ChevronRight className="w-5 h-5" />
-          </Button>
+          {/* Controls Row */}
+          <div className="flex items-center justify-between px-4 py-2 h-12">
+            
+            {/* Left Controls: Play & Speed */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => playerRef.current?.plyr?.togglePlay()}
+                className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+              >
+                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+              </Button>
+
+              {/* Speed Selector */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest w-12 h-8 rounded-none"
+                  >
+                    {playbackSpeed}x
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" className="bg-zinc-950 border-zinc-800 rounded-none min-w-[60px]">
+                  {[0.5, 1, 1.5, 2].map((speed) => (
+                    <DropdownMenuItem
+                      key={speed}
+                      onClick={() => {
+                        if (playerRef.current?.plyr) {
+                          playerRef.current.plyr.speed = speed;
+                        }
+                      }}
+                      className={`text-[10px] justify-center cursor-pointer font-bold ${
+                        playbackSpeed === speed ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                      }`}
+                    >
+                      {speed}x
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Center Controls: Frame & Timecode */}
+            <div className="flex items-center gap-4 absolute left-1/2 -translate-x-1/2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
+                onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime }}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              
+              <div className="flex flex-col items-center min-w-[100px]">
+                <div className="brick-tech text-white font-bold text-lg tabular-nums tracking-tight leading-none">
+                  {formatTime(currentTime)}
+                </div>
+                <div className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest mt-0.5">
+                  {formatTime(duration)}
+                </div>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
+                onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime }}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Right Controls: Volume & Fullscreen */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center group relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    if (playerRef.current?.plyr) {
+                      playerRef.current.plyr.muted = !isMuted;
+                    }
+                  }}
+                  className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                >
+                  {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </Button>
+                {/* Volume Slider on Hover (Simple implementation) */}
+                <div className="w-0 overflow-hidden group-hover:w-20 transition-all duration-300 ease-out flex items-center">
+                   <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => {
+                      if (playerRef.current?.plyr) {
+                        playerRef.current.plyr.volume = parseFloat(e.target.value);
+                      }
+                    }}
+                    className="w-16 h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer ml-2 accent-red-600"
+                  />
+                </div>
+              </div>
+
+              <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => playerRef.current?.plyr?.fullscreen.toggle()}
+                className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+              >
+                <Maximize className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
