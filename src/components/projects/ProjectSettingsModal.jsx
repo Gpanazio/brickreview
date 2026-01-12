@@ -13,8 +13,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   
   // Estados do Editor de Capa, Browser e Upload
   const [coverImageUrl, setCoverImageUrl] = useState('');
-  const [searchQuery, setSearchQuery] = useState(''); // Estado para a busca do Google
-  const [settingCoverFromUrl, setSettingCoverFromUrl] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(''); // Estado para a busca na web
+  const [_settingCoverFromUrl, _setSettingCoverFromUrl] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -23,9 +23,17 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  // Estados do Browser de busca
+  const [webResults, setWebResults] = useState([]);
+  const [webOffset, setWebOffset] = useState(0);
+  const [webHasMore, setWebHasMore] = useState(false);
+  const [webLoading, setWebLoading] = useState(false);
+  const [webPicking, setWebPicking] = useState(false);
+  const [webError, setWebError] = useState('');
+
   // Estados do Projeto e Gerais
   const [projectDetails, setProjectDetails] = useState(null);
-  const [loadingDetails, setLoadingDetails] = useState(true);
+  const [_loadingDetails, setLoadingDetails] = useState(true);
   const [projectName, setProjectName] = useState(project.name);
   const [isRenaming, setIsRenaming] = useState(false);
   const [shareLink, setShareLink] = useState('');
@@ -120,12 +128,12 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     }
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
+  const openEditorWithFile = (file) => {
     if (!file) return;
 
     setSelectedFile(file);
     setCoverImageUrl(''); // Limpa URL se selecionou arquivo
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewImage(reader.result);
@@ -136,6 +144,12 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     reader.readAsDataURL(file);
   };
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    openEditorWithFile(file);
+  };
+
   const handleUrlPreview = () => {
     if (!coverImageUrl.trim()) return;
     setPreviewImage(coverImageUrl);
@@ -144,6 +158,110 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     setPosition({ x: 0, y: 0 });
     setViewMode('cover-editor');
   };
+
+  const coverWebWidth = 1280;
+
+  const searchWebImages = async ({ append = false } = {}) => {
+    const q = searchQuery.trim();
+    if (!q) return;
+
+    const limit = 10;
+    const offset = append ? webOffset : 0;
+
+    setWebError('');
+    setWebLoading(true);
+
+    try {
+      const response = await fetch(
+        `/api/images/search?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Falha ao buscar imagens');
+      }
+
+      const results = Array.isArray(data.results) ? data.results : [];
+      if (append) {
+        setWebResults((prev) => [...prev, ...results]);
+      } else {
+        setWebResults(results);
+      }
+
+      const nextOffset = Number.isFinite(data.nextOffset) ? data.nextOffset : offset + results.length;
+      setWebOffset(nextOffset);
+      setWebHasMore(Boolean(data.hasMore));
+    } catch (error) {
+      console.error('Erro ao buscar imagens:', error);
+      setWebError(error?.message || 'Erro ao buscar imagens');
+    } finally {
+      setWebLoading(false);
+    }
+  };
+
+  const pickWebImage = async (title) => {
+    if (!title) return;
+
+    setWebPicking(true);
+    setWebError('');
+
+    try {
+      const resolveResponse = await fetch(
+        `/api/images/resolve?title=${encodeURIComponent(title)}&width=${coverWebWidth}`,
+        {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }
+      );
+      const resolved = await resolveResponse.json().catch(() => ({}));
+      if (!resolveResponse.ok) {
+        throw new Error(resolved.error || 'Falha ao resolver imagem');
+      }
+
+      const imageUrl = resolved.url;
+      if (!imageUrl) throw new Error('URL da imagem inválida');
+
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) throw new Error('Não foi possível baixar a imagem');
+
+      const blob = await imageResponse.blob();
+
+      const maxBytes = 10 * 1024 * 1024;
+      if (blob.size > maxBytes) {
+        throw new Error('Imagem muito grande (máx 10MB)');
+      }
+
+      const mime = (resolved.mime || blob.type || '').split(';')[0].trim().toLowerCase();
+      const extByType = {
+        'image/jpeg': '.jpg',
+        'image/jpg': '.jpg',
+        'image/png': '.png',
+        'image/webp': '.webp',
+      };
+      const ext = extByType[mime];
+      if (!ext) {
+        throw new Error('Tipo de imagem não suportado (use JPG, PNG ou WebP)');
+      }
+
+      const file = new File([blob], `cover${ext}`, { type: mime });
+      openEditorWithFile(file);
+    } catch (error) {
+      console.error('Erro ao selecionar imagem:', error);
+      toast.error(error?.message || 'Erro ao selecionar imagem');
+    } finally {
+      setWebPicking(false);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode !== 'cover-browser') return;
+    if (!searchQuery.trim()) return;
+    setWebOffset(0);
+    searchWebImages({ append: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
 
   // --- Lógica do Editor (Zoom/Pan) ---
   const handleMouseDown = (e) => {
@@ -235,7 +353,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       } else {
         toast.error('Erro ao renomear', { id: renameToast });
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erro ao renomear', { id: renameToast });
     } finally {
       setIsRenaming(false);
@@ -262,7 +380,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       } else {
         toast.error('Erro ao alterar status', { id: statusToast });
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erro ao alterar status');
     }
   };
@@ -290,7 +408,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       const fullUrl = `${window.location.origin}/share/${data.token}`;
       setShareLink(fullUrl);
       toast.success('Link gerado!', { id: shareToast });
-    } catch (err) {
+    } catch (_err) {
       toast.error('Erro ao gerar link', { id: shareToast });
     } finally {
       setIsGeneratingShare(false);
@@ -320,98 +438,115 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       } else {
         toast.error('Erro ao excluir', { id: deleteToast });
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erro ao excluir', { id: deleteToast });
     }
   };
 
   // --- RENDERIZADORES DE VIEW ---
 
-  // MINI NAVEGADOR
-  const renderCoverBrowser = () => {
-    const googleUrl = `https://www.google.com/search?igu=1&tbm=isch&q=${encodeURIComponent(searchQuery)}`;
+  // BUSCA NA WEB (Wikimedia Commons)
+  const renderCoverBrowser = () => (
+    <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-200">
+      {/* Barra de Busca */}
+      <div className="flex items-center gap-2 mb-2 p-2 bg-zinc-900 border border-zinc-800">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setViewMode('cover-selection')}
+          className="h-6 w-6 rounded-none hover:bg-zinc-800 shrink-0"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
 
-    return (
-      <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-200">
-        {/* Barra de Endereço Fake */}
-        <div className="flex items-center gap-2 mb-2 p-2 bg-zinc-900 border border-zinc-800">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => setViewMode('cover-selection')}
-            className="h-6 w-6 rounded-none hover:bg-zinc-800 shrink-0"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div className="flex-1 flex items-center bg-black border border-zinc-800 px-2 h-8">
-            <Search className="w-3 h-3 text-zinc-500 mr-2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} // "Enter" apenas tira o foco para simular envio, o iframe atualiza reativamente ou podemos forçar refresh
-              className="flex-1 bg-transparent border-none text-xs text-white outline-none placeholder:text-zinc-700 font-mono"
-              placeholder="Pesquisar imagem..."
-            />
-          </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-6 w-6 rounded-none hover:bg-zinc-800 shrink-0"
-            onClick={() => {
-              // Força refresh do iframe mudando levemente a query ou recarregando
-              const current = searchQuery;
-              setSearchQuery('');
-              setTimeout(() => setSearchQuery(current), 10);
+        <div className="flex-1 flex items-center bg-black border border-zinc-800 px-2 h-8">
+          <Search className="w-3 h-3 text-zinc-500 mr-2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') searchWebImages({ append: false });
             }}
-          >
-            <RefreshCw className="w-3 h-3" />
-          </Button>
-        </div>
-
-        {/* Viewport do "Navegador" */}
-        <div className="flex-1 border border-zinc-800 bg-white relative overflow-hidden">
-          <iframe 
-            src={googleUrl} 
-            className="w-full h-full border-none"
-            title="Google Images Search"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            className="flex-1 bg-transparent border-none text-xs text-white outline-none placeholder:text-zinc-700 font-mono"
+            placeholder="Pesquisar imagem..."
           />
-          {/* Overlay de instrução sutil */}
-          <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur text-white text-[9px] px-3 py-1 uppercase tracking-widest border border-white/10 pointer-events-none">
-            Botão Direito &gt; Copiar Endereço da Imagem
-          </div>
         </div>
 
-        {/* Barra de Ação Inferior */}
-        <div className="mt-3 p-3 bg-zinc-900/50 border border-zinc-800">
-          <label className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold mb-2 block">
-            Cole a URL da imagem escolhida:
-          </label>
-          <div className="flex gap-2">
-            <div className="flex-1 flex items-center bg-black border border-zinc-800 px-2 h-9">
-              <LinkIcon className="w-3 h-3 text-zinc-500 mr-2" />
-              <input 
-                type="url"
-                value={coverImageUrl}
-                onChange={(e) => setCoverImageUrl(e.target.value)}
-                placeholder="https://..."
-                className="flex-1 bg-transparent border-none text-xs text-white outline-none"
-                autoFocus
-              />
-            </div>
-            <Button
-              className="glass-button-primary border-none rounded-none h-9 px-6 font-bold uppercase tracking-widest text-[10px]"
-              disabled={!coverImageUrl.trim()}
-              onClick={handleUrlPreview}
-            >
-              Editar <ArrowLeft className="w-3 h-3 ml-2 rotate-180" />
-            </Button>
-          </div>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 rounded-none hover:bg-zinc-800 shrink-0"
+          onClick={() => searchWebImages({ append: false })}
+          disabled={webLoading || webPicking}
+        >
+          <RefreshCw className={`w-3 h-3 ${webLoading ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
-    );
-  };
+
+      {/* Resultados */}
+      <div className="flex-1 border border-zinc-800 bg-zinc-950 relative overflow-hidden">
+        {webError ? (
+          <div className="p-4 text-xs text-red-400">{webError}</div>
+        ) : webLoading && webResults.length === 0 ? (
+          <div className="p-4 text-xs text-zinc-400">Buscando imagens...</div>
+        ) : webResults.length === 0 ? (
+          <div className="p-4 text-xs text-zinc-500">Nenhuma imagem encontrada.</div>
+        ) : (
+          <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 overflow-y-auto h-full custom-scrollbar">
+            {webResults.map((item) => (
+              <button
+                key={item.title}
+                type="button"
+                className="group relative border border-zinc-800 bg-black hover:border-red-600 transition-colors overflow-hidden"
+                onClick={() => pickWebImage(item.title)}
+                disabled={webPicking}
+                title="Clique para escolher"
+              >
+                <div className="aspect-square w-full">
+                  <img
+                    src={item.thumbUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/70 via-black/0" />
+                <div className="absolute bottom-2 left-2 right-2 text-[9px] text-white/80 uppercase tracking-widest truncate">
+                  Clique para editar
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {webPicking && (
+          <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+            <div className="flex items-center text-xs text-white">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+              Baixando imagem...
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Paginação */}
+      <div className="mt-3 p-3 bg-zinc-900/50 border border-zinc-800 flex items-center justify-between">
+        <div className="text-[10px] text-zinc-500 uppercase tracking-widest">
+          {webResults.length ? `${webResults.length} resultados` : 'Resultados'}
+        </div>
+        <Button
+          className="glass-button border border-zinc-800 rounded-none h-8 text-[10px]"
+          variant="ghost"
+          disabled={!webHasMore || webLoading || webPicking}
+          onClick={() => searchWebImages({ append: true })}
+        >
+          {webLoading ? 'Carregando...' : 'Carregar mais'}
+        </Button>
+      </div>
+    </div>
+  );
 
   const renderCoverEditor = () => (
     <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-200">
