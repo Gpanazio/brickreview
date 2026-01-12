@@ -765,7 +765,7 @@ function FileCard({ file, onDelete }) {
                 className="text-xs uppercase tracking-wider text-red-500 cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (confirm('Excluir este arquivo?')) onDelete?.();
+                  onDelete?.();
                 }}
               >
                 <Trash2 className="w-3 h-3 mr-2" />
