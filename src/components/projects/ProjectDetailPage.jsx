@@ -962,24 +962,90 @@ const formatFileSize = (bytes) => {
 };
 
 function FolderCard({ folder, onClick, onDelete }) {
+  const previews = folder.previews || [];
+  const hasPreviews = previews.length > 0;
+
   return (
     <ContextMenu>
       <ContextMenuTrigger>
         <div
-          className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer hover:bg-zinc-900/30 transition-colors"
+          className="group relative flex flex-col h-full cursor-pointer transition-all duration-300 hover:-translate-y-1"
           onClick={onClick}
         >
-          <div className="aspect-video bg-zinc-950 flex items-center justify-center border-b border-zinc-800/30 relative overflow-hidden">
-            <Folder className="w-16 h-16 text-zinc-800 group-hover:text-red-600/50 group-hover:scale-110 transition-all duration-500" />
-            <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/50 text-[8px] font-black text-zinc-500 uppercase tracking-widest">
-              Folder
+          <div className="relative aspect-video w-full">
+            <div className="absolute -top-3 left-0 w-1/3 h-4 bg-zinc-800 rounded-t-md border-t border-l border-r border-white/5 z-0" />
+
+            <div className="relative w-full h-full bg-zinc-900 rounded-md border border-white/10 overflow-hidden shadow-lg group-hover:border-zinc-700 transition-colors z-10">
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-20 pointer-events-none" />
+
+              {!hasPreviews ? (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800/50">
+                  <Folder className="w-12 h-12 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
+                </div>
+              ) : (
+                <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px] bg-zinc-950">
+                  <div
+                    className={`relative bg-zinc-800 overflow-hidden ${
+                      previews.length === 1 ? 'col-span-2 row-span-2' : 'col-span-1 row-span-2'
+                    }`}
+                  >
+                    <img
+                      src={previews[0]}
+                      alt=""
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                    />
+                    {previews.length > 1 && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-black/40 p-3 rounded-full backdrop-blur-sm">
+                          <Folder className="w-5 h-5 text-white/70" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {previews.length > 1 && (
+                    <div className="col-span-1 row-span-2 flex flex-col gap-[1px]">
+                      <div className="flex-1 bg-zinc-800 overflow-hidden relative">
+                        {previews[1] ? (
+                          <img
+                            src={previews[1]}
+                            alt=""
+                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-zinc-800/50" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 bg-zinc-800 overflow-hidden relative">
+                        {previews[2] ? (
+                          <img
+                            src={previews[2]}
+                            alt=""
+                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                            <div className="w-full h-full bg-zinc-800/30 pattern-grid-lg opacity-20" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-          <div className="p-5 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all flex-1">
-            <h3 className="brick-title text-sm text-white truncate mb-1 uppercase">{folder.name}</h3>
-            <p className="brick-tech text-[10px] text-zinc-600 uppercase tracking-widest">
-              {(folder.videos_count || 0) + (folder.subfolders_count || 0)} Itens
-            </p>
+
+          <div className="mt-3 px-1">
+            <h3 className="brick-title text-sm text-white truncate uppercase tracking-tight group-hover:text-red-500 transition-colors">
+              {folder.name}
+            </h3>
+            <div className="flex items-center justify-between mt-1">
+              <p className="brick-tech text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                {(folder.videos_count || 0) + (folder.subfolders_count || 0)} Itens
+              </p>
+            </div>
           </div>
         </div>
       </ContextMenuTrigger>
