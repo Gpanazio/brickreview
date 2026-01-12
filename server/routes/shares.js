@@ -177,13 +177,13 @@ router.get('/:token/comments/video/:videoId', async (req, res) => {
 
     if (share.video_id) {
       // Share de vídeo específico - verifica se é o mesmo vídeo ou uma versão dele
-      const videoResult = await query(
+      const resVideo = await query(
         `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
         [videoIdInt]
       );
 
-      if (videoResult.rows.length > 0) {
-        const video = videoResult.rows[0];
+      if (resVideo.rows.length > 0) {
+        const video = resVideo.rows[0];
         // Permite acesso se for o vídeo compartilhado ou se tiver o mesmo pai (versões)
         hasAccess = video.id === share.video_id ||
                     video.parent_video_id === share.video_id ||
@@ -194,20 +194,19 @@ router.get('/:token/comments/video/:videoId', async (req, res) => {
       }
     } else if (share.folder_id) {
       // Share de pasta - verifica se o vídeo está na pasta
-      const videoResult = await query(
+      const resVideo = await query(
         `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
         [videoIdInt, share.folder_id]
       );
-      hasAccess = videoResult.rows.length > 0;
+      hasAccess = resVideo.rows.length > 0;
     } else if (share.project_id) {
       // Share de projeto - verifica se o vídeo está no projeto
-      const videoResult = await query(
+      const resVideo = await query(
         `SELECT v.id FROM brickreview_videos v
-         JOIN brickreview_folders f ON v.folder_id = f.id
-         WHERE v.id = $1 AND f.project_id = $2`,
+         WHERE v.id = $1 AND v.project_id = $2`,
         [videoIdInt, share.project_id]
       );
-      hasAccess = videoResult.rows.length > 0;
+      hasAccess = resVideo.rows.length > 0;
     }
 
     if (!hasAccess) {
@@ -248,13 +247,13 @@ router.get('/:token/drawings/video/:videoId', async (req, res) => {
     let hasAccess = false;
 
     if (share.video_id) {
-      const videoResult = await query(
+      const resVideo = await query(
         `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
         [videoIdInt]
       );
 
-      if (videoResult.rows.length > 0) {
-        const video = videoResult.rows[0];
+      if (resVideo.rows.length > 0) {
+        const video = resVideo.rows[0];
         hasAccess = video.id === share.video_id ||
                     video.parent_video_id === share.video_id ||
                     (video.parent_video_id && await query(
@@ -263,19 +262,18 @@ router.get('/:token/drawings/video/:videoId', async (req, res) => {
                     ).then(r => r.rows.length > 0));
       }
     } else if (share.folder_id) {
-      const videoResult = await query(
+      const resVideo = await query(
         `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
         [videoIdInt, share.folder_id]
       );
-      hasAccess = videoResult.rows.length > 0;
+      hasAccess = resVideo.rows.length > 0;
     } else if (share.project_id) {
-      const videoResult = await query(
+      const resVideo = await query(
         `SELECT v.id FROM brickreview_videos v
-         JOIN brickreview_folders f ON v.folder_id = f.id
-         WHERE v.id = $1 AND f.project_id = $2`,
+         WHERE v.id = $1 AND v.project_id = $2`,
         [videoIdInt, share.project_id]
       );
-      hasAccess = videoResult.rows.length > 0;
+      hasAccess = resVideo.rows.length > 0;
     }
 
     if (!hasAccess) {
@@ -305,66 +303,56 @@ router.get('/:token/video/:videoId/stream', async (req, res) => {
     const share = await loadShare(req, res, token)
     if (!share) return
 
-    // Verifica que o vídeo pertence ao recurso compartilhado (mesma lógica de comentários/desenhos)
     const videoIdInt = parseInt(videoId);
     let hasAccess = false;
 
-    if (share.video_id) {
-      const videoResult = await query(
-        `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
-        [videoIdInt]
-      );
+    // Busca o vídeo e suas informações de hierarquia
+    const resInfo = await query(
+      `SELECT id, parent_video_id, project_id, folder_id FROM brickreview_videos WHERE id = $1`,
+      [videoIdInt]
+    );
 
-      if (videoResult.rows.length > 0) {
-        const video = videoResult.rows[0];
-        hasAccess = video.id === share.video_id ||
-                    video.parent_video_id === share.video_id ||
-                    (video.parent_video_id && await query(
-                      `SELECT id FROM brickreview_videos WHERE id = $1 AND parent_video_id = $2`,
-                      [share.video_id, video.parent_video_id]
-                    ).then(r => r.rows.length > 0));
+    if (resInfo.rows.length > 0) {
+      const video = resInfo.rows[0];
+
+      if (share.video_id) {
+        hasAccess = video.id === share.video_id || video.parent_video_id === share.video_id;
+        if (!hasAccess) {
+            const sharedVideoRes = await query('SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1', [share.video_id]);
+            const sharedVideo = sharedVideoRes.rows[0];
+            if (sharedVideo) {
+                hasAccess = video.parent_video_id === sharedVideo.id || 
+                           sharedVideo.parent_video_id === video.id ||
+                           (video.parent_video_id && video.parent_video_id === sharedVideo.parent_video_id);
+            }
+        }
+      } else if (share.folder_id) {
+        hasAccess = video.folder_id === share.folder_id;
+      } else if (share.project_id) {
+        hasAccess = video.project_id === share.project_id;
       }
-    } else if (share.folder_id) {
-      const videoResult = await query(
-        `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
-        [videoIdInt, share.folder_id]
-      );
-      hasAccess = videoResult.rows.length > 0;
-    } else if (share.project_id) {
-      const videoResult = await query(
-        `SELECT v.id FROM brickreview_videos v
-         JOIN brickreview_folders f ON v.folder_id = f.id
-         WHERE v.id = $1 AND f.project_id = $2`,
-        [videoIdInt, share.project_id]
-      );
-      hasAccess = videoResult.rows.length > 0;
     }
 
     if (!hasAccess) {
       return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
     }
 
-    // Busca informações do vídeo para gerar URL de stream
-    const videoResult = await query(
+    const resStream = await query(
       'SELECT r2_url, proxy_url, mime_type FROM brickreview_videos WHERE id = $1',
       [videoIdInt]
     )
 
-    if (videoResult.rows.length === 0) {
+    if (resStream.rows.length === 0) {
       return res.status(404).json({ error: 'Vídeo não encontrado' })
     }
 
-    const video = videoResult.rows[0]
-    const url = video.proxy_url || video.r2_url
-
-    if (!url) {
-      return res.status(500).json({ error: 'URL do vídeo não disponível' })
-    }
+    const videoData = resStream.rows[0]
+    const url = videoData.proxy_url || videoData.r2_url
 
     res.json({
       url,
-      isProxy: !!video.proxy_url,
-      mime: video.proxy_url ? 'video/mp4' : video.mime_type || 'video/mp4',
+      isProxy: !!videoData.proxy_url,
+      mime: videoData.proxy_url ? 'video/mp4' : videoData.mime_type || 'video/mp4',
     })
   } catch (err) {
     console.error('Erro ao buscar stream de vídeo compartilhado:', err);
@@ -380,14 +368,9 @@ router.get('/:token/project-videos', async (req, res) => {
     const share = await loadShare(req, res, token)
     if (!share) return
 
-    // Só funciona para projetos
     if (!share.project_id) {
-      console.log('❌ Este share não é de um projeto');
       return res.status(400).json({ error: 'Este compartilhamento não é de um projeto' });
     }
-
-    // Busca todos os vídeos do projeto (de todas as pastas)
-    console.log('🔍 Buscando vídeos do projeto ID:', share.project_id);
 
     const videosResult = await query(
       `SELECT v.*,
@@ -409,8 +392,6 @@ router.get('/:token/project-videos', async (req, res) => {
       [share.project_id]
     );
 
-    console.log('📹 Vídeos encontrados:', videosResult.rows.length);
-
     res.json(videosResult.rows);
   } catch (err) {
     console.error('❌ Erro ao buscar vídeos do projeto:', err);
@@ -426,14 +407,9 @@ router.get('/:token/folder-videos', async (req, res) => {
     const share = await loadShare(req, res, token)
     if (!share) return
 
-    // Só funciona para pastas
     if (!share.folder_id) {
-      console.log('❌ Este share não é de uma pasta, é de video_id:', share.video_id);
       return res.status(400).json({ error: 'Este compartilhamento não é de uma pasta' });
     }
-
-    // Busca vídeos da pasta (usando tabela base para evitar problemas com view)
-    console.log('🔍 Buscando vídeos da pasta ID:', share.folder_id);
 
     const videosResult = await query(
       `SELECT v.*,
@@ -468,7 +444,6 @@ router.get('/:token', async (req, res) => {
     const share = await loadShare(req, res, token)
     if (!share) return
 
-    // Busca os dados do recurso compartilhado
     let data = null;
     if (share.project_id) {
       const projectResult = await query('SELECT * FROM brickreview_projects_with_stats WHERE id = $1', [share.project_id]);
@@ -516,7 +491,7 @@ router.get('/:token', async (req, res) => {
 router.get('/:token/video/:videoId/download', async (req, res) => {
   try {
     const { token, videoId } = req.params;
-    const { type } = req.query; // 'proxy' ou 'original'
+    const { type } = req.query; 
 
     const share = await loadShare(req, res, token);
     if (!share) return;
@@ -524,43 +499,46 @@ router.get('/:token/video/:videoId/download', async (req, res) => {
     const videoIdInt = parseInt(videoId);
     let hasAccess = false;
 
-    if (share.video_id) {
-      const videoResult = await query(
-        `SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1`,
-        [videoIdInt]
-      );
-      if (videoResult.rows.length > 0) {
-        const video = videoResult.rows[0];
+    const resInfo = await query(
+      `SELECT id, parent_video_id, project_id, folder_id FROM brickreview_videos WHERE id = $1`,
+      [videoIdInt]
+    );
+
+    if (resInfo.rows.length > 0) {
+      const video = resInfo.rows[0];
+
+      if (share.video_id) {
         hasAccess = video.id === share.video_id || video.parent_video_id === share.video_id;
+        if (!hasAccess) {
+            const sharedVideoRes = await query('SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1', [share.video_id]);
+            const sharedVideo = sharedVideoRes.rows[0];
+            if (sharedVideo) {
+                hasAccess = video.parent_video_id === sharedVideo.id || 
+                           sharedVideo.parent_video_id === video.id ||
+                           (video.parent_video_id && video.parent_video_id === sharedVideo.parent_video_id);
+            }
+        }
+      } else if (share.folder_id) {
+        hasAccess = video.folder_id === share.folder_id;
+      } else if (share.project_id) {
+        hasAccess = video.project_id === share.project_id;
       }
-    } else if (share.folder_id) {
-      const videoResult = await query(
-        `SELECT id FROM brickreview_videos WHERE id = $1 AND folder_id = $2`,
-        [videoIdInt, share.folder_id]
-      );
-      hasAccess = videoResult.rows.length > 0;
-    } else if (share.project_id) {
-      const videoResult = await query(
-        `SELECT id FROM brickreview_videos WHERE project_id = $1 AND id = $2`,
-        [share.project_id, videoIdInt]
-      );
-      hasAccess = videoResult.rows.length > 0;
     }
 
     if (!hasAccess) {
       return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
     }
 
-    const videoResult = await query(
+    const resDownload = await query(
       'SELECT title, r2_url, proxy_url FROM brickreview_videos WHERE id = $1',
       [videoIdInt]
     );
 
-    if (videoResult.rows.length === 0) {
+    if (resDownload.rows.length === 0) {
       return res.status(404).json({ error: 'Vídeo não encontrado' });
     }
 
-    const video = videoResult.rows[0];
+    const video = resDownload.rows[0];
     const url = type === 'proxy' ? (video.proxy_url || video.r2_url) : video.r2_url;
 
     res.json({
