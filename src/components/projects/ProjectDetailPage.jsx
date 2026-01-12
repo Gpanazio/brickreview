@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Upload, Play, Clock, MessageSquare,
-  CheckCircle2, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree,
+  CheckCircle2, AlertCircle, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree,
   FolderPlus, History, Share2, Trash2, Archive, Folder, FolderOpen
 } from 'lucide-react';
 import {
@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function ProjectDetailPage() {
   const { id } = useParams();
@@ -45,7 +46,32 @@ export function ProjectDetailPage() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: 'Confirmar ação',
+    message: 'Tem certeza que deseja continuar?',
+    confirmText: 'Confirmar',
+    cancelText: 'Cancelar',
+    variant: 'danger',
+    onConfirm: null,
+  });
   const { token } = useAuth();
+
+  const openConfirmDialog = ({ title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', variant = 'danger', onConfirm }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      variant,
+      onConfirm,
+    });
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  };
 
   const breadcrumbs = useMemo(() => {
     const path = [];
@@ -195,11 +221,7 @@ export function ProjectDetailPage() {
     }
   };
 
-  const handleDeleteVideo = async (videoId) => {
-    if (!confirm('Tem certeza que deseja excluir este vídeo? Esta ação não pode ser desfeita.')) {
-      return;
-    }
-
+  const performDeleteVideo = async (videoId) => {
     const loadingToast = toast.loading('Excluindo vídeo...');
 
     try {
@@ -212,7 +234,7 @@ export function ProjectDetailPage() {
 
       if (response.ok) {
         toast.success('Vídeo excluído com sucesso!', { id: loadingToast });
-        fetchProjectDetails(); // Recarrega lista
+        fetchProjectDetails();
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || 'Erro ao excluir vídeo', { id: loadingToast });
@@ -221,6 +243,17 @@ export function ProjectDetailPage() {
       console.error('Erro ao excluir vídeo:', error);
       toast.error('Erro ao excluir vídeo', { id: loadingToast });
     }
+  };
+
+  const handleDeleteVideo = (videoId) => {
+    openConfirmDialog({
+      title: 'Excluir vídeo',
+      message: 'Tem certeza que deseja excluir este vídeo? Esta ação não pode ser desfeita.',
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      onConfirm: () => performDeleteVideo(videoId),
+    });
   };
 
   const handleArchiveVideo = async (_videoId) => {
@@ -248,7 +281,8 @@ export function ProjectDetailPage() {
     const newUploads = Array.from(fileList).map(file => ({
       id: Math.random().toString(36),
       name: file.name,
-      status: 'uploading'
+      status: 'uploading',
+      isVideo: file.type.startsWith('video/')
     }));
 
     setUploadQueue(prev => [...prev, ...newUploads]);
@@ -291,7 +325,10 @@ export function ProjectDetailPage() {
           toast.success(`${file.name} ENVIADO`, {
             description: isVideo ? "Processamento iniciado" : "Arquivo salvo"
           });
-          setUploadQueue(prev => prev.filter(u => u.id !== currentUploadId));
+          setUploadQueue(prev => prev.map(u => u.id === currentUploadId ? { ...u, status: 'success' } : u));
+          setTimeout(() => {
+            setUploadQueue(prev => prev.filter(u => u.id !== currentUploadId));
+          }, 1500);
         } else {
           const errorData = await response.json().catch((parseError) => {
             console.error('Error parsing server response:', parseError);
@@ -512,16 +549,8 @@ export function ProjectDetailPage() {
               disabled={uploading}
             >
               <label htmlFor="file-upload" className="cursor-pointer flex items-center">
-                {uploading ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white border-t-transparent mr-3"
-                  />
-                ) : (
-                  <Upload className="w-4 h-4 mr-3" />
-                )}
-                {uploading ? 'Processando...' : 'Upload'}
+                <Upload className="w-4 h-4 mr-3" />
+                Upload
               </label>
             </Button>
           </div>
@@ -640,58 +669,117 @@ export function ProjectDetailPage() {
                         folder={folder} 
                         onClick={() => setCurrentFolderId(folder.id)}
                         onDelete={() => {
-                          if (confirm('Tem certeza que deseja excluir esta pasta?')) {
-                            fetch(`/api/folders/${folder.id}`, {
-                              method: 'DELETE',
-                              headers: { 'Authorization': `Bearer ${token}` }
-                            }).then(() => {
-                              toast.success('Pasta excluída');
-                              fetchFolders();
-                            });
-                          }
+                          openConfirmDialog({
+                            title: 'Excluir pasta',
+                            message: 'Tem certeza que deseja excluir esta pasta?',
+                            confirmText: 'Excluir',
+                            cancelText: 'Cancelar',
+                            variant: 'danger',
+                            onConfirm: async () => {
+                              try {
+                                const response = await fetch(`/api/folders/${folder.id}`, {
+                                  method: 'DELETE',
+                                  headers: { 'Authorization': `Bearer ${token}` }
+                                });
+
+                                if (response.ok) {
+                                  toast.success('Pasta excluída');
+                                  fetchFolders();
+                                } else {
+                                  const errorData = await response.json().catch(() => ({}));
+                                  toast.error(errorData.error || 'Erro ao excluir pasta');
+                                }
+                              } catch (error) {
+                                console.error('Erro ao excluir pasta:', error);
+                                toast.error('Erro ao excluir pasta');
+                              }
+                            },
+                          });
                         }}
                       />
                     </motion.div>
                   ))}
 
                   {/* Uploading Cards */}
-                  {uploadQueue.map((upload) => (
-                    <motion.div
-                      key={upload.id}
-                      className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative"
-                    >
-                      <div className="aspect-video bg-zinc-900/50 flex flex-col items-center justify-center border-b border-zinc-800/50 relative overflow-hidden">
-                        <motion.div 
-                          className="absolute inset-0 bg-red-900/10"
-                          animate={{ opacity: [0.1, 0.3, 0.1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        />
-                        <div className="w-12 h-12 rounded-full border-2 border-zinc-800 flex items-center justify-center mb-4 relative z-10">
-                          <motion.div 
-                            className="absolute inset-0 border-2 border-red-600 rounded-full border-t-transparent"
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  {uploadQueue.map((upload) => {
+                    const isSuccess = upload.status === 'success';
+                    const isError = upload.status === 'error';
+
+                    const accentBorderClass = isSuccess
+                      ? 'border-l-green-600/50'
+                      : 'border-l-red-600/50';
+
+                    const overlayClass = isSuccess
+                      ? 'bg-green-900/10'
+                      : 'bg-red-900/10';
+
+                    const progressClass = isSuccess
+                      ? 'bg-green-600'
+                      : 'bg-red-600';
+
+                    const headline = isSuccess
+                      ? 'Sucesso'
+                      : isError
+                        ? 'Falha'
+                        : 'Processando...';
+
+                    const subline = isSuccess
+                      ? (upload.isVideo ? 'Processamento iniciado' : 'Arquivo salvo')
+                      : isError
+                        ? 'Falha no upload'
+                        : 'Enviando arquivo';
+
+                    return (
+                      <motion.div
+                        key={upload.id}
+                        className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative"
+                      >
+                        <div className="aspect-video bg-zinc-900/50 flex flex-col items-center justify-center border-b border-zinc-800/50 relative overflow-hidden">
+                          <motion.div
+                            className={`absolute inset-0 ${overlayClass}`}
+                            animate={{ opacity: [0.1, 0.3, 0.1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
                           />
-                          <Upload className="w-5 h-5 text-zinc-500" />
+
+                          <div className="w-12 h-12 rounded-full border-2 border-zinc-800 flex items-center justify-center mb-4 relative z-10">
+                            {isSuccess ? (
+                              <CheckCircle2 className="w-6 h-6 text-green-500" />
+                            ) : isError ? (
+                              <AlertCircle className="w-6 h-6 text-red-500" />
+                            ) : (
+                              <>
+                                <motion.div
+                                  className="absolute inset-0 border-2 border-red-600 rounded-full border-t-transparent"
+                                  animate={{ rotate: 360 }}
+                                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                />
+                                <Upload className="w-5 h-5 text-zinc-500" />
+                              </>
+                            )}
+                          </div>
+
+                          <p className={`brick-tech text-[10px] uppercase tracking-widest ${isSuccess ? 'text-green-500' : isError ? 'text-red-500' : 'text-red-500'} ${isSuccess || isError ? '' : 'animate-pulse'}`}>
+                            {headline}
+                          </p>
                         </div>
-                        <p className="brick-tech text-[10px] text-red-500 uppercase tracking-widest animate-pulse">Enviando...</p>
-                      </div>
-                      <div className="p-5 border-l-2 border-l-red-600/50 flex-1 flex flex-col justify-between bg-zinc-950/30">
-                        <div>
-                          <h3 className="brick-title text-sm text-zinc-400 truncate mb-1">{upload.name}</h3>
-                          <p className="brick-manifesto text-[10px] text-zinc-600 truncate">Processando arquivo</p>
+
+                        <div className={`p-5 border-l-2 ${accentBorderClass} flex-1 flex flex-col justify-between bg-zinc-950/30`}>
+                          <div>
+                            <h3 className="brick-title text-sm text-zinc-400 truncate mb-1">{upload.name}</h3>
+                            <p className="brick-manifesto text-[10px] text-zinc-600 truncate">{subline}</p>
+                          </div>
+                          <div className="mt-4 h-1 w-full bg-zinc-900 overflow-hidden">
+                            <motion.div
+                              className={`h-full ${progressClass}`}
+                              initial={{ width: "0%" }}
+                              animate={{ width: "100%" }}
+                              transition={{ duration: isSuccess || isError ? 0.4 : 15, ease: "linear" }}
+                            />
+                          </div>
                         </div>
-                        <div className="mt-4 h-1 w-full bg-zinc-900 overflow-hidden">
-                          <motion.div 
-                            className="h-full bg-red-600"
-                            initial={{ width: "0%" }}
-                            animate={{ width: "100%" }}
-                            transition={{ duration: 15, ease: "linear" }} // Mock duration since we don't have real progress
-                          />
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
 
                   {currentLevelVideos
                     .filter(v => !v.parent_video_id) // Só mostra vídeos raiz (não versões)
@@ -730,12 +818,31 @@ export function ProjectDetailPage() {
                       <FileCard
                         file={file}
                         onDelete={() => {
-                          fetch(`/api/files/${file.id}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                          }).then(() => {
-                            toast.success('Arquivo excluído');
-                            fetchFiles();
+                          openConfirmDialog({
+                            title: 'Excluir arquivo',
+                            message: 'Tem certeza que deseja excluir este arquivo?',
+                            confirmText: 'Excluir',
+                            cancelText: 'Cancelar',
+                            variant: 'danger',
+                            onConfirm: async () => {
+                              try {
+                                const response = await fetch(`/api/files/${file.id}`, {
+                                  method: 'DELETE',
+                                  headers: { 'Authorization': `Bearer ${token}` }
+                                });
+
+                                if (response.ok) {
+                                  toast.success('Arquivo excluído');
+                                  fetchFiles();
+                                } else {
+                                  const errorData = await response.json().catch(() => ({}));
+                                  toast.error(errorData.error || 'Erro ao excluir arquivo');
+                                }
+                              } catch (error) {
+                                console.error('Erro ao excluir arquivo:', error);
+                                toast.error('Erro ao excluir arquivo');
+                              }
+                            },
                           });
                         }}
                       />
@@ -768,6 +875,17 @@ export function ProjectDetailPage() {
           </ContextMenuContent>
         </ContextMenu>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeConfirmDialog}
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        variant={confirmDialog.variant}
+      />
 
       {/* Share Link Dialog Fallback */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
@@ -943,7 +1061,7 @@ function FileCard({ file, onDelete }) {
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
-            if (confirm('Excluir este arquivo?')) onDelete?.();
+            onDelete?.();
           }}
           className="focus:bg-red-600 focus:text-white cursor-pointer text-red-400"
         >

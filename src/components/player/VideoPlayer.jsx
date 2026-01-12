@@ -178,6 +178,20 @@ export function VideoPlayer({
     };
   }, [videoUrl, currentVideo.mime_type]);
 
+  const compareCommentsByTimestamp = (a, b) => {
+    const aTs = Number.isFinite(Number(a?.timestamp)) ? Number(a.timestamp) : null;
+    const bTs = Number.isFinite(Number(b?.timestamp)) ? Number(b.timestamp) : null;
+
+    if (aTs === null && bTs === null) {
+      return new Date(a.created_at) - new Date(b.created_at);
+    }
+    if (aTs === null) return 1;
+    if (bTs === null) return -1;
+    if (aTs !== bTs) return aTs - bTs;
+
+    return new Date(a.created_at) - new Date(b.created_at);
+  };
+
   const addComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -232,7 +246,7 @@ export function VideoPlayer({
 
       if (response.ok) {
         const comment = await response.json();
-        setComments([...comments, comment].sort((a, b) => a.timestamp - b.timestamp));
+        setComments([...comments, comment].sort(compareCommentsByTimestamp));
         setNewComment('');
         setAttachedFile(null);
         setDrawingMode(false);
@@ -320,7 +334,7 @@ export function VideoPlayer({
   const organizeComments = () => {
     const parentComments = comments.filter(c => !c.parent_comment_id);
     return parentComments
-      .sort((a, b) => a.timestamp - b.timestamp)
+      .sort(compareCommentsByTimestamp)
       .map(parent => ({
         ...parent,
         replies: comments
@@ -423,7 +437,7 @@ export function VideoPlayer({
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
           const data = await response.json();
-          setComments(data.sort((a, b) => a.timestamp - b.timestamp));
+          setComments([...data].sort(compareCommentsByTimestamp));
         }
       } catch (error) {
         console.error('Erro ao carregar comentários:', error);
@@ -1207,11 +1221,15 @@ export function VideoPlayer({
                   >
                     <div
                       className="cursor-pointer"
-                      onClick={() => seekTo(comment.timestamp)}
+                      onClick={() => {
+                        if (comment.timestamp !== null && comment.timestamp !== undefined) {
+                          seekTo(Number(comment.timestamp));
+                        }
+                      }}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
-                          {formatTime(currentTime)}
+                          {formatTime(comment.timestamp)}
                         </span>
                         <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                           {comment.username}

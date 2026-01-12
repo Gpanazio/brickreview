@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Folder, FolderOpen, File, FileImage, FileText, FileAudio, Plus, MoreVertical, Edit, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { formatVideoDuration } from '../../utils/time';
 import { toast } from 'sonner';
 import {
@@ -62,6 +63,31 @@ export function FolderView({
   const [, setCreatingFolder] = useState(false)
   const [, setNewSubfolderParent] = useState(null)
   const [dragOverFolder, setDragOverFolder] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: 'Confirmar ação',
+    message: 'Tem certeza que deseja continuar?',
+    confirmText: 'Confirmar',
+    cancelText: 'Cancelar',
+    variant: 'danger',
+    onConfirm: null,
+  });
+
+  const openConfirmDialog = ({ title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', variant = 'danger', onConfirm }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      variant,
+      onConfirm,
+    });
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+  };
 
   // Filtra pastas do nível atual
   const currentLevelFolders = normalizedFolders.filter(f =>
@@ -119,9 +145,7 @@ export function FolderView({
     }
   };
 
-  const handleDeleteFolder = async (folderId) => {
-    if (!confirm('Tem certeza que deseja excluir esta pasta? Todas as subpastas serão excluídas e os vídeos ficarão sem pasta.')) return;
-
+  const performDeleteFolder = async (folderId) => {
     try {
       const response = await fetch(`/api/folders/${folderId}`, {
         method: 'DELETE',
@@ -129,16 +153,30 @@ export function FolderView({
       });
 
       if (response.ok) {
+        toast.success('Pasta excluída');
         onDeleteFolder();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Erro ao excluir pasta');
       }
     } catch (error) {
       console.error('Erro ao excluir pasta:', error);
+      toast.error('Erro ao excluir pasta');
     }
   };
 
-  const handleDeleteFile = async (fileId) => {
-    if (!confirm('Tem certeza que deseja excluir este arquivo?')) return;
+  const handleDeleteFolder = (folderId) => {
+    openConfirmDialog({
+      title: 'Excluir pasta',
+      message: 'Tem certeza que deseja excluir esta pasta? Todas as subpastas serão excluídas e os vídeos ficarão sem pasta.',
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      onConfirm: () => performDeleteFolder(folderId),
+    });
+  };
 
+  const performDeleteFile = async (fileId) => {
     try {
       const response = await fetch(`/api/files/${fileId}`, {
         method: 'DELETE',
@@ -148,11 +186,25 @@ export function FolderView({
       if (response.ok) {
         toast.success('Arquivo excluído');
         onFileDelete?.();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Erro ao excluir arquivo');
       }
     } catch (error) {
       console.error('Erro ao excluir arquivo:', error);
       toast.error('Erro ao excluir arquivo');
     }
+  };
+
+  const handleDeleteFile = (fileId) => {
+    openConfirmDialog({
+      title: 'Excluir arquivo',
+      message: 'Tem certeza que deseja excluir este arquivo?',
+      confirmText: 'Excluir',
+      cancelText: 'Cancelar',
+      variant: 'danger',
+      onConfirm: () => performDeleteFile(fileId),
+    });
   };
 
   const handleCreateFolder = async (parentFolderId = null) => {
@@ -357,7 +409,8 @@ export function FolderView({
   };
 
   return (
-    <div className="space-y-1">
+    <>
+      <div className="space-y-1">
       <div className="flex items-center justify-between mb-4 px-3">
         <h3 className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
           Estrutura de Pastas
@@ -422,5 +475,17 @@ export function FolderView({
         </div>
       )}
     </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={closeConfirmDialog}
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        variant={confirmDialog.variant}
+      />
+    </>
   );
 }
