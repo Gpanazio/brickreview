@@ -577,9 +577,6 @@ export function VideoPlayer({
     return () => clearInterval(interval);
   }, []);
 
->>>>>>
-
-
   // Canvas drawing handlers
   const startDrawing = (e) => {
     if (!drawingMode) return;
@@ -980,7 +977,7 @@ export function VideoPlayer({
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
-                          {formatTime(comment.timestamp)}
+                          {formatTime(currentTime)}
                         </span>
                         <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                           {comment.username}
@@ -1156,7 +1153,7 @@ export function VideoPlayer({
                           showEmojiPicker
                             ? 'text-yellow-500 bg-yellow-500/10'
                             : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-                        }`}
+                      }`}
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                         title="Adicionar emoji"
                       >
