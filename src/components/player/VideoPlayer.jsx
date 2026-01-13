@@ -772,7 +772,6 @@ export function VideoPlayer({
       } catch (error) {
         console.error('Erro ao buscar stream da versão comparada:', error);
       }
-      }
     };
 
     fetchCompareStreamUrl();
