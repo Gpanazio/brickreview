@@ -44,7 +44,14 @@ const PLYR_OPTIONS = {
   tooltips: { controls: true, seek: true },
   ratio: null, // Desativa cálculo automático de aspect-ratio do Plyr
   debug: false, // Disable debug logs
-  blankVideo: '' // Prevent blank video loading issues
+  blankVideo: '', // Prevent blank video loading issues
+  // Configurações críticas para Mobile Fullscreen:
+  fullscreen: { 
+    enabled: true, 
+    fallback: true, 
+    iosNative: true // Permite que o iOS use seu player nativo no Fullscreen (essencial para iPhone)
+  },
+  playsinline: true, // Permite tocar "inline" no mobile sem forçar fullscreen automaticamente no play
 };
 
 export function VideoPlayer({

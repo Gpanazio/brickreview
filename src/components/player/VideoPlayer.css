@@ -200,23 +200,40 @@ input[type=range]:focus {
 }
 
 /* ============================================
-   Mobile Layout Adjustments
+   Mobile Layout & Fullscreen Fixes [ATUALIZADO]
    ============================================ */
 
-/* Media query para mobile (max-width: 768px) */
-@media (max-width: 768px) {
-  /* Ajusta z-index do Plyr para fullscreen funcionar no mobile */
-  .plyr,
-  .plyr--full-ui.plyr--video,
-  .plyr__video-wrapper {
-    z-index: 1 !important;
-  }
+/* 1. Estilos para quando o Fullscreen está ATIVO */
+/* Isso garante que ele cubra tudo, independentemente de onde estava antes */
+.plyr.plyr--fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important; /* Fix para barra de endereços do Safari Mobile */
+  z-index: 99999 !important; /* Z-index altíssimo para sobrepor tudo */
+  background: #000 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
 
-  /* Garante que o vídeo ocupe a largura total em mobile */
-  .plyr video,
-  video.plyr,
-  video.plyr-react {
-    min-height: 100vh !important;
+.plyr.plyr--fullscreen video {
+  height: 100% !important;
+  width: 100% !important;
+  object-fit: contain !important;
+}
+
+/* 2. Ajustes específicos para Mobile, PRESERVANDO sua correção anterior */
+@media (max-width: 768px) {
+  
+  /* IMPORTANTE: Mantemos z-index baixo APENAS quando NÃO estiver em fullscreen.
+     Isso preserva sua correção para que dropdowns/headers funcionem no layout normal. */
+  .plyr:not(.plyr--fullscreen),
+  .plyr--full-ui.plyr--video:not(.plyr--fullscreen) {
+    z-index: 1 !important; 
   }
 
   /* Ajusta botões de controle do Plyr no mobile */
@@ -262,13 +279,4 @@ input[type=range]:focus {
 /* Garante que o volume slider funcione em mobile (touch) */
 input[type=range] {
   touch-action: manipulation !important;
-}
-
-/* Ajuste para fullscreen no mobile */
-.plyr.plyr--fullscreen {
-  z-index: 9999 !important;
-}
-
-.plyr.plyr--fullscreen .plyr__video-wrapper {
-  z-index: 9998 !important;
 }
