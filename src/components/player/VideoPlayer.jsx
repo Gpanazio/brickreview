@@ -770,7 +770,8 @@ export function VideoPlayer({
           }
         }
       } catch (error) {
-        // Erro silencioso em produção
+        console.error('Erro ao buscar stream da versão comparada:', error);
+      }
       }
     };
 
