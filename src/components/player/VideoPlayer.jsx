@@ -32,7 +32,7 @@ const PLYR_OPTIONS = {
   keyboard: { focused: true, global: true },
   tooltips: { controls: true, seek: true },
   ratio: null, // Desativa cálculo automático de aspect-ratio do Plyr
-  debug: true, // Enable debug logs
+  debug: false, // Disable debug logs
   blankVideo: '' // Prevent blank video loading issues
 };
 
@@ -679,7 +679,6 @@ export function VideoPlayer({
 
   useEffect(() => {
     const fetchStreamUrl = async () => {
-      console.log('[VideoPlayer] Fetching stream URL for video:', currentVideoId, 'Quality:', quality);
       try {
         // Use endpoint público para guests, privado para usuários autenticados
         const endpoint = isGuest
@@ -693,21 +692,16 @@ export function VideoPlayer({
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
           const data = await response.json();
-          console.log('[VideoPlayer] Stream URL received:', data.url);
           if (data.url) {
             // Se mudou o vídeo ou qualidade, salvamos o tempo atual
             const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
             setVideoUrl(data.url);
             
             // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
-          } else {
-            console.error('[VideoPlayer] URL de streaming não recebida');
           }
-        } else {
-          console.error('[VideoPlayer] Erro ao buscar URL de streaming:', response.status);
         }
       } catch (error) {
-        console.error('[VideoPlayer] Erro ao obter URL de streaming:', error);
+        // Erro silencioso em produção
       } finally {
         setIsLoadingVideo(false);
       }
@@ -723,7 +717,6 @@ export function VideoPlayer({
   useEffect(() => {
     if (!videoSource || !videoRef.current) return;
 
-    console.log('[VideoPlayer] Initializing native Plyr instance');
     const player = new Plyr(videoRef.current, {
       ...PLYR_OPTIONS,
       autoplay: false,
@@ -764,7 +757,6 @@ export function VideoPlayer({
 
     // Cleanup ao desmontar ou trocar de fonte
     return () => {
-      console.log('[VideoPlayer] Destroying Plyr instance');
       if (player) {
         player.destroy();
       }
@@ -772,17 +764,8 @@ export function VideoPlayer({
     };
   }, [videoSource]);
 
-  // Polling para atualizar currentTime caso o evento não dispare
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (playerRef.current?.plyr?.currentTime !== undefined) {
-        setCurrentTime(playerRef.current.plyr.currentTime);
-      }
-    }, 100); // Atualiza a cada 100ms
-
-    return () => clearInterval(interval);
-  }, []);
-
+  // Polling para atualizar currentTime removido em favor de eventos nativos
+  
   // Canvas drawing handlers
   const startDrawing = (e) => {
     if (!drawingMode) return;

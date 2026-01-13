@@ -85,10 +85,21 @@ if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, '../dist')
   app.use(express.static(buildPath))
 
-  app.get('*', (req, res) => {
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) {
+      return next()
+    }
     res.sendFile(path.join(buildPath, 'index.html'))
   })
 }
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not found',
+    path: req.path,
+  })
+})
 
 // Error handler
 app.use((err, req, res, _next) => {
@@ -96,14 +107,6 @@ app.use((err, req, res, _next) => {
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error',
     details: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-  })
-})
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not found',
-    path: req.path,
   })
 })
 

@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
@@ -183,10 +183,18 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       file.size, file.mimetype, req.user.id, folderId || null
     ]);
 
-    // Cleanup
-    fs.unlinkSync(file.path);
-    if (thumbPath && fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath)
-    if (proxyPath && fs.existsSync(proxyPath)) fs.unlinkSync(proxyPath)
+    // Cleanup - Isolated from DB success to prevent 500 on success
+    const cleanup = (p) => {
+      try {
+        if (p && fs.existsSync(p)) fs.unlinkSync(p)
+      } catch (err) {
+        console.warn(`⚠️ Falha ao remover arquivo temporário ${p}:`, err.message)
+      }
+    }
+
+    cleanup(file.path)
+    cleanup(thumbPath)
+    cleanup(proxyPath)
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -526,12 +534,27 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
 
-    // TODO: Excluir arquivos do R2 (video, thumbnail, proxy)
-    // Por ora, apenas exclui do banco de dados
-    // Em produção, adicionar:
-    // - DeleteObjectCommand para video.r2_key
-    // - DeleteObjectCommand para video.thumbnail_r2_key
-    // - DeleteObjectCommand para video.proxy_r2_key
+    // Busca as chaves dos arquivos antes de deletar do banco
+    const videoResult = await query(
+      'SELECT r2_key, thumbnail_r2_key, proxy_r2_key FROM brickreview_videos WHERE id = $1',
+      [videoId]
+    )
+
+    if (videoResult.rows.length > 0) {
+      const { r2_key, thumbnail_r2_key, proxy_r2_key } = videoResult.rows[0]
+      const bucket = process.env.R2_BUCKET_NAME
+
+      // Deleta arquivos do R2 em background
+      const deletePromises = [
+        r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: r2_key })),
+        thumbnail_r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: thumbnail_r2_key })),
+        proxy_r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: proxy_r2_key }))
+      ].filter(Boolean)
+
+      Promise.all(deletePromises).catch(err => {
+        console.error(`❌ Erro ao deletar objetos do R2 para o vídeo ${videoId}:`, err)
+      })
+    }
 
     // Exclui do banco de dados (CASCADE vai remover comentários, aprovações, etc.)
     await query('DELETE FROM brickreview_videos WHERE id = $1', [videoId])

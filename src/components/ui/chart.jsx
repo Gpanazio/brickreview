@@ -65,7 +65,7 @@ const ChartStyle = ({
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
+${prefix} [data-chart="${id}"] {
 ${colorConfig
 .map(([key, itemConfig]) => {
 const color =

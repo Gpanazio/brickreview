@@ -113,10 +113,20 @@ export const getVideoMetadata = (videoPath) => {
         const fpsString = videoStream.avg_frame_rate;
         if (fpsString.includes('/')) {
           const [numerator, denominator] = fpsString.split('/').map(Number);
-          fps = Math.round(numerator / denominator);
+          if (denominator && denominator !== 0) {
+            fps = Math.round(numerator / denominator);
+          }
         } else {
-          fps = Math.round(parseFloat(fpsString));
+          const parsedFps = parseFloat(fpsString);
+          if (!isNaN(parsedFps)) {
+            fps = Math.round(parsedFps);
+          }
         }
+      }
+      
+      // Validação final de FPS para evitar Infinity/NaN no banco
+      if (!Number.isFinite(fps) || fps <= 0) {
+        fps = 30;
       }
 
       resolve({

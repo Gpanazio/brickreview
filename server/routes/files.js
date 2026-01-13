@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import {
@@ -161,7 +161,11 @@ router.post('/upload', authenticateToken, upload.single('file'), async (req, res
     ]);
 
     // Cleanup
-    fs.unlinkSync(file.path);
+    try {
+      if (file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    } catch (err) {
+      console.warn(`⚠️ Falha ao remover arquivo temporário ${file.path}:`, err.message)
+    }
 
     console.log(`✅ Arquivo enviado: ${fileName} (${fileType})`);
     res.status(201).json(result.rows[0]);
@@ -241,7 +245,25 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     if (!(await requireProjectAccessFromFile(req, res, fileId))) return
 
-    // TODO: Excluir arquivo do R2
+    // Busca chaves do arquivo antes de deletar do banco
+    const fileResult = await query(
+      'SELECT r2_key, thumbnail_r2_key FROM brickreview_files WHERE id = $1',
+      [fileId]
+    )
+
+    if (fileResult.rows.length > 0) {
+      const { r2_key, thumbnail_r2_key } = fileResult.rows[0]
+      const bucket = process.env.R2_BUCKET_NAME
+
+      const deletePromises = [
+        r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: r2_key })),
+        thumbnail_r2_key && thumbnail_r2_key !== r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: thumbnail_r2_key }))
+      ].filter(Boolean)
+
+      Promise.all(deletePromises).catch(err => {
+        console.error(`❌ Erro ao deletar objetos do R2 para o arquivo ${fileId}:`, err)
+      })
+    }
 
     await query('DELETE FROM brickreview_files WHERE id = $1', [fileId])
     res.json({ message: 'Arquivo excluído com sucesso', id: fileId })

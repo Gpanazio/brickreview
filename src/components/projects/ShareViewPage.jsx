@@ -36,7 +36,6 @@ export function ShareViewPage() {
         }
       } else {
         setPasswordError(false)
-        console.log('Share data received:', data);
         setShareData(data);
 
         // Se for uma pasta ou projeto, buscar vídeos
