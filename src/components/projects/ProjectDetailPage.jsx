@@ -1002,6 +1002,15 @@ export function ProjectDetailPage() {
               <Upload className="w-4 h-4 mr-2" />
               Novo Upload
             </ContextMenuItem>
+            {currentFolderId && (
+              <ContextMenuItem 
+                className="focus:bg-red-600 focus:text-white cursor-pointer"
+                onClick={() => handleGenerateFolderShare(currentFolderId)}
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                Gerar Link de Compartilhamento
+              </ContextMenuItem>
+            )}
           </ContextMenuContent>
         </ContextMenu>
       </div>
