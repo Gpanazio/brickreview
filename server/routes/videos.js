@@ -13,6 +13,22 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
+const getOriginalFilename = (r2Key, title) => {
+  const base = r2Key ? path.basename(r2Key) : '';
+  const cleaned = base.replace(/^[0-9a-fA-F-]{36}-/, '');
+  if (cleaned) return cleaned;
+  if (title) return `${title}.mp4`;
+  return 'video.mp4';
+};
+
+const buildDownloadFilename = (originalFilename, isProxy) => {
+  if (!isProxy) return originalFilename;
+  const parsed = path.parse(originalFilename);
+  const extension = parsed.ext || '.mp4';
+  const baseName = parsed.name || 'video';
+  return `${baseName}_proxy${extension}`;
+};
+
 // Configuração do Multer para upload temporário
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -305,8 +321,11 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
     const { r2_key, r2_url, proxy_r2_key, proxy_url, title } = videoResult.rows[0];
 
     let downloadKey, downloadUrl;
+    const resolvedType = type === 'proxy' ? 'proxy' : 'original';
+    const originalFilename = getOriginalFilename(r2_key, title);
+    const filename = buildDownloadFilename(originalFilename, resolvedType === 'proxy');
 
-    if (type === 'proxy') {
+    if (resolvedType === 'proxy') {
       if (!proxy_r2_key || !proxy_url) {
         return res.status(404).json({ error: 'Proxy não disponível para este vídeo' });
       }
@@ -321,8 +340,8 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
     if (process.env.R2_PUBLIC_URL && downloadUrl && downloadUrl.includes(process.env.R2_PUBLIC_URL)) {
       return res.json({
         url: downloadUrl,
-        filename: `${title}_${type}.mp4`,
-        type
+        filename,
+        type: resolvedType
       });
     }
 
@@ -342,8 +361,8 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
 
     res.json({
       url: signedUrl,
-      filename: `${title}_${type}.mp4`,
-      type
+      filename,
+      type: resolvedType
     });
   } catch (error) {
     console.error('Erro ao gerar URL de download:', error);
