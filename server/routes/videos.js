@@ -84,12 +84,21 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
   const thumbFilename = `thumb-${uuidv4()}.jpg`;
   const proxyDir = 'temp-uploads/proxies/';
   const proxyFilename = `proxy-720p-${uuidv4()}.mp4`;
+  const spriteDir = 'temp-uploads/sprites/';
+  const spriteFilename = `sprite-${uuidv4()}.jpg`;
+  const spriteVttFilename = `sprite-${uuidv4()}.vtt`;
   let thumbPath = '';
   let thumbKey = null;
   let thumbUrl = null;
   let proxyPath = '';
   let proxyKey = null;
   let proxyUrl = null;
+  let spritePath = '';
+  let spriteKey = null;
+  let spriteUrl = null;
+  let spriteVttPath = '';
+  let spriteVttKey = null;
+  let spriteVttUrl = null;
   let metadata = {
     duration: null,
     fps: 30,
@@ -149,10 +158,56 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       proxyUrl = `${process.env.R2_PUBLIC_URL}/${proxyKey}`;
       console.log('✅ Proxy gerado e enviado para R2');
     } catch (proxyError) {
-      console.warn('⚠️  Falha ao gerar proxy, usando vídeo original:', proxyError.message);
+      console.warn('⚠️  Falha ao gerar proxy, usando vídeo original:', proxyError.message, proxyError.stack);
+
+    // 4. Gerar sprite sheet para hover scrubbing
+    try {
+      console.log('🧩 Gerando sprite sheet...');
+      const spriteResult = await generateSpriteSheet(file.path, spriteDir, spriteFilename, {
+        duration: metadata.duration,
+        width: metadata.width,
+        height: metadata.height
+      });
+
+      spritePath = spriteResult.spritePath;
+      spriteKey = `sprites/${project_id}/${spriteFilename}`;
+      spriteUrl = `${process.env.R2_PUBLIC_URL}/${spriteKey}`;
+
+      const spriteStream = fs.createReadStream(spritePath);
+      await r2Client.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: spriteKey,
+        Body: spriteStream,
+        ContentType: 'image/jpeg',
+      }));
+
+      spriteVttPath = generateSpriteVtt({
+        outputDir: spriteDir,
+        filename: spriteVttFilename,
+        spriteUrl,
+        duration: spriteResult.duration,
+        intervalSeconds: spriteResult.intervalSeconds,
+        columns: spriteResult.columns,
+        thumbWidth: spriteResult.thumbWidth,
+        thumbHeight: spriteResult.thumbHeight
+      });
+
+      spriteVttKey = `sprites/${project_id}/${spriteVttFilename}`;
+      const vttStream = fs.createReadStream(spriteVttPath);
+      await r2Client.send(new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: spriteVttKey,
+        Body: vttStream,
+        ContentType: 'text/vtt',
+      }));
+
+      spriteVttUrl = `${process.env.R2_PUBLIC_URL}/${spriteVttKey}`;
+      console.log('✅ Sprite e VTT enviados para R2');
+    } catch (spriteError) {
+      console.warn('⚠️  Falha ao gerar sprite sheet:', spriteError.message);
     }
 
-    // 4. Upload Vídeo original para R2 (usando stream para reduzir uso de memória)
+    // 5. Upload Vídeo original para R2 (usando stream para reduzir uso de memória)
     const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
     const fileStream = fs.createReadStream(file.path);
 
@@ -165,21 +220,23 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
     const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
 
-    // 5. Salva no banco
+    // 6. Salva no banco
     const result = await query(`
       INSERT INTO brickreview_videos (
         project_id, title, description, r2_key, r2_url,
         proxy_r2_key, proxy_url,
         thumbnail_r2_key, thumbnail_url,
+        sprite_r2_key, sprite_url, sprite_vtt_url,
         duration, fps, width, height,
         file_size, mime_type, uploaded_by, folder_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *
     `, [
       project_id, title, description, fileKey, r2Url,
       proxyKey, proxyUrl,
       thumbKey, thumbUrl,
+      spriteKey, spriteUrl, spriteVttUrl,
       metadata.duration, metadata.fps, metadata.width, metadata.height,
       file.size, file.mimetype, req.user.id, folderId || null
     ]);
@@ -196,6 +253,8 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
     cleanup(file.path)
     cleanup(thumbPath)
     cleanup(proxyPath)
+    cleanup(spritePath)
+    cleanup(spriteVttPath)
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -293,6 +352,7 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
     if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
 
     const { type } = req.query // 'original' or 'proxy'
+    const downloadType = type === 'proxy' ? 'proxy' : 'original'
 
     const videoResult = await query(
       'SELECT r2_key, r2_url, proxy_r2_key, proxy_url, title FROM brickreview_videos WHERE id = $1',
@@ -544,19 +604,25 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     // Busca as chaves dos arquivos antes de deletar do banco
     const videoResult = await query(
-      'SELECT r2_key, thumbnail_r2_key, proxy_r2_key FROM brickreview_videos WHERE id = $1',
+      'SELECT r2_key, thumbnail_r2_key, proxy_r2_key, sprite_r2_key, sprite_vtt_url FROM brickreview_videos WHERE id = $1',
       [videoId]
     )
 
     if (videoResult.rows.length > 0) {
-      const { r2_key, thumbnail_r2_key, proxy_r2_key } = videoResult.rows[0]
+      const { r2_key, thumbnail_r2_key, proxy_r2_key, sprite_r2_key, sprite_vtt_url } = videoResult.rows[0]
       const bucket = process.env.R2_BUCKET_NAME
+      const spriteVttKey = sprite_vtt_url && process.env.R2_PUBLIC_URL
+        && sprite_vtt_url.startsWith(`${process.env.R2_PUBLIC_URL}/`)
+        ? sprite_vtt_url.replace(`${process.env.R2_PUBLIC_URL}/`, '')
+        : null
 
       // Deleta arquivos do R2 em background
       const deletePromises = [
         r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: r2_key })),
         thumbnail_r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: thumbnail_r2_key })),
-        proxy_r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: proxy_r2_key }))
+        proxy_r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: proxy_r2_key })),
+        sprite_r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: sprite_r2_key })),
+        spriteVttKey && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: spriteVttKey }))
       ].filter(Boolean)
 
       Promise.all(deletePromises).catch(err => {

@@ -62,6 +62,9 @@ CREATE TABLE IF NOT EXISTS brickreview_videos (
   proxy_url TEXT, -- URL pública do proxy
   thumbnail_r2_key VARCHAR(500),
   thumbnail_url TEXT,
+  sprite_r2_key VARCHAR(500),
+  sprite_url TEXT,
+  sprite_vtt_url TEXT,
   duration DECIMAL(10, 2), -- Duração em segundos
   fps INTEGER DEFAULT 30,
   width INTEGER,
@@ -90,6 +93,27 @@ BEGIN
     WHERE table_name = 'brickreview_videos' AND column_name = 'proxy_url'
   ) THEN
     ALTER TABLE brickreview_videos ADD COLUMN proxy_url TEXT;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'brickreview_videos' AND column_name = 'sprite_r2_key'
+  ) THEN
+    ALTER TABLE brickreview_videos ADD COLUMN sprite_r2_key VARCHAR(500);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'brickreview_videos' AND column_name = 'sprite_url'
+  ) THEN
+    ALTER TABLE brickreview_videos ADD COLUMN sprite_url TEXT;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'brickreview_videos' AND column_name = 'sprite_vtt_url'
+  ) THEN
+    ALTER TABLE brickreview_videos ADD COLUMN sprite_vtt_url TEXT;
   END IF;
 END $$;
 
