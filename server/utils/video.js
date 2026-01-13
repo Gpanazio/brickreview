@@ -228,7 +228,7 @@ export const generateSpriteSheet = async (videoPath, outputDir, filename, option
   const safeColumns = Math.max(1, columns);
   const rows = Math.max(1, Math.ceil(totalFrames / safeColumns));
 
-  const aspectRatio = Number.isFinite(width) && Number.isFinite(height) && width > 0
+  const aspectRatio = Number.isFinite(width) && Number.isFinite(height)
     ? height / width
     : 9 / 16;
   const thumbHeight = Math.max(1, Math.round(thumbWidth * aspectRatio));
