@@ -198,3 +198,77 @@ input[type=range]::-webkit-slider-runnable-track {
 input[type=range]:focus {
   outline: none;
 }
+
+/* ============================================
+   Mobile Layout Adjustments
+   ============================================ */
+
+/* Media query para mobile (max-width: 768px) */
+@media (max-width: 768px) {
+  /* Ajusta z-index do Plyr para fullscreen funcionar no mobile */
+  .plyr,
+  .plyr--full-ui.plyr--video,
+  .plyr__video-wrapper {
+    z-index: 1 !important;
+  }
+
+  /* Garante que o vídeo ocupe a largura total em mobile */
+  .plyr video,
+  video.plyr,
+  video.plyr-react {
+    min-height: 100vh !important;
+  }
+
+  /* Ajusta botões de controle do Plyr no mobile */
+  .plyr__control--overlaid {
+    padding: 15px !important;
+  }
+
+  .plyr__control--overlaid svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  /* Ajusta fontes em mobile */
+  .plyr__time {
+    font-size: 10px !important;
+  }
+
+  /* Remove padding excessivo em mobile */
+  .plyr--audio .plyr__controls,
+  .plyr--video .plyr__controls {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+}
+
+/* Media query para telas muito pequenas (max-width: 480px) */
+@media (max-width: 480px) {
+  .plyr__time {
+    font-size: 9px !important;
+  }
+
+  .plyr__control--overlaid {
+    padding: 12px !important;
+  }
+
+  .plyr__control--overlaid svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+/* Garante que o volume slider funcione em mobile (touch) */
+input[type=range] {
+  touch-action: manipulation !important;
+}
+
+/* Ajuste para fullscreen no mobile */
+.plyr.plyr--fullscreen {
+  z-index: 9999 !important;
+}
+
+.plyr.plyr--fullscreen .plyr__video-wrapper {
+  z-index: 9998 !important;
+}

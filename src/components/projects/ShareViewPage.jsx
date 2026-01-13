@@ -291,11 +291,12 @@ export function ShareViewPage() {
                             <span className="text-zinc-300">{resource.type}</span>
                         </div>
                         <h2 className="brick-title text-2xl md:text-4xl tracking-tighter text-white uppercase">{resource.content.name || resource.content.title}</h2>
-                        <p className="text-zinc-500 text-sm max-w-2xl leading-relaxed italic">{resource.content.description || 'Nenhuma descrição disponível.'}</p>
+                        {resource.content.description && <p className="text-zinc-500 text-sm max-w-2xl leading-relaxed italic">{resource.content.description}</p>}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {videos.length === 0 ? (
+
                             <div className="col-span-full bg-zinc-900/20 border border-zinc-800 p-12 text-center">
                                 <Folder className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
                                 <p className="text-zinc-500 text-sm italic">

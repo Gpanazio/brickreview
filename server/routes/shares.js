@@ -501,4 +501,82 @@ router.get('/:token/video/:videoId/download', async (req, res) => {
   }
 });
 
+// DELETE /api/shares/:token/comments/:id - Deleta um comentário de convidado
+router.delete('/:token/comments/:id', async (req, res) => {
+  try {
+    const { token, id } = req.params;
+    const share = await loadShare(req, res, token);
+    if (!share) return;
+
+    const commentId = Number(id);
+    if (!Number.isInteger(commentId)) {
+      return res.status(400).json({ error: 'ID de comentário inválido' });
+    }
+
+    const commentResult = await query('SELECT * FROM brickreview_comments WHERE id = $1', [commentId]);
+    if (commentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Comentário não encontrado' });
+    }
+    const comment = commentResult.rows[0];
+
+    if (comment.user_id !== null) {
+      return res.status(403).json({ error: 'Não é possível deletar comentários de usuários registrados' });
+    }
+
+    if (!(await checkShareAccess(share, comment.video_id))) {
+      return res.status(403).json({ error: 'Comentário não pertence a este compartilhamento' });
+    }
+
+    await query('DELETE FROM brickreview_comments WHERE id = $1', [commentId]);
+    res.status(200).json({ message: 'Comentário deletado com sucesso' });
+  } catch (err) {
+    console.error('Erro ao deletar comentário de convidado:', err);
+    res.status(500).json({ error: 'Erro ao deletar comentário' });
+  }
+});
+
+// PATCH /api/shares/:token/comments/:id - Edita um comentário de convidado
+router.patch('/:token/comments/:id', async (req, res) => {
+  try {
+    const { token, id } = req.params;
+    const { content } = req.body;
+    const share = await loadShare(req, res, token);
+    if (!share) return;
+
+    const commentId = Number(id);
+    if (!Number.isInteger(commentId)) {
+      return res.status(400).json({ error: 'ID de comentário inválido' });
+    }
+
+    if (!content) {
+      return res.status(400).json({ error: 'Conteúdo é obrigatório' });
+    }
+
+    const commentResult = await query('SELECT * FROM brickreview_comments WHERE id = $1', [commentId]);
+    if (commentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Comentário não encontrado' });
+    }
+    const comment = commentResult.rows[0];
+
+    if (comment.user_id !== null) {
+      return res.status(403).json({ error: 'Não é possível editar comentários de usuários registrados' });
+    }
+
+    if (!(await checkShareAccess(share, comment.video_id))) {
+      return res.status(403).json({ error: 'Comentário não pertence a este compartilhamento' });
+    }
+
+    const updatedComment = await query(
+      'UPDATE brickreview_comments SET content = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [content, commentId]
+    );
+
+    res.status(200).json(updatedComment.rows[0]);
+  } catch (err) {
+    console.error('Erro ao editar comentário de convidado:', err);
+    res.status(500).json({ error: 'Erro ao editar comentário' });
+  }
+});
+
+
 export default router;

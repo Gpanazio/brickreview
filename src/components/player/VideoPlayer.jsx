@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import Plyr from 'plyr';
 import 'plyr/dist/plyr.css';
-import './VideoPlayer.css'; // Importa o CSS customizado
+import './VideoPlayer.css';
 import { useAuth } from '../../hooks/useAuth';
+
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+};
 import { Button } from '@/components/ui/button';
 import {
   ChevronLeft, ChevronRight, MessageSquare, Clock,
@@ -103,14 +107,16 @@ export function VideoPlayer({
   const [volume, setVolume] = useState(1);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [quality, setQuality] = useState(() => {
-    // H.264 (mp4) defaults to original, everything else to proxy
+    if (isMobile()) return 'proxy';
     const mime = latestVersion.mime_type || '';
     return (mime.includes('mp4') || mime.includes('h264')) ? 'original' : 'proxy';
   });
   const [duration, setDuration] = useState(latestVersion.duration || 0);
   const [isMuted, setIsMuted] = useState(false);
+  const [editingComment, setEditingComment] = useState(null);
 
   const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
+
   const playerRef = useRef(null);
   const comparisonControllerRef = useRef(null);
   const compareSyncKeyRef = useRef(null);
@@ -125,9 +131,39 @@ export function VideoPlayer({
   const isGuest = isPublic || !token;
   const canComment = true;
   const canApprove = !isGuest;
-  const canDeleteComments = !!token; // Only authenticated users can approve
-  const canShare = !isGuest; // Only authenticated users can generate share links
-  const canDownload = true; // Everyone can download (as requested)
+
+  const getGuestCommentIds = () => {
+    try {
+      const ids = localStorage.getItem('brickreview_guest_comment_ids');
+      return ids ? JSON.parse(ids) : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const addGuestCommentId = (id) => {
+    const ids = getGuestCommentIds();
+    localStorage.setItem('brickreview_guest_comment_ids', JSON.stringify([...ids, id]));
+  };
+
+  const removeGuestCommentId = (id) => {
+    const ids = getGuestCommentIds().filter(savedId => savedId !== id);
+    localStorage.setItem('brickreview_guest_comment_ids', JSON.stringify(ids));
+  };
+
+  const canDeleteComment = (comment) => {
+    if (!isGuest) return true;
+    return getGuestCommentIds().includes(comment.id);
+  };
+
+  const canEditComment = (comment) => {
+    if (!isGuest) return true;
+    return getGuestCommentIds().includes(comment.id);
+  };
+
+  const canShare = !isGuest;
+  const canDownload = true;
+
 
   // Pause video when entering drawing mode
   useEffect(() => {
@@ -153,15 +189,6 @@ export function VideoPlayer({
       if (drawingMode) setDrawingMode(false);
     }
   }, [isComparing, drawingMode]);
-
-  // Calcula aspect ratio do vídeo - Simplificado para permitir preenchimento total
-  const getAspectRatioClass = () => {
-    return 'w-full h-full';
-  };
-
-  const getMaxHeightClass = () => {
-    return 'h-full max-h-none';
-  };
 
   // Helper para cópia robusta para clipboard
   const copyToClipboard = async (text) => {
@@ -285,6 +312,9 @@ export function VideoPlayer({
 
       if (response.ok) {
         const comment = await response.json();
+        if (isGuest) {
+          addGuestCommentId(comment.id);
+        }
         setComments((prev) => [...prev, comment].sort(compareCommentsByTimestamp));
         setNewComment('');
         setAttachedFile(null);
@@ -350,6 +380,9 @@ export function VideoPlayer({
 
       if (response.ok) {
         const reply = await response.json();
+        if (isGuest) {
+          addGuestCommentId(reply.id);
+        }
         setComments((prev) => [...prev, reply]);
         setReplyText('');
         setReplyingTo(null);
@@ -382,9 +415,43 @@ export function VideoPlayer({
     setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
   };
 
-  const handleDeleteComment = (commentId) => {
-    if (!canDeleteComments) return;
+  const handleEditComment = async (commentId, newContent) => {
+    const endpoint = isGuest
+      ? `/api/shares/${shareToken}/comments/${commentId}`
+      : `/api/comments/${commentId}`;
 
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (isGuest && sharePassword) {
+      headers['x-share-password'] = sharePassword;
+    }
+
+    if (!isGuest) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(endpoint, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ content: newContent }),
+    });
+
+    if (response.ok) {
+      const updatedComment = await response.json();
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? updatedComment : c))
+      );
+      setEditingComment(null);
+      toast.success('Comentário atualizado!');
+    } else {
+      const data = await response.json().catch(() => ({}));
+      toast.error(data.error || 'Erro ao atualizar comentário');
+    }
+  };
+
+  const handleDeleteComment = (commentId) => {
     openConfirmDialog({
       title: 'Excluir comentário',
       message: 'Tem certeza que deseja excluir este comentário? Respostas vinculadas também serão removidas.',
@@ -394,11 +461,25 @@ export function VideoPlayer({
       onConfirm: async () => {
         const deleteToast = toast.loading('Excluindo comentário...');
         try {
-          const response = await fetch(`/api/comments/${commentId}`, {
+          const endpoint = isGuest
+            ? `/api/shares/${shareToken}/comments/${commentId}`
+            : `/api/comments/${commentId}`;
+
+          const headers = {
+            'Content-Type': 'application/json',
+          };
+
+          if (isGuest && sharePassword) {
+            headers['x-share-password'] = sharePassword;
+          }
+
+          if (!isGuest) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const response = await fetch(endpoint, {
             method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
+            headers,
           });
 
           const data = await response.json().catch(() => ({}));
@@ -406,6 +487,10 @@ export function VideoPlayer({
           if (!response.ok) {
             toast.error(data.error || 'Erro ao excluir comentário', { id: deleteToast });
             return;
+          }
+
+          if (isGuest) {
+            removeGuestCommentId(commentId);
           }
 
           toast.success('Comentário excluído', { id: deleteToast });
@@ -1376,18 +1461,18 @@ export function VideoPlayer({
             </div>
 
             {/* Center Controls: Frame & Timecode */}
-            <div className="flex items-center gap-4 absolute left-1/2 -translate-x-1/2">
+            <div className="flex items-center gap-4 lg:absolute lg:left-1/2 lg:-translate-x-1/2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
+                className="hidden lg:flex h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
                 onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime }}
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              
-              <div className="flex flex-col items-center min-w-[100px]">
-                <div className="brick-tech text-white font-bold text-lg tabular-nums tracking-tight leading-none">
+
+              <div className="flex flex-col items-center min-w-[80px] lg:min-w-[100px]">
+                <div className="brick-tech text-white font-bold text-sm lg:text-lg tabular-nums tracking-tight leading-none">
                   {formatTimecode(currentTime)}
                 </div>
                 <div className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest mt-0.5">
@@ -1398,12 +1483,17 @@ export function VideoPlayer({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
+                className="hidden lg:flex h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
                 onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime }}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
+
+
+
+
+
 
             {/* Right Controls: Volume & Fullscreen */}
             <div className="flex items-center gap-2">
@@ -1527,23 +1617,82 @@ export function VideoPlayer({
                           <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                             {comment.username}
                           </span>
-                          {canDeleteComments && (
-                            <button
-                              type="button"
-                              data-comment-actions
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteComment(comment.id);
-                              }}
-                              className="text-zinc-600 hover:text-red-500 transition-colors"
-                              title="Excluir comentário"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                          {(canEditComment(comment) || canDeleteComment(comment)) && (
+                            <div className="flex items-center gap-1">
+                              {canEditComment(comment) && (
+                                <button
+                                  type="button"
+                                  data-comment-actions
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingComment(editingComment === comment.id ? null : comment.id);
+                                  }}
+                                  className="text-zinc-600 hover:text-blue-500 transition-colors"
+                                  title="Editar comentário"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                              )}
+                              {canDeleteComment(comment) && (
+                                <button
+                                  type="button"
+                                  data-comment-actions
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteComment(comment.id);
+                                  }}
+                                  className="text-zinc-600 hover:text-red-500 transition-colors"
+                                  title="Excluir comentário"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
+                      {editingComment === comment.id ? (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const editContent = e.target.elements.editContent.value;
+                            if (editContent.trim()) {
+                              handleEditComment(comment.id, editContent.trim());
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-2"
+                        >
+                          <textarea
+                            name="editContent"
+                            defaultValue={comment.content}
+                            autoFocus
+                            rows={3}
+                            className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-blue-600 transition-colors resize-none"
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              type="submit"
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                            >
+                              Salvar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingComment(null);
+                              }}
+                              className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
+                      )}
                     </div>
 
                     {/* Botão de Responder - disponível para todos */}
@@ -1624,23 +1773,82 @@ export function VideoPlayer({
                                   minute: '2-digit'
                                 })}
                               </span>
-                              {canDeleteComments && (
-                                <button
-                                  type="button"
-                                  data-comment-actions
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteComment(reply.id);
-                                  }}
-                                  className="text-zinc-600 hover:text-red-500 transition-colors"
-                                  title="Excluir comentário"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                              {(canEditComment(reply) || canDeleteComment(reply)) && (
+                                <div className="flex items-center gap-1">
+                                  {canEditComment(reply) && (
+                                    <button
+                                      type="button"
+                                      data-comment-actions
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingComment(editingComment === reply.id ? null : reply.id);
+                                      }}
+                                      className="text-zinc-600 hover:text-blue-500 transition-colors"
+                                      title="Editar comentário"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  {canDeleteComment(reply) && (
+                                    <button
+                                      type="button"
+                                      data-comment-actions
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteComment(reply.id);
+                                      }}
+                                      className="text-zinc-600 hover:text-red-500 transition-colors"
+                                      title="Excluir comentário"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>
-                          <p className="text-sm text-zinc-400 leading-relaxed">{reply.content}</p>
+                          {editingComment === reply.id ? (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const editContent = e.target.elements.editContent.value;
+                                if (editContent.trim()) {
+                                  handleEditComment(reply.id, editContent.trim());
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-2"
+                            >
+                              <textarea
+                                name="editContent"
+                                defaultValue={reply.content}
+                                autoFocus
+                                rows={2}
+                                className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-blue-600 transition-colors resize-none"
+                              />
+                              <div className="flex gap-2 mt-2">
+                                <button
+                                  type="submit"
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                                >
+                                  Salvar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingComment(null);
+                                  }}
+                                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </form>
+                          ) : (
+                            <p className="text-sm text-zinc-400 leading-relaxed">{reply.content}</p>
+                          )}
 
                           {/* Botão de responder também nas respostas */}
                           {canComment && (

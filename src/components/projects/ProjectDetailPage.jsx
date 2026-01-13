@@ -534,6 +534,33 @@ export function ProjectDetailPage() {
     }
   };
 
+  const handleMoveFolder = async (folderId, parentFolderId) => {
+    const moveToast = toast.loading('Movendo pasta...');
+
+    try {
+      const response = await fetch(`/api/folders/${folderId}/move`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ new_parent_folder_id: parentFolderId })
+      });
+
+      if (response.ok) {
+        toast.success('Pasta movida com sucesso!', { id: moveToast });
+        fetchProjectDetails();
+        fetchFolders();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao mover pasta', { id: moveToast });
+      }
+    } catch (error) {
+      console.error('Erro ao mover pasta:', error);
+      toast.error('Erro ao mover pasta', { id: moveToast });
+    }
+  };
+
   const handleDownloadVideo = async (videoId, type) => {
     try {
       const endpoint = `/api/videos/${videoId}/download?type=${type}`;
@@ -756,6 +783,7 @@ export function ProjectDetailPage() {
                 onRenameFolder={fetchFolders}
                 onDeleteFolder={fetchFolders}
                 onMoveVideo={handleMoveVideo}
+                onMoveFolder={handleMoveFolder}
                 onFileDelete={fetchFiles}
                 onGenerateFolderShare={handleGenerateFolderShare}
                 token={token}
@@ -797,10 +825,12 @@ export function ProjectDetailPage() {
                         show: { opacity: 1, scale: 1 }
                       }}
                     >
-                      <FolderCard 
-                        folder={folder} 
+                      <FolderCard
+                        folder={folder}
                         onClick={() => setCurrentFolderId(folder.id)}
                         onGenerateShare={() => handleGenerateFolderShare(folder.id)}
+                        onMoveVideo={handleMoveVideo}
+                        onMoveFolder={handleMoveFolder}
                         onDelete={() => {
                           openConfirmDialog({
                             title: 'Excluir pasta',
@@ -1076,15 +1106,23 @@ const formatFileSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const FolderCard = memo(({ folder, onClick, onGenerateShare, onDelete, onMoveVideo }) => {
+const FolderCard = memo(({ folder, onClick, onGenerateShare, onDelete, onMoveVideo, onMoveFolder }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const previews = folder.previews || [];
   const hasPreviews = previews.length > 0;
 
+  const handleDragStart = (e) => {
+    e.stopPropagation();
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/x-brick-folder-id', String(folder.id));
+  };
+
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.dataTransfer.types.includes('application/x-brick-video-id')) {
+    const hasVideoData = e.dataTransfer.types.includes('application/x-brick-video-id');
+    const hasFolderData = e.dataTransfer.types.includes('application/x-brick-folder-id');
+    if (hasVideoData || hasFolderData) {
       setIsDragOver(true);
       e.dataTransfer.dropEffect = 'move';
     }
@@ -1103,8 +1141,14 @@ const FolderCard = memo(({ folder, onClick, onGenerateShare, onDelete, onMoveVid
 
     try {
       const videoId = e.dataTransfer.getData('application/x-brick-video-id');
+      const folderId = e.dataTransfer.getData('application/x-brick-folder-id');
+
       if (videoId) {
         onMoveVideo?.(parseInt(videoId), folder.id);
+      } else if (folderId) {
+        if (Number(folderId) !== folder.id) {
+          onMoveFolder?.(parseInt(folderId), folder.id);
+        }
       }
     } catch (error) {
       console.error('Erro ao processar drop na pasta:', error);
@@ -1117,12 +1161,15 @@ const FolderCard = memo(({ folder, onClick, onGenerateShare, onDelete, onMoveVid
         <div
           className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragOver ? 'ring-2 ring-blue-500 scale-105' : ''}`}
           onClick={onClick}
+          draggable
+          onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           {isDragOver && (
             <motion.div
+
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
