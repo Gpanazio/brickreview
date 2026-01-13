@@ -204,7 +204,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       spriteVttUrl = `${process.env.R2_PUBLIC_URL}/${spriteVttKey}`;
       console.log('✅ Sprite e VTT enviados para R2');
     } catch (spriteError) {
-      console.warn('⚠️  Falha ao gerar sprite sheet:', spriteError.message);
+      console.warn('⚠️  Falha ao gerar sprite sheet:', spriteError.message, spriteError.stack);
     }
 
     // 5. Upload Vídeo original para R2 (usando stream para reduzir uso de memória)
