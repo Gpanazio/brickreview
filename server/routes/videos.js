@@ -157,8 +157,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       proxyUrl = `${process.env.R2_PUBLIC_URL}/${proxyKey}`;
       console.log('✅ Proxy gerado e enviado para R2');
     } catch (proxyError) {
-      console.warn('⚠️  Falha ao gerar proxy, usando vídeo original:', proxyError.message);
-    }
+      console.warn('⚠️  Falha ao gerar proxy, usando vídeo original:', proxyError.message, proxyError.stack);
 
     // 4. Gerar sprite sheet para hover scrubbing
     try {
