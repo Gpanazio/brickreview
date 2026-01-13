@@ -234,7 +234,12 @@ function Sidebar({ collapsed, setCollapsed }) {
               Configurações
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={logout}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                logout();
+                window.location.href = '/login';
+              }}
               className="text-red-500 focus:text-red-400 focus:bg-red-500/10 rounded-none cursor-pointer"
             >
               <LogOut className="w-4 h-4 mr-2" />
@@ -737,7 +742,12 @@ function MobileNav({ navItems, user, logout }) {
             <Settings className="w-4 h-4 mr-2" /> Configurações
           </DropdownMenuItem>
           <DropdownMenuItem 
-            onClick={logout}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              logout();
+              window.location.href = '/login';
+            }}
             className="text-red-500 focus:text-red-400 focus:bg-red-500/10 rounded-none cursor-pointer"
           >
             <LogOut className="w-4 h-4 mr-2" /> Sair
