@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, Upload, Play, Clock, MessageSquare,
   CheckCircle2, AlertCircle, Plus, MoreVertical, FileVideo, LayoutGrid, FolderTree,
-  FolderPlus, History, Share2, Trash2, Archive, Folder, FolderOpen
+  FolderPlus, History, Share2, Trash2, Archive, Folder, FolderOpen, Download
 } from 'lucide-react';
 import {
   ContextMenu,
