@@ -51,20 +51,12 @@ router.get('/', authenticateToken, async (req, res) => {
     let projects;
     let limitClause = recent === 'true' ? ' LIMIT 5' : '';
 
-    if (req.user.role === 'admin') {
-      projects = await query(`
-        SELECT * FROM brickreview_projects_with_stats 
-        ORDER BY updated_at DESC
-        ${limitClause}
-      `);
-    } else {
-      projects = await query(`
-        SELECT p.* FROM brickreview_projects_with_stats p
-        JOIN brickreview_project_members m ON p.id = m.project_id
-        WHERE m.user_id = $1
-        ORDER BY p.updated_at DESC
-      `, [req.user.id]);
-    }
+    // Todos os usuários logados podem ver todos os projetos
+    projects = await query(`
+      SELECT * FROM brickreview_projects_with_stats 
+      ORDER BY updated_at DESC
+      ${limitClause}
+    `);
 
     res.json(projects.rows);
   } catch (error) {

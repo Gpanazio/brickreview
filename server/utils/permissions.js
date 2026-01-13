@@ -12,16 +12,8 @@ export async function requireProjectAccess(req, res, projectId) {
 
   if (isAdmin(req.user)) return true
 
-  const membership = await query(
-    'SELECT 1 FROM brickreview_project_members WHERE project_id = $1 AND user_id = $2',
-    [projectId, req.user.id]
-  )
-
-  if (membership.rows.length === 0) {
-    res.status(403).json({ error: 'Acesso negado ao projeto' })
-    return false
-  }
-
+  // O sistema é igual para todos os usuários logados.
+  // Todos os usuários autenticados têm acesso a todos os projetos.
   return true
 }
 
