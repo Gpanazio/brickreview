@@ -6,7 +6,7 @@ import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import { requireProjectAccess, requireProjectAccessFromVideo } from '../utils/permissions.js'
 import r2Client from '../utils/r2.js'
-import { generateThumbnail, getVideoMetadata, generateProxy } from '../utils/video.js';
+import { generateThumbnail, getVideoMetadata, generateProxy, generateSpriteSheet, generateSpriteVtt } from '../utils/video.js';
 import { buildDownloadFilename, getOriginalFilename } from '../utils/filename.js';
 import path from 'path';
 import fs from 'fs';

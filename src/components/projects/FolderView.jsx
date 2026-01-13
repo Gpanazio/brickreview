@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Folder, FolderOpen, File, FileImage, FileText, FileAudio, Plus, MoreVertical, Edit, Trash2, ExternalLink } from 'lucide-react';
+import { Folder, FolderOpen, File, FileImage, FileText, FileAudio, Plus, MoreVertical, Edit, Trash2, ExternalLink, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { CreateFolderDialog } from './CreateFolderDialog';
@@ -231,7 +231,10 @@ export function FolderView({
   const handleFolderDragOver = (e, folderId) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.dataTransfer.types.includes('video')) {
+    const hasVideoData = Array.from(e.dataTransfer.types).some(type => 
+      type === 'video' || type === 'application/x-brick-video-id'
+    );
+    if (hasVideoData) {
       setDragOverFolder(folderId);
       e.dataTransfer.dropEffect = 'move';
     }
@@ -251,7 +254,13 @@ export function FolderView({
     setDragOverFolder(null);
 
     try {
-      const videoData = e.dataTransfer.getData('video');
+      let videoData = e.dataTransfer.getData('video');
+      if (!videoData) {
+        const videoId = e.dataTransfer.getData('application/x-brick-video-id');
+        if (videoId) {
+          videoData = JSON.stringify({ id: parseInt(videoId) });
+        }
+      }
       if (videoData) {
         const video = JSON.parse(videoData);
         await onMoveVideo?.(video.id, folderId);
@@ -462,6 +471,7 @@ export function FolderView({
                 e.stopPropagation();
                 e.dataTransfer.effectAllowed = 'move';
                 e.dataTransfer.setData('video', JSON.stringify(video));
+                e.dataTransfer.setData('application/x-brick-video-id', String(video.id));
               }}
               className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-blue-600 transition-all cursor-pointer"
               onClick={() => onVideoClick(video)}
