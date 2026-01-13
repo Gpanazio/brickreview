@@ -304,7 +304,23 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
 
     const { r2_key, r2_url, proxy_r2_key, proxy_url, title } = videoResult.rows[0];
 
-    let downloadKey, downloadUrl;
+    const getOriginalFilename = (key, fallbackTitle) => {
+      if (key) {
+        const baseName = path.basename(key);
+        const stripped = baseName.replace(/^[0-9a-f-]{36}-/, '');
+        if (stripped) return stripped;
+      }
+      if (fallbackTitle) return `${fallbackTitle}.mp4`;
+      return 'video.mp4';
+    };
+
+    const addSuffixToFilename = (filename, suffix) => {
+      const ext = path.extname(filename);
+      const base = ext ? filename.slice(0, -ext.length) : filename;
+      return `${base}${suffix}${ext}`;
+    };
+
+    let downloadKey, downloadUrl, resolvedType, filename;
 
     if (type === 'proxy') {
       if (!proxy_r2_key || !proxy_url) {
@@ -312,17 +328,21 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
       }
       downloadKey = proxy_r2_key;
       downloadUrl = proxy_url;
+      resolvedType = 'proxy';
+      filename = addSuffixToFilename(getOriginalFilename(r2_key, title), '_proxy');
     } else {
       downloadKey = r2_key;
       downloadUrl = r2_url;
+      resolvedType = 'original';
+      filename = getOriginalFilename(r2_key, title);
     }
 
     // Se temos URL pública, retorna diretamente
     if (process.env.R2_PUBLIC_URL && downloadUrl && downloadUrl.includes(process.env.R2_PUBLIC_URL)) {
       return res.json({
         url: downloadUrl,
-        filename: `${title}_${type}.mp4`,
-        type
+        filename,
+        type: resolvedType
       });
     }
 
@@ -342,8 +362,8 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
 
     res.json({
       url: signedUrl,
-      filename: `${title}_${type}.mp4`,
-      type
+      filename,
+      type: resolvedType
     });
   } catch (error) {
     console.error('Erro ao gerar URL de download:', error);
