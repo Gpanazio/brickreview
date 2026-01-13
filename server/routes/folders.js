@@ -26,7 +26,7 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
           created_at,
           ROW_NUMBER() OVER (PARTITION BY folder_id ORDER BY created_at DESC) as rn
         FROM brickreview_videos
-        WHERE thumbnail_url IS NOT NULL
+        WHERE thumbnail_url IS NOT NULL AND deleted_at IS NULL
       ),
       folder_previews AS (
         SELECT
