@@ -13,6 +13,22 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
+const getOriginalFilename = (r2Key, title) => {
+  const base = r2Key ? path.basename(r2Key) : '';
+  const cleaned = base.replace(/^[0-9a-fA-F-]{36}-/, '');
+  if (cleaned) return cleaned;
+  if (title) return `${title}.mp4`;
+  return 'video.mp4';
+};
+
+const buildDownloadFilename = (originalFilename, isProxy) => {
+  if (!isProxy) return originalFilename;
+  const parsed = path.parse(originalFilename);
+  const extension = parsed.ext || '.mp4';
+  const baseName = parsed.name || 'video';
+  return `${baseName}_proxy${extension}`;
+};
+
 // Configuração do Multer para upload temporário
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -304,25 +320,12 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
 
     const { r2_key, r2_url, proxy_r2_key, proxy_url, title } = videoResult.rows[0];
 
-    const getOriginalFilename = (key, fallbackTitle) => {
-      if (key) {
-        const baseName = path.basename(key);
-        const stripped = baseName.replace(/^[0-9a-f-]{36}-/, '');
-        if (stripped) return stripped;
-      }
-      if (fallbackTitle) return `${fallbackTitle}.mp4`;
-      return 'video.mp4';
-    };
+    let downloadKey, downloadUrl;
+    const resolvedType = type === 'proxy' ? 'proxy' : 'original';
+    const originalFilename = getOriginalFilename(r2_key, title);
+    const filename = buildDownloadFilename(originalFilename, resolvedType === 'proxy');
 
-    const addSuffixToFilename = (filename, suffix) => {
-      const ext = path.extname(filename);
-      const base = ext ? filename.slice(0, -ext.length) : filename;
-      return `${base}${suffix}${ext}`;
-    };
-
-    let downloadKey, downloadUrl, resolvedType, filename;
-
-    if (type === 'proxy') {
+    if (resolvedType === 'proxy') {
       if (!proxy_r2_key || !proxy_url) {
         return res.status(404).json({ error: 'Proxy não disponível para este vídeo' });
       }
