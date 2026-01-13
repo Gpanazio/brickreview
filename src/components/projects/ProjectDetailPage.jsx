@@ -1076,20 +1076,65 @@ const formatFileSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const FolderCard = memo(({ folder, onClick, onGenerateShare, onDelete }) => {
+const FolderCard = memo(({ folder, onClick, onGenerateShare, onDelete, onMoveVideo }) => {
+  const [isDragOver, setIsDragOver] = useState(false);
   const previews = folder.previews || [];
   const hasPreviews = previews.length > 0;
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('application/x-brick-video-id')) {
+      setIsDragOver(true);
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    try {
+      const videoId = e.dataTransfer.getData('application/x-brick-video-id');
+      if (videoId) {
+        onMoveVideo?.(parseInt(videoId), folder.id);
+      }
+    } catch (error) {
+      console.error('Erro ao processar drop na pasta:', error);
+    }
+  };
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          className="group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all"
+          className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragOver ? 'ring-2 ring-blue-500 scale-105' : ''}`}
           onClick={onClick}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
+          {isDragOver && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-10 bg-blue-900/50 backdrop-blur-sm flex items-center justify-center"
+            >
+              <p className="text-white font-bold text-xs uppercase tracking-widest">Mover para esta pasta</p>
+            </motion.div>
+          )}
           <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0">
             {!hasPreviews ? (
               <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
+
                 <Folder className="w-12 h-12 text-zinc-800 group-hover:text-zinc-700 transition-colors" />
               </div>
             ) : (
