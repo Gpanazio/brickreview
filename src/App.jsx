@@ -108,7 +108,7 @@ function AppContent() {
           
           <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
           
-          <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen bg-black/20">
+          <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen bg-black/20 pb-20 md:pb-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}
@@ -149,7 +149,9 @@ function Sidebar({ collapsed, setCollapsed }) {
   ]
 
   return (
-    <aside className={`glass-panel border-r border-zinc-800/50 flex flex-col transition-all duration-300 relative z-20 ${
+    <>
+    <MobileNav navItems={navItems} user={user} logout={logout} />
+    <aside className={`hidden md:flex glass-panel border-r border-zinc-800/50 flex-col transition-all duration-300 relative z-20 ${
       collapsed ? 'w-20' : 'w-64'
     }`}>
       {/* Logo */}
@@ -242,6 +244,7 @@ function Sidebar({ collapsed, setCollapsed }) {
         </DropdownMenu>
       </div>
     </aside>
+    </>
   )
 }
 
@@ -304,10 +307,10 @@ function ProjectsPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <header className="border-b border-zinc-800/50 glass-panel sticky top-0 z-30 px-8 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
-            <h1 className="brick-title text-2xl tracking-tighter">Conta da Brick</h1>
+      <header className="border-b border-zinc-800/50 glass-panel sticky top-0 z-30 px-4 md:px-8 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 md:gap-4 flex-1">
+            <h1 className="brick-title text-xl md:text-2xl tracking-tighter truncate">Conta da Brick</h1>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="glass-button-primary border-none rounded-none">
@@ -361,17 +364,17 @@ function ProjectsPage() {
           </div>
 
           {/* Search */}
-          <div className="relative w-96">
+          <div className="relative flex-1 md:flex-none md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <Input
-              placeholder="Buscar projetos..."
-              className="pl-10 glass-input border-none h-10"
+              placeholder="Buscar..."
+              className="pl-9 glass-input border-none h-10 text-xs"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center gap-2 ml-4">
+          <div className="hidden md:flex items-center gap-2 ml-4">
             <Button variant="ghost" size="icon">
               <User className="w-5 h-5" />
             </Button>
@@ -380,9 +383,9 @@ function ProjectsPage() {
       </header>
 
       {/* Recent Projects Section */}
-      <div className="px-8 py-8 border-b border-zinc-900/50 bg-zinc-950/20">
-        <h2 className="brick-tech text-[10px] text-zinc-500 mb-6 uppercase tracking-[0.3em]">Projetos Recentes</h2>
-        <div className="flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
+      <div className="px-4 md:px-8 py-6 md:py-8 border-b border-zinc-900/50 bg-zinc-950/20">
+        <h2 className="brick-tech text-[10px] text-zinc-500 mb-4 md:mb-6 uppercase tracking-[0.3em]">Recentes</h2>
+        <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 no-scrollbar">
           {projects.slice(0, 5).map((project) => {
             const coverUrl = project.cover_image_url || project.thumbnail_url || project.thumbnail;
             const hasValidCover = !isDefaultUrl(coverUrl);
@@ -414,7 +417,7 @@ function ProjectsPage() {
       </div>
 
       {/* Filters & View Controls */}
-      <div className="px-8 py-4 flex items-center justify-between border-b border-zinc-900/50 bg-zinc-950/30 backdrop-blur-sm sticky top-[73px] z-20">
+      <div className="px-4 md:px-8 py-4 flex items-center justify-between border-b border-zinc-900/50 bg-zinc-950/30 backdrop-blur-sm sticky top-[73px] z-20">
         <div className="flex items-center gap-2">
           {/* Sort Dropdown - Minimalista */}
           <DropdownMenu>
@@ -466,7 +469,7 @@ function ProjectsPage() {
       </div>
 
       {/* Projects Grid/List */}
-      <div className="flex-1 overflow-y-auto p-8 h-full">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 h-full">
         {loading ? (
           viewMode === 'grid' ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
@@ -694,6 +697,55 @@ function StarredPage() {
 
 function ArchivedPage() {
   return <div className="p-8"><h1 className="brick-title text-3xl">Projetos Arquivados</h1></div>
+}
+
+function MobileNav({ navItems, user, logout }) {
+  const location = useLocation()
+  const isActive = (path) => location.pathname === path
+
+  return (
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-zinc-950/80 backdrop-blur-xl border-t border-zinc-800 z-50 px-6 flex items-center justify-between">
+      {navItems.slice(0, 3).map((item) => (
+        <Link
+          key={item.path}
+          to={item.path}
+          className={`flex flex-col items-center gap-1 transition-colors ${
+            isActive(item.path) ? 'text-red-500' : 'text-zinc-500'
+          }`}
+        >
+          <item.icon className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-tighter">
+            {item.label.split(' ')[0]}
+          </span>
+        </Link>
+      ))}
+      
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="flex flex-col items-center gap-1 text-zinc-500">
+            <div className="w-6 h-6 bg-red-600 flex items-center justify-center">
+              <span className="text-[10px] font-black text-white">{user.username.substring(0, 2).toUpperCase()}</span>
+            </div>
+            <span className="text-[9px] uppercase font-bold tracking-tighter">Perfil</span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="bg-zinc-950 border-zinc-800 rounded-none w-56 mb-2">
+          <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
+            <User className="w-4 h-4 mr-2" /> Perfil
+          </DropdownMenuItem>
+          <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
+            <Settings className="w-4 h-4 mr-2" /> Configurações
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={logout}
+            className="text-red-500 focus:text-red-400 focus:bg-red-500/10 rounded-none cursor-pointer"
+          >
+            <LogOut className="w-4 h-4 mr-2" /> Sair
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </nav>
+  )
 }
 
 export default App

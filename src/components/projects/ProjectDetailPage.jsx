@@ -516,36 +516,38 @@ export function ProjectDetailPage() {
   return (
     <div className="flex flex-col h-full bg-[#050505]">
       {/* Header do Projeto */}
-      <header className="border-b border-zinc-800/20 glass-panel px-8 py-8 relative overflow-hidden">
+      <header className="border-b border-zinc-800/20 glass-panel px-4 py-6 md:px-8 md:py-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-600/30 to-transparent" />
         
-        <div className="flex items-center gap-6 relative z-10">
-          <motion.div
-            whileHover={{ x: -4 }}
-            transition={{ type: "spring", stiffness: 400, damping: 10 }}
-          >
-            <Link to="/" className="w-10 h-10 flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors border border-zinc-800/50">
-              <ChevronLeft className="w-6 h-6" />
-            </Link>
-          </motion.div>
-
-          <div className="flex-1">
-            <motion.h1 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="brick-title text-4xl tracking-tighter uppercase leading-none mb-2"
+        <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6 relative z-10">
+          <div className="flex items-center gap-4 flex-1">
+            <motion.div
+              whileHover={{ x: -4 }}
+              transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
-              {project.name}
-            </motion.h1>
-            <div className="flex items-center gap-2">
-              <span className="h-[1px] w-4 bg-red-600" />
-              <p className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black">
-                Cliente: <span className="text-zinc-300">{project.client_name || 'N/A'}</span> • {project.videos?.length || 0} Entregáveis
-              </p>
+              <Link to="/" className="w-10 h-10 flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors border border-zinc-800/50 flex-shrink-0">
+                <ChevronLeft className="w-6 h-6" />
+              </Link>
+            </motion.div>
+
+            <div className="flex-1 min-w-0">
+              <motion.h1 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="brick-title text-2xl md:text-4xl tracking-tighter uppercase leading-none mb-2 truncate"
+              >
+                {project.name}
+              </motion.h1>
+              <div className="flex items-center gap-2">
+                <span className="h-[1px] w-4 bg-red-600" />
+                <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] md:tracking-[0.3em] font-black truncate">
+                  <span className="hidden sm:inline">Cliente: </span><span className="text-zinc-300">{project.client_name || 'N/A'}</span> • {project.videos?.length || 0} Itens
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between md:justify-end gap-3 md:gap-4 border-t border-zinc-800/30 pt-4 md:pt-0 md:border-none">
             {/* View Mode Toggle */}
             <div className="flex bg-zinc-950/50 p-1 border border-zinc-800/50">
               <button
@@ -590,7 +592,7 @@ export function ProjectDetailPage() {
 
       {/* Lista de Vídeos */}
       <div
-        className="flex-1 overflow-y-auto p-8 custom-scrollbar relative"
+        className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -616,7 +618,7 @@ export function ProjectDetailPage() {
         <ContextMenu>
           <ContextMenuTrigger className="min-h-full block">
             {/* Breadcrumbs Navigation */}
-            <div className="flex items-center gap-2 mb-6 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="flex items-center gap-2 mb-6 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-500 overflow-x-auto no-scrollbar pb-2">
               <button 
                 onClick={() => setCurrentFolderId(null)}
                 className={`hover:text-white transition-colors whitespace-nowrap ${!currentFolderId ? 'text-white' : ''}`}

@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const PLYR_OPTIONS = {
-  controls: [], // Desativa controles padrão para usar customizados
+  controls: ['play-large'], // Mantém apenas o play central, os demais são customizados
   keyboard: { focused: true, global: true },
   tooltips: { controls: true, seek: true },
   ratio: null, // Desativa cálculo automático de aspect-ratio do Plyr
@@ -899,9 +899,9 @@ export function VideoPlayer({
 
   return (
     <>
-      <div className="flex h-full bg-[#050505] overflow-hidden">
+      <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden">
       {/* Área do Player */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
         <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
           <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors">
             <ChevronLeft className="w-5 h-5" />
@@ -1276,8 +1276,8 @@ export function VideoPlayer({
       </div>
 
       {/* Barra Lateral de Comentários / Histórico */}
-      <div className="w-96 border-l border-zinc-800/50 glass-panel flex flex-col relative z-20">
-        <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between">
+      <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:min-h-0 flex-1 lg:flex-none">
+        <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
           <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
             {showHistory ? (
               <><History className="w-4 h-4 text-red-600" /> Histórico</>
