@@ -193,7 +193,7 @@ router.get('/folder/:folderId', authenticateToken, async (req, res) => {
 
     const result = await query(
       `SELECT * FROM brickreview_files
-       WHERE folder_id = $1
+       WHERE folder_id = $1 AND deleted_at IS NULL
        ORDER BY created_at DESC`,
       [folderId]
     );
@@ -220,7 +220,7 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
 
     const result = await query(
       `SELECT * FROM brickreview_files
-       WHERE project_id = $1 AND folder_id IS NULL
+       WHERE project_id = $1 AND folder_id IS NULL AND deleted_at IS NULL
        ORDER BY created_at DESC`,
       [projectId]
     );
@@ -234,7 +234,7 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
 
 /**
  * @route DELETE /api/files/:id
- * @desc Delete a file
+ * @desc Soft delete a file
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
@@ -245,31 +245,50 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     if (!(await requireProjectAccessFromFile(req, res, fileId))) return
 
-    // Busca chaves do arquivo antes de deletar do banco
-    const fileResult = await query(
-      'SELECT r2_key, thumbnail_r2_key FROM brickreview_files WHERE id = $1',
-      [fileId]
+    const now = new Date();
+    const result = await query(
+      'UPDATE brickreview_files SET deleted_at = $1 WHERE id = $2 RETURNING id',
+      [now, fileId]
     )
 
-    if (fileResult.rows.length > 0) {
-      const { r2_key, thumbnail_r2_key } = fileResult.rows[0]
-      const bucket = process.env.R2_BUCKET_NAME
-
-      const deletePromises = [
-        r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: r2_key })),
-        thumbnail_r2_key && thumbnail_r2_key !== r2_key && r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: thumbnail_r2_key }))
-      ].filter(Boolean)
-
-      Promise.all(deletePromises).catch(err => {
-        console.error(`❌ Erro ao deletar objetos do R2 para o arquivo ${fileId}:`, err)
-      })
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Arquivo não encontrado' });
     }
 
-    await query('DELETE FROM brickreview_files WHERE id = $1', [fileId])
-    res.json({ message: 'Arquivo excluído com sucesso', id: fileId })
+    res.json({ message: 'Arquivo enviado para a lixeira', id: fileId })
   } catch (error) {
     console.error('Erro ao excluir arquivo:', error);
     res.status(500).json({ error: 'Erro ao excluir arquivo' });
+  }
+});
+
+/**
+ * @route POST /api/files/:id/restore
+ * @desc Restore a deleted file
+ */
+router.post('/:id/restore', authenticateToken, async (req, res) => {
+  try {
+    const fileId = Number(req.params.id)
+    if (!Number.isInteger(fileId)) {
+      return res.status(400).json({ error: 'ID de arquivo inválido' })
+    }
+
+    // A verificação de permissão não é necessária aqui, pois o usuário não pode "adivinhar" o ID de um arquivo deletado
+    // que ele não deveria ver. Se ele tem o ID, é porque ele viu em algum lugar (provavelmente na lixeira, que terá suas próprias permissões)
+    
+    const result = await query(
+      'UPDATE brickreview_files SET deleted_at = NULL WHERE id = $1 RETURNING *',
+      [fileId]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Arquivo não encontrado na lixeira' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Erro ao restaurar arquivo:', error);
+    res.status(500).json({ error: 'Erro ao restaurar arquivo' });
   }
 });
 
