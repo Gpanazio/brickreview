@@ -388,13 +388,9 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
       }
       downloadKey = proxy_r2_key;
       downloadUrl = proxy_url;
-      resolvedType = 'proxy';
-      filename = addSuffixToFilename(getOriginalFilename(r2_key, title), '_proxy');
     } else {
       downloadKey = r2_key;
       downloadUrl = r2_url;
-      resolvedType = 'original';
-      filename = getOriginalFilename(r2_key, title);
     }
 
     // Se temos URL pública, retorna diretamente
