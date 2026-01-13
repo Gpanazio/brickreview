@@ -332,6 +332,7 @@ export function ProjectDetailPage() {
       if (response.ok) {
         toast.success('Vídeo excluído com sucesso!', { id: loadingToast });
         fetchProjectDetails();
+        fetchFolders();
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || 'Erro ao excluir vídeo', { id: loadingToast });

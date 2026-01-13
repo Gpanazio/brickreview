@@ -60,6 +60,12 @@ function getFileType(mimeType) {
  * @desc Upload any file type to R2 and save metadata
  */
 router.post('/upload', authenticateToken, upload.single('file'), async (req, res) => {
+  res.setTimeout(300000, () => {
+    console.error('Upload timeout');
+    if (!res.headersSent) {
+      res.status(504).json({ error: 'Tempo limite de upload excedido' });
+    }
+  });
   const { project_id, name, description, folder_id } = req.body;
   const file = req.file;
 

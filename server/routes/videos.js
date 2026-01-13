@@ -29,13 +29,24 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 2 * 1024 * 1024 * 1024, // 2GB
+  }
+});
 
 /**
  * @route POST /api/videos/upload
  * @desc Upload a video to R2 and save metadata
  */
 router.post('/upload', authenticateToken, upload.single('video'), async (req, res) => {
+  res.setTimeout(600000, () => {
+    console.error('Upload timeout');
+    if (!res.headersSent) {
+      res.status(504).json({ error: 'Tempo limite de upload excedido' });
+    }
+  });
   const { project_id, title, description, folder_id } = req.body;
   const file = req.file;
 

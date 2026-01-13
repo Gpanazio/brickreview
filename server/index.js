@@ -25,6 +25,17 @@ const PORT = process.env.PORT || 3002
 // Middleware
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
+
+// Aumenta timeout para uploads grandes
+app.use((req, res, next) => {
+  res.setTimeout(600000, () => {
+    console.error('Request timeout:', req.method, req.path);
+    if (!res.headersSent) {
+      res.status(504).json({ error: 'Tempo limite da requisição excedido' });
+    }
+  });
+  next();
+});
 const allowAnyOrigin = !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*'
 
 app.use(
