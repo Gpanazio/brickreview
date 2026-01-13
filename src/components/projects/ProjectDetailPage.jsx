@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { CreateFolderDialog } from "./CreateFolderDialog";
 
 export function ProjectDetailPage() {
   const { id } = useParams();
@@ -46,6 +47,7 @@ export function ProjectDetailPage() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: 'Confirmar ação',
@@ -185,6 +187,70 @@ export function ProjectDetailPage() {
       }
     } catch (error) {
       console.error('Erro ao criar pasta:', error);
+    }
+  };
+
+  const handleGenerateFolderShare = async (folderId) => {
+    const loadingToast = toast.loading('Gerando link de compartilhamento da pasta...');
+
+    // Helper para cópia robusta
+    const copyToClipboard = async (text) => {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (err) { console.warn(err); }
+
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return successful;
+      } catch (err) { return false; }
+    };
+
+    try {
+      const response = await fetch('/api/shares', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          folder_id: folderId,
+          access_type: 'comment'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const shareUrl = `${window.location.origin}/share/${data.token}`;
+        setShareLink(shareUrl);
+
+        const copied = await copyToClipboard(shareUrl);
+        if (copied) {
+          toast.success('Link da pasta copiado!', {
+            id: loadingToast,
+            description: "O link de revisão já está na sua área de transferência."
+          });
+        } else {
+          toast.dismiss(loadingToast);
+          setShowShareDialog(true);
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Erro ao gerar link', { id: loadingToast });
+      }
+    } catch (error) {
+      console.error('Erro ao gerar link:', error);
+      toast.error('Erro ao gerar link de compartilhamento', { id: loadingToast });
     }
   };
 
@@ -659,6 +725,7 @@ export function ProjectDetailPage() {
                 onDeleteFolder={fetchFolders}
                 onMoveVideo={handleMoveVideo}
                 onFileDelete={fetchFiles}
+                onGenerateFolderShare={handleGenerateFolderShare}
                 token={token}
               />
             </motion.div>
@@ -701,6 +768,7 @@ export function ProjectDetailPage() {
                       <FolderCard 
                         folder={folder} 
                         onClick={() => setCurrentFolderId(folder.id)}
+                        onGenerateShare={() => handleGenerateFolderShare(folder.id)}
                         onDelete={() => {
                           openConfirmDialog({
                             title: 'Excluir pasta',
@@ -890,10 +958,7 @@ export function ProjectDetailPage() {
           <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
             <ContextMenuItem 
               className="focus:bg-red-600 focus:text-white cursor-pointer"
-              onClick={() => {
-                const name = prompt('Nome da nova pasta:');
-                if (name) handleCreateFolder(name, currentFolderId);
-              }}
+              onClick={() => setIsCreateFolderOpen(true)}
             >
               <FolderPlus className="w-4 h-4 mr-2" />
               Nova Pasta
@@ -908,6 +973,12 @@ export function ProjectDetailPage() {
           </ContextMenuContent>
         </ContextMenu>
       </div>
+
+      <CreateFolderDialog
+        isOpen={isCreateFolderOpen}
+        onClose={() => setIsCreateFolderOpen(false)}
+        onConfirm={(name) => handleCreateFolder(name, currentFolderId)}
+      />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
@@ -963,7 +1034,7 @@ const formatFileSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-function FolderCard({ folder, onClick, onDelete }) {
+function FolderCard({ folder, onClick, onGenerateShare, onDelete }) {
   const previews = folder.previews || [];
   const hasPreviews = previews.length > 0;
 
@@ -1058,6 +1129,17 @@ function FolderCard({ folder, onClick, onDelete }) {
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onGenerateShare?.();
+          }}
+          className="focus:bg-red-600 focus:text-white cursor-pointer"
+        >
+          <Share2 className="w-4 h-4 mr-2" />
+          Gerar Link de Revisão
+        </ContextMenuItem>
+        
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
@@ -1181,6 +1263,7 @@ function FileCard({ file, onDelete }) {
 function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVersion, onDelete, onArchive, onGenerateShare }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
+  const [dragCounter, setDragCounter] = useState(0);
   const totalVersions = versions.length + 1; // +1 para incluir a versão original
 
   const getStatusColor = (status) => {
@@ -1200,46 +1283,62 @@ function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVer
   };
 
   const handleDragStart = (e) => {
-    e.stopPropagation();
     setIsDragging(true);
     e.dataTransfer.effectAllowed = 'move';
+    // Definimos o ID separadamente para compatibilidade e o objeto completo para conveniência
+    e.dataTransfer.setData('application/x-brick-video-id', String(video.id));
     e.dataTransfer.setData('video', JSON.stringify(video));
   };
 
   const handleDragEnd = (e) => {
-    e.stopPropagation();
     setIsDragging(false);
     setIsDropTarget(false);
+    setDragCounter(0);
+  };
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Verifica se o que está sendo arrastado é um vídeo do Brick
+    const isVideo = e.dataTransfer.types.includes('video') || 
+                    e.dataTransfer.types.includes('application/x-brick-video-id');
+    
+    if (isVideo) {
+      setDragCounter(prev => prev + 1);
+      setIsDropTarget(true);
+    }
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Só aceita se for um vídeo sendo arrastado
-    if (e.dataTransfer.types.includes('video')) {
-      setIsDropTarget(true);
-      e.dataTransfer.dropEffect = 'move';
-    }
+    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDropTarget(false);
+    
+    const newCounter = dragCounter - 1;
+    setDragCounter(newCounter);
+    if (newCounter <= 0) {
+      setIsDropTarget(false);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDropTarget(false);
+    setDragCounter(0);
 
     try {
       const draggedVideoData = e.dataTransfer.getData('video');
       if (draggedVideoData) {
         const draggedVideo = JSON.parse(draggedVideoData);
 
-        // Não permitir drop no mesmo vídeo
+        // Não permitir drop no mesmo vídeo nem em vídeos que já são versões
         if (draggedVideo.id !== video.id) {
           onCreateVersion?.(draggedVideo.id, video.id);
         }
@@ -1271,6 +1370,7 @@ function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVer
             draggable
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -1286,17 +1386,18 @@ function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVer
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute top-0 left-0 right-0 z-10 bg-blue-600 text-white text-center py-2 text-xs font-bold uppercase tracking-widest"
+          className="absolute top-0 left-0 right-0 z-10 bg-blue-600 text-white text-center py-2 text-xs font-bold uppercase tracking-widest pointer-events-none"
         >
           Solte para criar nova versão
         </motion.div>
       )}
 
-      <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0">
+      <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0 pointer-events-none">
         <img 
           src={video.thumbnail_url || 'https://images.unsplash.com/photo-1598899134739-24c46f58b8c0?w=400'} 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           alt={video.title}
+          draggable={false}
         />
         <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors flex items-center justify-center">
           <div className="w-12 h-12 bg-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-transform transition-opacity duration-300 transform-gpu">

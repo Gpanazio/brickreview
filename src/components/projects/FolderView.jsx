@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Folder, FolderOpen, File, FileImage, FileText, FileAudio, Plus, MoreVertical, Edit, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { CreateFolderDialog } from './CreateFolderDialog';
 import { formatVideoDuration } from '../../utils/time';
 import { toast } from 'sonner';
 import {
@@ -52,6 +53,7 @@ export function FolderView({
   onMoveFolder: _onMoveFolder,
   onMoveVideo,
   onFileDelete,
+  onGenerateFolderShare,
   token
 }) {
   const normalizedFolders = Array.isArray(folders) ? folders : [];
@@ -63,6 +65,11 @@ export function FolderView({
   const [, setCreatingFolder] = useState(false)
   const [, setNewSubfolderParent] = useState(null)
   const [dragOverFolder, setDragOverFolder] = useState(null);
+  const [createFolderDialog, setCreateFolderDialog] = useState({
+    isOpen: false,
+    parentFolderId: null,
+    title: 'Nova Pasta'
+  });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: 'Confirmar ação',
@@ -207,11 +214,16 @@ export function FolderView({
     });
   };
 
-  const handleCreateFolder = async (parentFolderId = null) => {
-    const folderName = prompt(parentFolderId ? 'Nome da subpasta:' : 'Nome da nova pasta:');
-    if (!folderName || !folderName.trim()) return;
+  const handleCreateFolder = (parentFolderId = null) => {
+    setCreateFolderDialog({
+      isOpen: true,
+      parentFolderId,
+      title: parentFolderId ? 'Nova Subpasta' : 'Nova Pasta'
+    });
+  };
 
-    await onCreateFolder(folderName, parentFolderId);
+  const handleCreateConfirm = async (name) => {
+    await onCreateFolder(name, createFolderDialog.parentFolderId);
     setCreatingFolder(false);
     setNewSubfolderParent(null);
   };
@@ -353,6 +365,13 @@ export function FolderView({
             <DropdownMenuContent className="glass-panel border-zinc-800 rounded-none">
               <DropdownMenuItem
                 className="text-xs uppercase tracking-wider cursor-pointer"
+                onClick={() => onGenerateFolderShare?.(folder.id)}
+              >
+                <Share2 className="w-3 h-3 mr-2" />
+                Gerar Link de Revisão
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs uppercase tracking-wider cursor-pointer"
                 onClick={() => handleCreateFolder(folder.id)}
               >
                 <Plus className="w-3 h-3 mr-2" />
@@ -475,6 +494,13 @@ export function FolderView({
         </div>
       )}
     </div>
+
+      <CreateFolderDialog
+        isOpen={createFolderDialog.isOpen}
+        onClose={() => setCreateFolderDialog(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={handleCreateConfirm}
+        title={createFolderDialog.title}
+      />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}

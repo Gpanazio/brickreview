@@ -3,11 +3,9 @@ import { authenticateToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
-const COMMONS_API = 'https://commons.wikimedia.org/w/api.php'
-const DEFAULT_LIMIT = 10
-const MAX_LIMIT = 10
-const DEFAULT_RESOLVE_WIDTH = 1280
-const MAX_RESOLVE_WIDTH = 1600
+const OPENVERSE_API = 'https://api.openverse.org/v1/images'
+const DEFAULT_LIMIT = 20
+const MAX_LIMIT = 50
 const CACHE_TTL_MS = 60_000
 
 const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -51,13 +49,6 @@ function looksBannedTitle(title) {
   return bannedTerms.some((term) => lower.includes(term))
 }
 
-function safeSearchQuery(q) {
-  const base = String(q || '').trim()
-  if (!base) return ''
-  const negative = bannedTerms.map((t) => `-${t}`).join(' ')
-  return `${base} ${negative}`.trim()
-}
-
 router.get('/search', authenticateToken, async (req, res) => {
   const q = String(req.query.q || '').trim()
   const limitRaw = Number(req.query.limit)
@@ -65,30 +56,25 @@ router.get('/search', authenticateToken, async (req, res) => {
 
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), MAX_LIMIT) : DEFAULT_LIMIT
   const offset = Number.isFinite(offsetRaw) ? Math.max(Math.floor(offsetRaw), 0) : 0
+  
+  // Openverse usa página em vez de offset
+  const page = Math.floor(offset / limit) + 1
 
   if (!q) {
     return res.json({ results: [], nextOffset: 0, hasMore: false })
   }
 
-  const cacheKey = `search:${q}:${limit}:${offset}`
+  const cacheKey = `search:${q}:${limit}:${page}`
   const cached = getCached(cacheKey)
   if (cached) return res.json(cached)
 
   const params = new URLSearchParams({
-    action: 'query',
-    format: 'json',
-    formatversion: '2',
-    generator: 'search',
-    gsrsearch: safeSearchQuery(q),
-    gsrnamespace: '6',
-    gsrlimit: String(limit),
-    gsroffset: String(offset),
-    prop: 'imageinfo',
-    iiprop: 'url|mime',
-    iiurlwidth: '480',
+    q,
+    page: String(page),
+    page_size: String(limit),
   })
 
-  const url = `${COMMONS_API}?${params.toString()}`
+  const url = `${OPENVERSE_API}/?${params.toString()}`
 
   try {
     const response = await fetch(url, {
@@ -99,70 +85,50 @@ router.get('/search', authenticateToken, async (req, res) => {
     })
 
     if (!response.ok) {
-      return res.status(502).json({ error: 'Falha ao buscar imagens' })
+      return res.status(502).json({ error: 'Falha ao buscar imagens no Openverse' })
     }
 
     const data = await response.json().catch(() => null)
-    const pages = Array.isArray(data?.query?.pages) ? data.query.pages : []
+    const resultsRaw = Array.isArray(data?.results) ? data.results : []
 
-    const results = pages
-      .map((page) => {
-        const imageInfo = Array.isArray(page?.imageinfo) ? page.imageinfo[0] : null
-        const thumbUrl = imageInfo?.thumburl
-        const mime = imageInfo?.mime
-
+    const results = resultsRaw
+      .map((item) => {
         return {
-          title: page?.title,
-          thumbUrl,
-          mime,
+          title: item.id, // Usamos o ID como título para o resolve funcionar com precisão
+          thumbUrl: item.thumbnail,
+          mime: item.filetype,
+          originalTitle: item.title
         }
       })
       .filter((item) => item.title && item.thumbUrl)
-      .filter((item) => !looksBannedTitle(item.title))
-      .filter((item) => !item.mime || allowedMimeTypes.has(item.mime))
+      .filter((item) => !looksBannedTitle(item.originalTitle))
       .map((item) => ({ title: item.title, thumbUrl: item.thumbUrl }))
 
-    const nextOffset = Number.isFinite(data?.continue?.gsroffset)
-      ? Number(data.continue.gsroffset)
-      : offset + limit
-    const hasMore = Number.isFinite(data?.continue?.gsroffset)
+    const hasMore = Boolean(data?.page_count > page)
+    const nextOffset = offset + limit
 
     const payload = { results, nextOffset, hasMore }
     setCached(cacheKey, payload)
 
     return res.json(payload)
   } catch (error) {
-    console.error('Erro ao buscar imagens (Wikimedia):', error)
+    console.error('Erro ao buscar imagens (Openverse):', error)
     return res.status(500).json({ error: 'Erro ao buscar imagens' })
   }
 })
 
 router.get('/resolve', authenticateToken, async (req, res) => {
-  const title = String(req.query.title || '').trim()
-  const widthRaw = Number(req.query.width)
-  const width = Number.isFinite(widthRaw)
-    ? Math.min(Math.max(Math.floor(widthRaw), 200), MAX_RESOLVE_WIDTH)
-    : DEFAULT_RESOLVE_WIDTH
+  const id = String(req.query.title || '').trim() // No nosso novo esquema, 'title' contém o ID
 
-  if (!title) {
-    return res.status(400).json({ error: 'title é obrigatório' })
+  if (!id) {
+    return res.status(400).json({ error: 'ID da imagem é obrigatório' })
   }
 
-  const cacheKey = `resolve:${title}:${width}`
+  const cacheKey = `resolve:${id}`
   const cached = getCached(cacheKey)
   if (cached) return res.json(cached)
 
-  const params = new URLSearchParams({
-    action: 'query',
-    format: 'json',
-    formatversion: '2',
-    prop: 'imageinfo',
-    titles: title,
-    iiprop: 'url|mime',
-    iiurlwidth: String(width),
-  })
-
-  const url = `${COMMONS_API}?${params.toString()}`
+  const url = `${OPENVERSE_API}/${id}/`
 
   try {
     const response = await fetch(url, {
@@ -173,31 +139,25 @@ router.get('/resolve', authenticateToken, async (req, res) => {
     })
 
     if (!response.ok) {
-      return res.status(502).json({ error: 'Falha ao resolver imagem' })
+      return res.status(502).json({ error: 'Falha ao resolver imagem no Openverse' })
     }
 
     const data = await response.json().catch(() => null)
-    const pages = Array.isArray(data?.query?.pages) ? data.query.pages : []
-    const page = pages[0]
-    const imageInfo = Array.isArray(page?.imageinfo) ? page.imageinfo[0] : null
-
-    const resolvedUrl = imageInfo?.thumburl
-    const mime = imageInfo?.mime
-
-    if (!resolvedUrl || (mime && !allowedMimeTypes.has(mime))) {
-      return res.status(404).json({ error: 'Imagem não encontrada ou não suportada' })
+    
+    if (!data?.url) {
+      return res.status(404).json({ error: 'Imagem não encontrada' })
     }
 
-    if (looksBannedTitle(title)) {
-      return res.status(404).json({ error: 'Imagem não disponível' })
+    const payload = { 
+      url: data.url, 
+      mime: data.filetype || null, 
+      width: data.width || 1280 
     }
-
-    const payload = { url: resolvedUrl, mime: mime || null, width }
     setCached(cacheKey, payload)
 
     return res.json(payload)
   } catch (error) {
-    console.error('Erro ao resolver imagem (Wikimedia):', error)
+    console.error('Erro ao resolver imagem (Openverse):', error)
     return res.status(500).json({ error: 'Erro ao resolver imagem' })
   }
 })

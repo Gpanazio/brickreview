@@ -53,7 +53,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       setProjectDetails(data);
       setProjectName(data.name);
       // Inicializa a busca com o nome do projeto
-      setSearchQuery(`${data.name}${data.client_name ? ` ${data.client_name}` : ''} wallpaper`);
+      setSearchQuery(data.name);
     } catch (error) {
       console.error('Erro ao buscar detalhes do projeto:', error);
     } finally {
