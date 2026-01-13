@@ -142,8 +142,9 @@ export function VideoPlayer({
   }, [compareOptions, compareVersionId, isComparing]);
 
   useEffect(() => {
-    if (isComparing && drawingMode) {
-      setDrawingMode(false);
+    if (isComparing) {
+      setQuality('proxy');
+      if (drawingMode) setDrawingMode(false);
     }
   }, [isComparing, drawingMode]);
 
@@ -995,14 +996,15 @@ export function VideoPlayer({
                     size="sm"
                     className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
                       approvalStatus === 'approved' ? 'border-green-500/50 text-green-500 bg-green-500/10' :
-                      approvalStatus === 'changes_requested' ? 'border-amber-500/50 text-amber-500 bg-amber-500/10' :
                       'border-zinc-700 text-zinc-400 bg-zinc-900'
                     }`}
                   >
-                    {approvalStatus === 'approved' ? <CheckCircle className="w-3 h-3 mr-2" /> :
-                     approvalStatus === 'changes_requested' ? <AlertCircle className="w-3 h-3 mr-2" /> : null}
-                    {approvalStatus === 'approved' ? 'Aprovado' :
-                     approvalStatus === 'changes_requested' ? 'Ajustes' : 'Pendente'}
+                    {approvalStatus === 'approved' ? (
+                      <CheckCircle className="w-3 h-3 mr-2" />
+                    ) : (
+                      <Clock className="w-3 h-3 mr-2" />
+                    )}
+                    {approvalStatus === 'approved' ? 'Aprovado' : 'Em aprovação'}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-48">
@@ -1010,13 +1012,13 @@ export function VideoPlayer({
                     onClick={() => handleApproval('approved')}
                     className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                   >
-                    <CheckCircle className="w-3 h-3 mr-2" /> Aprovar Vídeo
+                    <CheckCircle className="w-3 h-3 mr-2" /> Marcar como Aprovado
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => handleApproval('changes_requested')}
-                    className="text-amber-500 focus:text-amber-400 focus:bg-amber-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                    onClick={() => handleApproval('pending')}
+                    className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                   >
-                    <AlertCircle className="w-3 h-3 mr-2" /> Solicitar Ajustes
+                    <Clock className="w-3 h-3 mr-2" /> Voltar para Em aprovação
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1323,7 +1325,7 @@ export function VideoPlayer({
                       quality === 'original' ? 'text-red-500' : 'text-zinc-500 hover:text-white'
                     }`}
                   >
-                    {quality === 'original' ? 'ORIG' : '720p'}
+                    {quality === 'original' ? 'Original' : '720p'}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" className="bg-zinc-950 border-zinc-800 rounded-none min-w-[100px]">
@@ -1454,12 +1456,12 @@ export function VideoPlayer({
                 <div key={item.id} className="glass-card p-4 border-l-2 border-l-zinc-800">
                   <div className="flex items-center gap-2 mb-2">
                     <div className={`w-2 h-2 rounded-full ${
-                      item.status === 'approved' ? 'bg-green-500' : 'bg-amber-500'
+                      item.status === 'approved' ? 'bg-green-500' : 'bg-zinc-500'
                     }`} />
                     <span className={`text-[10px] font-black uppercase tracking-widest ${
-                      item.status === 'approved' ? 'text-green-500' : 'text-amber-500'
+                      item.status === 'approved' ? 'text-green-500' : 'text-zinc-400'
                     }`}>
-                      {item.status === 'approved' ? 'Aprovado' : 'Ajustes'}
+                      {item.status === 'approved' ? 'Aprovado' : 'Em aprovação'}
                     </span>
                   </div>
                   <p className="text-xs text-white font-medium mb-1">{item.notes}</p>

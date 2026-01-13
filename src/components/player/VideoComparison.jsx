@@ -229,6 +229,7 @@ export function VideoComparison({
           className="absolute inset-0 w-screen h-full object-contain max-w-none bg-black"
           playsInline
           crossOrigin="anonymous"
+          muted
         />
       </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { VideoPlayer } from '../player/VideoPlayer';
@@ -533,6 +533,37 @@ export function ProjectDetailPage() {
     }
   };
 
+  const handleDownloadVideo = async (videoId, type) => {
+    try {
+      const endpoint = `/api/videos/${videoId}/download?type=${type}`;
+      const response = await fetch(endpoint, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Força download
+        const videoResponse = await fetch(data.url);
+        const blob = await videoResponse.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = data.filename;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+      } else {
+        toast.error('Erro ao gerar link de download');
+      }
+    } catch (error) {
+      console.error('Erro no download:', error);
+      toast.error('Erro ao baixar arquivo');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full bg-[#050505]">
@@ -902,6 +933,7 @@ export function ProjectDetailPage() {
                             onDelete={(videoId) => handleDeleteVideo(videoId)}
                             onArchive={(videoId) => handleArchiveVideo(videoId)}
                             onGenerateShare={(videoId) => handleGenerateVideoShare(videoId)}
+                            onDownload={(type) => handleDownloadVideo(video.id, type)}
                           />
                         </motion.div>
                       );
@@ -1034,7 +1066,7 @@ const formatFileSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-function FolderCard({ folder, onClick, onGenerateShare, onDelete }) {
+const FolderCard = memo(({ folder, onClick, onGenerateShare, onDelete }) => {
   const previews = folder.previews || [];
   const hasPreviews = previews.length > 0;
 
@@ -1153,9 +1185,9 @@ function FolderCard({ folder, onClick, onGenerateShare, onDelete }) {
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});
 
-function FileCard({ file, onDelete }) {
+const FileCard = memo(({ file, onDelete }) => {
   const isImage = file.file_type === 'image';
 
   const getFileTypeLabel = (type) => {
@@ -1258,9 +1290,9 @@ function FileCard({ file, onDelete }) {
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});
 
-function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVersion, onDelete, onArchive, onGenerateShare }) {
+const VideoCard = memo(({ video, versions = [], onClick, onMove: _onMove, onCreateVersion, onDelete, onArchive, onGenerateShare, onDownload }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
@@ -1269,7 +1301,6 @@ function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVer
   const getStatusColor = (status) => {
     switch (status) {
       case 'approved': return 'bg-green-600';
-      case 'changes_requested': return 'bg-amber-600';
       default: return 'bg-zinc-600';
     }
   };
@@ -1277,8 +1308,7 @@ function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVer
   const getStatusLabel = (status) => {
     switch (status) {
       case 'approved': return 'Aprovado';
-      case 'changes_requested': return 'Ajustes';
-      default: return 'Pendente';
+      default: return 'Em aprovação';
     }
   };
 
@@ -1470,6 +1500,28 @@ function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVer
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
+            onDownload?.('original');
+          }}
+          className="focus:bg-red-600 focus:text-white cursor-pointer"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Baixar Original
+        </ContextMenuItem>
+
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownload?.('proxy');
+          }}
+          className="focus:bg-red-600 focus:text-white cursor-pointer"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Baixar Proxy (720p)
+        </ContextMenuItem>
+
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
             onArchive?.(video.id);
           }}
           className="focus:bg-amber-600 focus:text-white cursor-pointer"
@@ -1491,4 +1543,4 @@ function VideoCard({ video, versions = [], onClick, onMove: _onMove, onCreateVer
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});
