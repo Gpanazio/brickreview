@@ -189,3 +189,121 @@ export const generateProxy = (videoPath, outputDir, filename) => {
       .run();
   });
 };
+
+const formatVttTimestamp = (seconds) => {
+  const safeSeconds = Number(seconds);
+  const totalMs = Number.isFinite(safeSeconds) && safeSeconds > 0 ? Math.round(safeSeconds * 1000) : 0;
+  const ms = totalMs % 1000;
+  const totalSeconds = Math.floor(totalMs / 1000);
+  const hrs = Math.floor(totalSeconds / 3600);
+  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const secs = totalSeconds % 60;
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+};
+
+/**
+ * Gera sprite sheet para preview thumbnails
+ * @param {string} videoPath - Caminho local do vídeo
+ * @param {string} outputDir - Diretório de saída
+ * @param {string} filename - Nome do sprite
+ * @param {object} options - Opções de geração
+ * @returns {Promise<object>} - Dados da sprite gerada
+ */
+export const generateSpriteSheet = async (videoPath, outputDir, filename, options = {}) => {
+  const {
+    intervalSeconds = 5,
+    thumbWidth = 160,
+    columns = 10,
+    duration,
+    width,
+    height
+  } = options;
+
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : intervalSeconds;
+  const totalFrames = Math.max(1, Math.ceil(safeDuration / intervalSeconds));
+  const safeColumns = Math.max(1, columns);
+  const rows = Math.max(1, Math.ceil(totalFrames / safeColumns));
+
+  const aspectRatio = Number.isFinite(width) && Number.isFinite(height) && width > 0
+    ? height / width
+    : 9 / 16;
+  const thumbHeight = Math.max(1, Math.round(thumbWidth * aspectRatio));
+
+  const outputPath = path.join(outputDir, filename);
+  const filter = `fps=1/${intervalSeconds},scale=${thumbWidth}:${thumbHeight},tile=${safeColumns}x${rows}`;
+
+  return new Promise((resolve, reject) => {
+    ffmpeg(videoPath)
+      .outputOptions([
+        '-vf', filter,
+        '-frames:v', '1',
+        '-q:v', '2'
+      ])
+      .output(outputPath)
+      .on('end', () => {
+        resolve({
+          spritePath: outputPath,
+          duration: safeDuration,
+          intervalSeconds,
+          columns: safeColumns,
+          rows,
+          thumbWidth,
+          thumbHeight,
+          totalFrames
+        });
+      })
+      .on('error', (err) => {
+        console.error('Erro ao gerar sprite sheet:', err);
+        reject(err);
+      })
+      .run();
+  });
+};
+
+/**
+ * Gera arquivo WebVTT para sprite sheets
+ * @param {object} options - Opções do VTT
+ * @returns {Promise<string>} - Caminho local do VTT gerado
+ */
+export const generateSpriteVtt = (options) => {
+  const {
+    outputDir,
+    filename,
+    spriteUrl,
+    duration,
+    intervalSeconds,
+    columns,
+    thumbWidth,
+    thumbHeight
+  } = options;
+
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : intervalSeconds;
+  const totalFrames = Math.max(1, Math.ceil(safeDuration / intervalSeconds));
+  const lines = ['WEBVTT', ''];
+
+  for (let index = 0; index < totalFrames; index += 1) {
+    const start = index * intervalSeconds;
+    const end = Math.min(safeDuration, start + intervalSeconds);
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const x = column * thumbWidth;
+    const y = row * thumbHeight;
+    lines.push(
+      `${formatVttTimestamp(start)} --> ${formatVttTimestamp(end)}`,
+      `${spriteUrl}#xywh=${x},${y},${thumbWidth},${thumbHeight}`,
+      ''
+    );
+  }
+
+  const outputPath = path.join(outputDir, filename);
+  fs.writeFileSync(outputPath, lines.join('\n'), 'utf8');
+  return outputPath;
+};

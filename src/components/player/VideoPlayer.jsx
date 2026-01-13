@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, MessageSquare, Clock,
   CheckCircle, AlertCircle, History, Reply, CornerDownRight, Download, Share2, Trash2,
   Pencil, Eraser, Smile, Paperclip, X,
-  Play, Pause, Volume2, VolumeX, Maximize, Settings, Gauge
+  Play, Pause, Volume2, VolumeX, Maximize, Settings, Gauge, Columns2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import EmojiPicker from 'emoji-picker-react';
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { VideoComparison } from './VideoComparison';
 
 const PLYR_OPTIONS = {
   controls: ['play-large'], // Mantém apenas o play central, os demais são customizados
@@ -75,6 +76,9 @@ export function VideoPlayer({
     onConfirm: null,
   });
   const [videoUrl, setVideoUrl] = useState(null);
+  const [isComparing, setIsComparing] = useState(false);
+  const [compareVersionId, setCompareVersionId] = useState(null);
+  const [compareVideoUrl, setCompareVideoUrl] = useState(null);
   const [replyingTo, setReplyingTo] = useState(null); // ID do comentário sendo respondido
   const [replyText, setReplyText] = useState('');
   const [shareLink, setShareLink] = useState('')
@@ -102,6 +106,8 @@ export function VideoPlayer({
 
   const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
   const playerRef = useRef(null);
+  const comparisonControllerRef = useRef(null);
+  const compareSyncKeyRef = useRef(null);
   const pendingSeekTimeRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -127,6 +133,19 @@ export function VideoPlayer({
   // Constrói lista completa de versões (vídeo original + versões)
   // Ordena da versão mais recente para a mais antiga
   const allVersions = [video, ...versions].sort((a, b) => b.version_number - a.version_number);
+  const compareOptions = allVersions.filter((version) => version.id !== currentVideoId);
+
+  useEffect(() => {
+    if (!isComparing) return;
+    if (compareVersionId && compareOptions.some((version) => version.id === compareVersionId)) return;
+    setCompareVersionId(compareOptions[0]?.id ?? null);
+  }, [compareOptions, compareVersionId, isComparing]);
+
+  useEffect(() => {
+    if (isComparing && drawingMode) {
+      setDrawingMode(false);
+    }
+  }, [isComparing, drawingMode]);
 
   // Calcula aspect ratio do vídeo - Simplificado para permitir preenchimento total
   const getAspectRatioClass = () => {
@@ -460,6 +479,11 @@ export function VideoPlayer({
     return `${mins}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
   };
 
+  const handleComparisonControllerReady = useCallback((controller) => {
+    comparisonControllerRef.current = controller;
+    playerRef.current = controller ? { plyr: controller } : null;
+  }, []);
+
   const handleApproval = async (status) => {
     setIsSubmittingApproval(true);
     try {
@@ -519,6 +543,15 @@ export function VideoPlayer({
       const mime = selectedVersion.mime_type || '';
       setQuality((mime.includes('mp4') || mime.includes('h264')) ? 'original' : 'proxy');
     }
+  };
+
+  const handleToggleCompare = () => {
+    setIsComparing((prev) => !prev);
+  };
+
+  const handleCompareVersionChange = (versionId) => {
+    if (versionId === compareVersionId) return;
+    setCompareVersionId(versionId);
   };
 
   // Carrega comentários quando a versão muda
@@ -711,14 +744,58 @@ export function VideoPlayer({
       setIsLoadingVideo(true);
       fetchStreamUrl();
     }
-  }, [currentVideoId, token, isGuest, shareToken, quality]);
+  }, [currentVideoId, isGuest, quality, sharePassword, shareToken, token]);
+
+  useEffect(() => {
+    if (!isComparing || !compareVersionId) {
+      setCompareVideoUrl(null);
+      return;
+    }
+
+    const fetchCompareStreamUrl = async () => {
+      try {
+        const endpoint = isGuest
+          ? `/api/shares/${shareToken}/video/${compareVersionId}/stream?quality=${quality}`
+          : `/api/videos/${compareVersionId}/stream?quality=${quality}`;
+
+        const headers = isGuest
+          ? (sharePassword ? { 'x-share-password': sharePassword } : {})
+          : { 'Authorization': `Bearer ${token}` };
+
+        const response = await fetch(endpoint, { headers });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.url) {
+            setCompareVideoUrl(data.url);
+          }
+        }
+      } catch (error) {
+        // Erro silencioso em produção
+      }
+    };
+
+    fetchCompareStreamUrl();
+  }, [compareVersionId, isComparing, isGuest, quality, sharePassword, shareToken, token]);
+
+  useEffect(() => {
+    if (!isComparing || !comparisonControllerRef.current || !videoUrl || !compareVideoUrl) return;
+    const syncKey = `${videoUrl}|${compareVideoUrl}`;
+    if (compareSyncKeyRef.current === syncKey) return;
+    compareSyncKeyRef.current = syncKey;
+    if (currentTime > 0) {
+      comparisonControllerRef.current.currentTime = currentTime;
+    }
+  }, [compareVideoUrl, currentTime, isComparing, videoUrl]);
 
   // Inicializa o player Plyr nativo
   useEffect(() => {
-    if (!videoSource || !videoRef.current) return;
+    if (isComparing || !videoSource || !videoRef.current) return;
 
     const player = new Plyr(videoRef.current, {
       ...PLYR_OPTIONS,
+      previewThumbnails: currentVideo?.sprite_vtt_url
+        ? { enabled: true, src: currentVideo.sprite_vtt_url }
+        : { enabled: false },
       autoplay: false,
     });
 
@@ -762,7 +839,7 @@ export function VideoPlayer({
       }
       playerRef.current = null;
     };
-  }, [videoSource]);
+  }, [currentVideo?.sprite_vtt_url, isComparing, videoSource]);
 
   // Polling para atualizar currentTime removido em favor de eventos nativos
   
@@ -999,6 +1076,58 @@ export function VideoPlayer({
               </DropdownMenu>
             )}
 
+            {/* Compare Button */}
+            {allVersions.length > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToggleCompare}
+                  className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
+                    isComparing
+                      ? 'border-red-600 text-white bg-red-600'
+                      : 'border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800'
+                  }`}
+                >
+                  <Columns2 className="w-3 h-3 mr-2" />
+                  Comparar
+                </Button>
+
+                {isComparing && compareOptions.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
+                      >
+                        <History className="w-3 h-3" />
+                        v{compareOptions.find((v) => v.id === compareVersionId)?.version_number ?? '--'}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
+                      {compareOptions.map((v) => (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onClick={() => handleCompareVersionChange(v.id)}
+                          className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
+                            v.id === compareVersionId
+                              ? 'text-red-500 bg-red-500/10'
+                              : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span>Versão {v.version_number}</span>
+                            {v.id === compareVersionId && <CheckCircle className="w-3 h-3" />}
+                          </div>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            )}
+
             {/* Version Selector */}
             {allVersions.length > 1 && (
               <DropdownMenu>
@@ -1047,7 +1176,28 @@ export function VideoPlayer({
             ref={videoContainerRef}
             className={`relative w-full h-full flex items-center justify-center bg-black ${drawingMode ? 'is-drawing' : ''}`}
           >
-            {videoSource ? (
+            {isComparing ? (
+              videoUrl && compareVideoUrl ? (
+                <VideoComparison
+                  masterSrc={videoUrl}
+                  compareSrc={compareVideoUrl}
+                  onControllerReady={handleComparisonControllerReady}
+                  onTimeUpdate={setCurrentTime}
+                  onDurationChange={setDuration}
+                  onPlayStateChange={setIsPlaying}
+                  onVolumeChange={(nextVolume, nextMuted) => {
+                    setVolume(nextVolume);
+                    setIsMuted(nextMuted);
+                  }}
+                  onRateChange={setPlaybackSpeed}
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-zinc-400">
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                  <span className="text-xs font-bold uppercase tracking-[0.2em]">A carregar comparação...</span>
+                </div>
+              )
+            ) : videoSource ? (
               <div key={`player-${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
                 <video
                   ref={videoRef}
@@ -1617,9 +1767,12 @@ export function VideoPlayer({
                         drawingMode
                           ? 'text-red-500 bg-red-500/10'
                           : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-                      }`}
-                      onClick={() => setDrawingMode(!drawingMode)}
+                      } ${isComparing ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      onClick={() => {
+                        if (!isComparing) setDrawingMode(!drawingMode);
+                      }}
                       title="Desenhar no frame"
+                      disabled={isComparing}
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
