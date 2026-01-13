@@ -33,7 +33,7 @@ export function ProjectListItem({ project, onProjectUpdate }) {
                 <img
                   src={coverUrl}
                   alt={project.name}
-                  className="w-full h-full object-cover transition-all"
+                  className="w-full h-full object-cover"
                   onError={() => setImageError(true)}
                 />
               ) : (

@@ -51,9 +51,10 @@ router.get('/', authenticateToken, async (req, res) => {
     let projects;
     let limitClause = recent === 'true' ? ' LIMIT 5' : '';
 
-    // Todos os usuários logados podem ver todos os projetos
+    // Todos os usuários logados podem ver todos os projetos (que não foram deletados)
     projects = await query(`
       SELECT * FROM brickreview_projects_with_stats 
+      WHERE deleted_at IS NULL
       ORDER BY updated_at DESC
       ${limitClause}
     `);
@@ -188,19 +189,78 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   if (!(await requireProjectAccess(req, res, projectId))) return
 
   try {
+    // Soft delete do projeto e de todos os itens vinculados
+    const now = new Date();
+    
+    // Inicia uma transação
+    await query('BEGIN');
+    
+    // Marca projeto como deletado
     const result = await query(
-      'DELETE FROM brickreview_projects WHERE id = $1 RETURNING id',
+      'UPDATE brickreview_projects SET deleted_at = $1 WHERE id = $2 RETURNING id',
+      [now, projectId]
+    )
+
+    if (result.rows.length === 0) {
+      await query('ROLLBACK');
+      return res.status(404).json({ error: 'Projeto não encontrado' });
+    }
+
+    // Marca pastas como deletadas
+    await query('UPDATE brickreview_folders SET deleted_at = $1 WHERE project_id = $2', [now, projectId]);
+    
+    // Marca vídeos como deletados
+    await query('UPDATE brickreview_videos SET deleted_at = $1 WHERE project_id = $2', [now, projectId]);
+    
+    // Marca arquivos como deletados
+    await query('UPDATE brickreview_files SET deleted_at = $1 WHERE project_id = $2', [now, projectId]);
+
+    await query('COMMIT');
+
+    res.json({ message: 'Projeto enviado para a lixeira', id: projectId })
+  } catch (error) {
+    await query('ROLLBACK');
+    console.error('Erro ao remover projeto:', error);
+    res.status(500).json({ error: 'Erro ao remover projeto' });
+  }
+});
+
+/**
+ * @route POST /api/projects/:id/restore
+ * @desc Restore a deleted project
+ */
+router.post('/:id/restore', authenticateToken, async (req, res) => {
+  const projectId = Number(req.params.id)
+  if (!Number.isInteger(projectId)) {
+    return res.status(400).json({ error: 'ID de projeto inválido' })
+  }
+
+  try {
+    await query('BEGIN');
+    
+    const result = await query(
+      'UPDATE brickreview_projects SET deleted_at = NULL WHERE id = $1 RETURNING *',
       [projectId]
     )
 
     if (result.rows.length === 0) {
+      await query('ROLLBACK');
       return res.status(404).json({ error: 'Projeto não encontrado' });
     }
 
-    res.json({ message: 'Projeto removido com sucesso', id: projectId })
+    // Restaura pastas, vídeos e arquivos do projeto (que foram deletados no mesmo momento)
+    // Nota: Itens que já estavam deletados individualmente antes do projeto podem acabar sendo restaurados também,
+    // o que é um comportamento aceitável para simplicidade.
+    await query('UPDATE brickreview_folders SET deleted_at = NULL WHERE project_id = $1', [projectId]);
+    await query('UPDATE brickreview_videos SET deleted_at = NULL WHERE project_id = $1', [projectId]);
+    await query('UPDATE brickreview_files SET deleted_at = NULL WHERE project_id = $1', [projectId]);
+
+    await query('COMMIT');
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao remover projeto:', error);
-    res.status(500).json({ error: 'Erro ao remover projeto' });
+    await query('ROLLBACK');
+    console.error('Erro ao restaurar projeto:', error);
+    res.status(500).json({ error: 'Erro ao restaurar projeto' });
   }
 });
 

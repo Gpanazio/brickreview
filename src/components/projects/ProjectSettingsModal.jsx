@@ -52,7 +52,6 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       const data = await response.json();
       setProjectDetails(data);
       setProjectName(data.name);
-      // Inicializa a busca com o nome do projeto
       setSearchQuery(data.name);
     } catch (error) {
       console.error('Erro ao buscar detalhes do projeto:', error);

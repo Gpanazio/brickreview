@@ -41,7 +41,7 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
         COALESCE(fp.previews, '[]'::json) as previews
       FROM brickreview_folders_with_stats f
       LEFT JOIN folder_previews fp ON f.id = fp.folder_id
-      WHERE project_id = $1
+      WHERE project_id = $1 AND deleted_at IS NULL
       ORDER BY parent_folder_id NULLS FIRST, name ASC`,
       [projectId]
     )
@@ -67,7 +67,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     if (!(await requireProjectAccessFromFolder(req, res, folderId))) return
 
     const folderResult = await query(
-      'SELECT * FROM brickreview_folders_with_stats WHERE id = $1',
+      'SELECT * FROM brickreview_folders_with_stats WHERE id = $1 AND deleted_at IS NULL',
       [folderId]
     )
 
@@ -80,14 +80,14 @@ router.get('/:id', authenticateToken, async (req, res) => {
     // Busca subpastas diretas
     const subfoldersResult = await query(`
       SELECT * FROM brickreview_folders_with_stats
-      WHERE parent_folder_id = $1
+      WHERE parent_folder_id = $1 AND deleted_at IS NULL
       ORDER BY name ASC
     `, [req.params.id]);
 
     // Busca vídeos da pasta
     const videosResult = await query(`
       SELECT * FROM brickreview_videos_with_stats
-      WHERE folder_id = $1
+      WHERE folder_id = $1 AND deleted_at IS NULL
       ORDER BY created_at DESC
     `, [req.params.id]);
 
@@ -201,7 +201,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
 /**
  * @route DELETE /api/folders/:id
- * @desc Delete folder (CASCADE will delete subfolders and unlink videos)
+ * @desc Delete folder (Soft Delete)
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
@@ -212,19 +212,64 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     if (!(await requireProjectAccessFromFolder(req, res, folderId))) return
 
+    const now = new Date();
+    await query('BEGIN');
+
     const result = await query(
-      'DELETE FROM brickreview_folders WHERE id = $1 RETURNING id',
+      'UPDATE brickreview_folders SET deleted_at = $1 WHERE id = $2 RETURNING id',
+      [now, folderId]
+    )
+
+    if (result.rows.length === 0) {
+      await query('ROLLBACK');
+      return res.status(404).json({ error: 'Pasta não encontrada' });
+    }
+
+    // Soft delete recursivo para vídeos e arquivos dentro da pasta
+    await query('UPDATE brickreview_videos SET deleted_at = $1 WHERE folder_id = $2', [now, folderId]);
+    await query('UPDATE brickreview_files SET deleted_at = $1 WHERE folder_id = $2', [now, folderId]);
+
+    await query('COMMIT');
+    res.json({ message: 'Pasta enviada para a lixeira', id: folderId })
+  } catch (error) {
+    await query('ROLLBACK');
+    console.error('Erro ao excluir pasta:', error);
+    res.status(500).json({ error: 'Erro ao excluir pasta' });
+  }
+});
+
+/**
+ * @route POST /api/folders/:id/restore
+ * @desc Restore a deleted folder
+ */
+router.post('/:id/restore', authenticateToken, async (req, res) => {
+  const folderId = Number(req.params.id)
+  if (!Number.isInteger(folderId)) {
+    return res.status(400).json({ error: 'ID de pasta inválido' })
+  }
+
+  try {
+    await query('BEGIN');
+    const result = await query(
+      'UPDATE brickreview_folders SET deleted_at = NULL WHERE id = $1 RETURNING *',
       [folderId]
     )
 
     if (result.rows.length === 0) {
+      await query('ROLLBACK');
       return res.status(404).json({ error: 'Pasta não encontrada' });
     }
 
-    res.json({ message: 'Pasta removida com sucesso', id: folderId })
+    // Restaura conteúdos
+    await query('UPDATE brickreview_videos SET deleted_at = NULL WHERE folder_id = $1', [folderId]);
+    await query('UPDATE brickreview_files SET deleted_at = NULL WHERE folder_id = $1', [folderId]);
+
+    await query('COMMIT');
+    res.json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao remover pasta:', error);
-    res.status(500).json({ error: 'Erro ao remover pasta' });
+    await query('ROLLBACK');
+    console.error('Erro ao restaurar pasta:', error);
+    res.status(500).json({ error: 'Erro ao restaurar pasta' });
   }
 });
 

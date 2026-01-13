@@ -590,7 +590,7 @@ router.post('/:id/create-version', authenticateToken, async (req, res) => {
 
 /**
  * @route DELETE /api/videos/:id
- * @desc Delete a video and its files from R2
+ * @desc Soft delete a video and its versions
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
@@ -603,43 +603,46 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
 
-    // Busca as chaves de todos os vídeos que serão deletados (vídeo pai + todas as versões/filhos)
-    const videosToDelete = await query(
-      'SELECT id, r2_key, thumbnail_r2_key, proxy_r2_key, sprite_r2_key, sprite_vtt_url FROM brickreview_videos WHERE id = $1 OR parent_video_id = $1',
-      [videoId]
+    const now = new Date();
+    // Marca o vídeo e todas as suas versões como deletados
+    await query(
+      'UPDATE brickreview_videos SET deleted_at = $1 WHERE id = $2 OR parent_video_id = $2',
+      [now, videoId]
     )
 
-    if (videosToDelete.rows.length > 0) {
-      const bucket = process.env.R2_BUCKET_NAME
-      const publicUrl = process.env.R2_PUBLIC_URL
-      const deletePromises = []
-
-      videosToDelete.rows.forEach(v => {
-        const spriteVttKey = v.sprite_vtt_url && publicUrl && v.sprite_vtt_url.startsWith(`${publicUrl}/`)
-          ? v.sprite_vtt_url.replace(`${publicUrl}/`, '')
-          : null
-
-        if (v.r2_key) deletePromises.push(r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: v.r2_key })))
-        if (v.thumbnail_r2_key) deletePromises.push(r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: v.thumbnail_r2_key })))
-        if (v.proxy_r2_key) deletePromises.push(r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: v.proxy_r2_key })))
-        if (v.sprite_r2_key) deletePromises.push(r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: v.sprite_r2_key })))
-        if (spriteVttKey) deletePromises.push(r2Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: spriteVttKey })))
-      })
-
-      // Deleta arquivos do R2 em background
-      Promise.all(deletePromises).catch(err => {
-        console.error(`❌ Erro ao deletar objetos do R2 para o vídeo ${videoId} ou suas versões:`, err)
-      })
-    }
-
-    // Exclui do banco de dados (CASCADE vai remover comentários, aprovações, etc.)
-    // Deletamos o pai e os filhos explicitamente caso o CASCADE na tabela de vídeos use SET NULL (que é o caso atual)
-    await query('DELETE FROM brickreview_videos WHERE id = $1 OR parent_video_id = $1', [videoId])
-
-    res.json({ message: 'Vídeo excluído com sucesso', id: videoId })
+    res.json({ message: 'Vídeo enviado para a lixeira', id: videoId })
   } catch (error) {
     console.error('Erro ao excluir vídeo:', error);
     res.status(500).json({ error: 'Erro ao excluir vídeo' });
+  }
+});
+
+/**
+ * @route POST /api/videos/:id/restore
+ * @desc Restore a deleted video and its versions
+ */
+router.post('/:id/restore', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const videoId = Number(id)
+    if (!Number.isInteger(videoId)) {
+      return res.status(400).json({ error: 'ID de vídeo inválido' })
+    }
+
+    const result = await query(
+      'UPDATE brickreview_videos SET deleted_at = NULL WHERE id = $1 OR parent_video_id = $1 RETURNING *',
+      [videoId]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Vídeo não encontrado na lixeira' });
+    }
+
+    res.json({ message: 'Vídeo restaurado com sucesso', video: result.rows[0] });
+  } catch (error) {
+    console.error('Erro ao restaurar vídeo:', error);
+    res.status(500).json({ error: 'Erro ao restaurar vídeo' });
   }
 });
 
