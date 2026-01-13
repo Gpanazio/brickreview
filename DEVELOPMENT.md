@@ -4,27 +4,83 @@ Este documento serve como guia para continuar o desenvolvimento do BrickReview, 
 
 ## Status Atual do Projeto
 
-### ✅ Concluído (Fase 1)
-- [x] Repositório inicializado com Git
-- [x] Estrutura de pastas criada
-- [x] package.json com todas as dependências
-- [x] Schema SQL completo do banco de dados
-- [x] Documentação (README, GITHUB_SETUP, .env.example)
-- [x] .gitignore configurado
-- [x] Commit inicial feito
+### ✅ Concluído (Fases 1-8)
+- [x] Todas as fases 1-8 concluídas
+- [x] Sistema funcional em produção v0.5.0
+- [x] Video player com Plyr.js customizado
+- [x] Sistema de comentários com threads
+- [x] Drawing annotations frame-by-frame
+- [x] Guest access e share links públicos
+- [x] Versionamento de vídeos
 
-### 🚧 Próximos Passos Imediatos
+### 🚧 Em Progresso (Fase 9: Refatoração v0.6.0)
+- [ ] Linting e correção de erros
+- [ ] Configuração de Prettier
+- [ ] Desacoplamento de componentes
+- [ ] Virtualização de listas
+- [ ] Atualização de documentação
 
-1. **Push para GitHub** (veja [GITHUB_SETUP.md](GITHUB_SETUP.md))
-2. **Copiar componentes UI** do meu-brickflow
-3. **Criar servidor Express** básico
-4. **Configurar Tailwind** com tema BRICK
+### 📋 Próximos Passos (pós-refatoração)
+1. **Fase 10:** Infraestrutura assíncrona (filas BullMQ + Redis)
+2. **Fase 11:** Streaming HLS adaptativo
+3. **Fase 12:** Integrações NLEs (DaVinci, Premiere)
+
+---
+
+> ⚠️ **Nota sobre Código de Exemplo Abaixo:**
+> As seções seguintes contêm código de exemplo do setup inicial do projeto (v0.1.0).
+> Este código **JÁ FOI IMPLEMENTADO** e está em produção.
+> Consulte os arquivos reais em `server/` e `src/` para a implementação atual.
+> Preservamos estes exemplos apenas como referência histórica.
+
+---
+
+---
+
+## 🔧 Padrões de Código e Linting
+
+### Pre-Commit Checklist
+Antes de fazer commit de código, garanta que:
+
+1. **Formatação Automática**
+   ```bash
+   npx prettier --write "src/**/*.{js,jsx,css}" "server/**/*.js"
+   ```
+
+2. **Verificação de Linting**
+   ```bash
+   npm run lint
+   ```
+   - O lint deve passar com **0 erros**
+   - Warnings devem ser corrigidos ou documentados
+
+3. **Build Test**
+   ```bash
+   npm run build
+   ```
+   - Build deve compilar sem erros
+   - Warnings devem ser mínimos e justificados
+
+### Regras de Código
+
+#### React Hooks
+- ✅ Sempre declarar hooks no topo do componente
+- ✅ Hooks não podem ser chamados condicionalmente
+- ❌ Proibido chamar `setState` dentro de `useEffect` sem motivo documentado
+
+#### Imports
+- ✅ Usar aliases `@/` para imports internos
+- ❌ Remover imports não utilizados (ESLint erro)
+- ✅ Imports de terceiros primeiro, depois internos
+
+#### Console Logs
+- ❌ Remover `console.log` antes de commitar
+- ✅ Manter `console.error` em blocos `catch`
+- ✅ Logs de progresso em `server/` são permitidos (upload, FFmpeg)
 
 ---
 
 ## Como Continuar o Desenvolvimento
-
-### Passo 1: Push para GitHub
 
 ```bash
 # Criar repo no GitHub primeiro (veja GITHUB_SETUP.md)
@@ -449,23 +505,39 @@ Acesse:
 
 ## Comandos Úteis
 
+### Desenvolvimento
 ```bash
-# Desenvolvimento
 npm run dev:full     # Frontend + Backend
 npm run dev          # Frontend apenas
 npm run server       # Backend apenas
+```
 
-# Build
+### Linting e Formatação
+```bash
+# Verificar problemas no código
+npm run lint
+
+# Tentar corrigir problemas automaticamente
+npm run lint -- --fix
+
+# Formatar código com Prettier
+npx prettier --write "src/**/*.{js,jsx,css}" "server/**/*.js"
+```
+
+### Build e Deploy
+```bash
 npm run build        # Build para produção
-
-# Deploy
 npm start            # Rodar em produção
+```
 
-# Database
+### Database
+```bash
 psql $DATABASE_URL < server/database.sql  # Criar schema
 psql $DATABASE_URL                         # Connect to DB
+```
 
-# Git
+### Git
+```bash
 git status
 git add .
 git commit -m "feat: description"

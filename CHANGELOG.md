@@ -7,6 +7,31 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [Unreleased]
+
+### 🧹 Code Cleanup v0.6.0
+
+#### Dependencies
+- **REMOVED**: `plyr-react@5.3.0` (usando Plyr diretamente)
+- **REMOVED**: `react-aptor@2.0.0` (não utilizado)
+- **ADDED**: `prettier` (devDependency)
+
+#### Linting
+- ✅ Corrigidos 13 erros ESLint
+- ✅ Corrigidos 11 warnings ESLint
+- ✅ Configurado Prettier com padrão de projeto
+
+#### Refactoring
+- ✅ Extraído constantes de desenho para `src/constants/drawing.js`
+- ✅ Movido `diagnose-ffmpeg.js` → `scripts/`
+- ✅ Removidos console logs de debug em `src/`
+
+#### Fixes
+- ✅ Corrigido loop de renderização em `CreateFolderDialog.jsx`
+- ✅ Removida variável `savedTime` não usada em `VideoPlayer.jsx`
+
+---
+
 ## [0.5.0] - 2026-01-11
 
 ### 🎉 Marcos Importantes

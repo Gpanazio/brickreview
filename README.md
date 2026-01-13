@@ -1,5 +1,7 @@
 # BrickReview
 
+> 🚧 **Nota de Desenvolvimento (v0.6.0-dev):** Este projeto está passando por refatoração arquitetural. O sistema está funcional, mas o código está em processo de limpeza, padronização e desacoplamento de componentes. Consulte [CLEANUP_PLAN.md](CLEANUP_PLAN.md) para detalhes do processo em andamento.
+
 Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (preto/vermelho/branco).
 
 ## 🎯 Funcionalidades
@@ -24,7 +26,7 @@ Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (pret
 - React 19 + Vite 7
 - Tailwind CSS 4
 - Radix UI + shadcn/ui
-- Plyr.js (video player) com React wrapper customizado
+- Plyr.js (video player) - wrapper customizado (NÃO usando plyr-react)
 - React Router 7
 - Lucide React
 - emoji-picker-react (emojis em comentários)
@@ -120,23 +122,32 @@ npm run server   # Backend apenas
 brickreview/
 ├── src/
 │   ├── components/
-│   │   ├── ui/              # shadcn/ui (copiar de meu-brickflow)
-│   │   ├── player/          # Video player
-│   │   ├── comments/        # Sistema de comentários
-│   │   ├── review/          # Aprovação
-│   │   ├── upload/          # Upload
-│   │   └── projects/        # Projetos
-│   ├── hooks/
-│   ├── utils/
+│   │   ├── ui/              # shadcn/ui (60+ componentes)
+│   │   ├── player/          # Video player + sub-componentes (pós-refatoração)
+│   │   │   ├── VideoPlayer.jsx
+│   │   │   ├── VideoComparison.jsx
+│   │   │   ├── VideoPlayer.css
+│   │   │   └── internal/   # [NOVO] Componentes desacoplados
+│   │   ├── projects/        # Gestão de projetos
+│   │   ├── viewer/          # Visualizador de arquivos
+│   │   └── ui/             # Componentes reutilizáveis
+│   ├── hooks/              # Custom hooks
+│   ├── constants/          # [NOVO] Constantes (cores, configs)
+│   ├── lib/                # Utilitários
 │   └── App.jsx
 ├── server/
-│   ├── routes/
-│   ├── middleware/
-│   ├── utils/
-│   ├── db.js
-│   └── index.js
-├── temp-uploads/            # Temporário
-└── thumbnails/              # Cache local
+│   ├── routes/             # API routes
+│   ├── middleware/         # Auth, upload, etc
+│   ├── utils/              # R2, email, FFmpeg
+│   ├── db.js               # PostgreSQL connection
+│   └── index.js            # Express app
+├── scripts/                # [NOVO] Scripts utilitários
+│   ├── cleanup-r2.js       # Remove arquivos órfãos do R2
+│   ├── cleanup-trash.js     # Limpa lixeira do DB
+│   ├── process-video-metadata.js  # Recalcula metadados
+│   └── diagnose-ffmpeg.js  # Diagnóstico FFmpeg
+├── temp-uploads/           # Temporário (não versionado)
+└── .prettierrc             # [NOVO] Config Prettier
 ```
 
 ## 🗄️ Banco de Dados (Railway)
@@ -240,11 +251,30 @@ Implementação robusta em 3 camadas:
 - [x] Guest access (visitor comments)
 - [x] Share system (links públicos)
 
-### 🚧 Próximas melhorias
+### 🚧 v0.6.0 - Refatoração & Infraestrutura (Em Andamento)
+
+#### Etapa 1: Code Cleanup (FASE ATUAL)
+- [ ] Linting & correção de erros (13 erros, 11 warnings)
+- [ ] Configuração de Prettier
+- [ ] Remoção de dependências extraneous
+- [ ] Padronização de código
+
+#### Etapa 2: Refatoração de Componentes
+- [ ] Desacoplamento de VideoPlayer.jsx
+- [ ] Criação de ReviewCanvas.jsx
+- [ ] Criação de CommentSidebar.jsx
+- [ ] Implementação de VideoContext/Zustand
+
+#### Etapa 3: Infraestrutura
+- [ ] Setup de filas (BullMQ + Redis)
+- [ ] Migração para processamento assíncrono
+- [ ] Streaming HLS adaptativo
+
+### 🚧 Próximas fases (pós-v0.6.0)
 - [ ] Mobile responsiveness
 - [ ] Performance optimization
+- [ ] Integração com NLEs (DaVinci, Premiere)
 - [ ] Analytics dashboard
-- [ ] Melhorias de UX
 
 ## 🚀 Deploy
 
@@ -336,11 +366,52 @@ Ao fazer upload de vídeo:
 
 ## 📚 Documentação
 
-- [Plano completo](.claude/plans/typed-booping-haven.md)
+- [ACTION_PLAN.md](ACTION_PLAN.md) - Plano estratégico v0.6+
+- [CLEANUP_PLAN.md](CLEANUP_PLAN.md) - Plano de limpeza v2.0
+- [FEATURES.md](FEATURES.md) - Guia completo de funcionalidades
+- [API_REFERENCE.md](API_REFERENCE.md) - Documentação da API
+- [STATUS.md](STATUS.md) - Progresso do projeto
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Guia para desenvolvedores
+- [RAILWAY_FFMPEG_FIX.md](RAILWAY_FFMPEG_FIX.md) - Fix para FFmpeg no Railway
+- [GITHUB_SETUP.md](GITHUB_SETUP.md) - Setup de GitHub e Railway
+
+## 🔧 Scripts Utilitários
+
+### Cleanup R2
+Remove arquivos órfãos do Cloudflare R2:
+
+```bash
+node scripts/cleanup-r2.js
+```
+
+### Cleanup Trash
+Remove permanentemente itens da lixeira (7 dias ou mais):
+
+```bash
+node scripts/cleanup-trash.js
+```
+
+### Process Video Metadata
+Recalcula metadados de vídeos existentes:
+
+```bash
+node scripts/process-video-metadata.js
+```
+
+### Diagnóstico FFmpeg
+Diagnostica instalação do FFmpeg (útil para Railway):
+
+```bash
+node scripts/diagnose-ffmpeg.js
+```
+
+## 🔗 Recursos Externos
+
 - [Plyr.js](https://github.com/sampotts/plyr)
 - [Cloudflare R2](https://developers.cloudflare.com/r2/)
 - [Resend](https://resend.com/docs)
 - [Railway](https://railway.app/docs)
+- [shadcn/ui](https://ui.shadcn.com/)
 
 ## 🔐 Autenticação
 
@@ -363,8 +434,8 @@ Usa a tabela `master_users` compartilhada com outros sistemas BRICK (brickprojec
 
 ---
 
-**Status:** ✅ Em produção
-**Versão:** 0.5.0
+**Status:** ✅ Em produção (refatoração em andamento)
+**Versão:** 0.6.0-RC1
 **Licença:** Privado (BRICK Produtora)
 
 ---

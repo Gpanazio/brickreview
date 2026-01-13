@@ -1,3 +1,14 @@
+---
+⚠️ **ARQUIVO OBSOLETO**
+Este arquivo descreve o processo de setup inicial que JÁ FOI CONCLUÍDO.
+Para desenvolvimento atual, consulte:
+- [README.md](README.md) - Visão geral e setup
+- [DEVELOPMENT.md](DEVELOPMENT.md) - Guia para desenvolvedores
+- [CLEANUP_PLAN.md](CLEANUP_PLAN.md) - Plano de refatoração v0.6.0
+
+Preservado apenas para referência histórica.
+---
+
 # 🚀 BrickReview - Quick Start
 
 ## O Que Foi Feito Até Agora ✅

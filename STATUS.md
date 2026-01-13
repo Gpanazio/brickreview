@@ -1,7 +1,7 @@
 # 🎬 BrickReview - Status do Projeto
 
-**Última atualização:** 2026-01-11
-**Versão:** 0.5.0
+**Última atualização:** 2026-01-13
+**Versão:** 0.6.0-RC1 (Refatoração em andamento)
 
 ## ✅ Progresso Geral
 
@@ -71,6 +71,34 @@
 - [x] Expiration dates
 - [x] Share de videos/folders/projects
 
+### Fase 9: Refatoração Técnica - 🚧 EM ANDAMENTO
+
+**Início:** 2026-01-13
+**Status Planejado:** 2-3 dias
+**Meta:** Preparar codebase para escalabilidade
+
+#### Sub-fases
+
+##### 9.1: Code Cleanup (FASE ATUAL) - 1 dia
+- [ ] Linting completo (13 erros, 11 warnings)
+- [ ] Prettier setup
+- [ ] Remoção de dependências extraneous
+- [ ] Limpeza de console logs
+- [ ] Remoção de código morto
+- [ ] Documentação atualizada
+
+##### 9.2: Componentização - 2-3 dias
+- [ ] Desacoplamento de VideoPlayer.jsx (2115 linhas)
+- [ ] Extração de ReviewCanvas.jsx
+- [ ] Extração de CommentSidebar.jsx
+- [ ] Extração de TimelineMarkers.jsx
+- [ ] Implementação de VideoContext/Zustand
+
+##### 9.3: Performance - 1-2 dias
+- [ ] Virtualização de FolderView
+- [ ] Virtualização de CommentSidebar
+- [ ] Memoização de componentes pesados
+
 ---
 
 ## 📊 Estatísticas
@@ -124,33 +152,35 @@
 - Loading states para prevenir tela preta
 - Debug logs para troubleshooting
 
-## 🚀 Próximos Passos
+## 🚀 Próximos Passos (pós-v0.6.0)
 
-### Melhorias de UX
+### Fase 10: Infraestrutura de Escala (Planejado)
+- [ ] Setup de filas (Redis + BullMQ)
+- [ ] Worker de processamento independente
+- [ ] Refatoração para upload assíncrono
+- [ ] Feedback de progresso em tempo real
+- [ ] Streaming HLS adaptativo
+
+### Fase 11: Integrações Externas (Planejado) 🎬
+- [ ] Script Python para DaVinci Resolve
+- [ ] Importação de comentários como marcadores
+- [ ] Painel Webview para NLEs
+- [ ] Integração com Premiere Pro
+
+### Fase 12: Funcionalidades Avançadas (Longo Prazo)
+- [ ] Colaboração em tempo real (WebSockets)
+- [ ] Busca full-text (PostgreSQL)
 - [ ] Mobile responsiveness completa
 - [ ] Keyboard shortcuts
-- [ ] Drag-and-drop para organização
-- [ ] Bulk operations
-
-### Performance
-- [ ] Lazy loading de componentes
-- [ ] Virtual scrolling para listas longas
-- [ ] Cache strategies
-- [ ] Optimistic updates
-
-### Analytics
-- [ ] Dashboard de métricas
-- [ ] Tracking de views
-- [ ] Tempo médio de review
-- [ ] Estatísticas de aprovação
+- [ ] Analytics dashboard
 
 ---
 
 ## 🎯 Estado Atual do Projeto
 
-**Sistema completo e funcional** ✅
+**Sistema funcional, em fase de refatoração** 🚧
 
-O BrickReview está em produção com todas as funcionalidades principais implementadas. O sistema permite upload, review, comentários (incluindo guests), desenhos frame-by-frame, versionamento, e compartilhamento público de vídeos.
+O BrickReview está em produção com todas as funcionalidades principais implementadas (v0.5.0). Atualmente, o código está passando por refatoração técnica (v0.6.0) para preparar para escalabilidade e melhorias de performance.
 
 ### Acesso
 - **Frontend**: React SPA hospedado
@@ -158,5 +188,8 @@ O BrickReview está em produção com todas as funcionalidades principais implem
 - **Database**: PostgreSQL em Railway
 - **Storage**: Cloudflare R2
 
+### Status da Refatoração v0.6.0
+Consulte [CLEANUP_PLAN.md](CLEANUP_PLAN.md) para detalhes do plano de limpeza em andamento.
+
 ### Próximas Melhorias
-Foco em UX, performance e analytics conforme descrito na seção "Próximos Passos" acima.
+Foco em infraestrutura assíncrona (filas), streaming HLS e integrações com NLEs (DaVinci, Premiere) conforme descrito nas Fases 10-12 acima.

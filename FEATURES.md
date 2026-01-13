@@ -4,6 +4,28 @@ Este documento detalha todas as funcionalidades implementadas no BrickReview.
 
 ---
 
+## 🔌 Limitações Técnicas Atuais
+
+> **Importante:** Esta seção descreve as limitações conhecidas da versão atual (v0.5.0) que serão resolvidas na refatoração v0.6.0.
+
+### Processamento de Vídeo
+- **Arquitetura:** Síncrona (bloqueante)
+- **Timeout:** 600 segundos (10 minutos)
+- **Impacto:** Vídeos > 15-20 minutos podem falhar
+- **Solução Planejada:** v0.6.0 - Fila de processamento em background (BullMQ + Redis)
+
+### VideoPlayer
+- **Monolítico:** 2115 linhas em único componente
+- **Impacto:** Dificuldade de manutenção, prop drilling excessivo
+- **Solução Planejada:** v0.6.0 - Desacoplamento em sub-componentes
+
+### Listas Longas
+- **Sem Virtualização:** FolderView e CommentSidebar renderizam todos os itens
+- **Impacto:** Trava em UI com 100+ itens
+- **Solução Planejada:** v0.6.0 - Implementação de `react-window`/`virtua`
+
+---
+
 ## 🎨 Drawing Annotations (Desenhos Frame-by-Frame)
 
 ### O que é
@@ -333,7 +355,38 @@ Picker de emojis integrado aos comentários para adicionar expressividade.
 
 ---
 
+## 🔌 Integrações (Beta - v0.6+)
+
+### DaVinci Resolve (Planejado)
+
+#### Script Python Local (MVP)
+Uma abordagem inicial baseada em scripts para importar feedback.
+
+- **Autenticação**: Login/Senha do BrickReview
+- **Seleção de Projeto**: Lista projetos/vídeos disponíveis via API
+- **Importação de Marcadores**: Lê comentários e cria marcadores na timeline ativa do DaVinci
+- **API**: `Resolve().GetCurrentTimeline().AddMarker()`
+
+#### Painel de Extensão (Workflow Integration)
+Uma aplicação visual dentro do DaVinci.
+
+- **Setup Electron**: Projeto Electron compatível com Workflow Integration do DaVinci
+- **Frontend Embarcado**: Componentes React adaptados para painel estreito
+- **Comunicação Bidirecional**: Clicar em comentário move agulha da timeline
+
+### Premiere Pro (Planejado)
+
+- **Plugin CEP**: Common Extensibility Platform do Adobe
+- **Timeline Markers**: Importação de comentários como marcadores
+- **Panel Extension**: Painel lateral com lista de comentários
+
+---
+
 Para mais informações técnicas, consulte:
 - [README.md](README.md) - Visão geral do projeto
-- [API_REFERENCE.md](API_REFERENCE.md) - Documentação completa da API
+- [docs/API_REFERENCE.md](docs/API_REFERENCE.md) - Documentação completa da API
+- [STATUS.md](STATUS.md) - Progresso do projeto
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Guia para desenvolvedores
+- [ACTION_PLAN.md](ACTION_PLAN.md) - Plano estratégico v0.6+
+- [CLEANUP_PLAN.md](CLEANUP_PLAN.md) - Plano de limpeza v2.0
+
