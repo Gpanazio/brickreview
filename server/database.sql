@@ -306,6 +306,7 @@ SELECT
   (SELECT username FROM master_users WHERE id = v.uploaded_by) as uploaded_by_username
 FROM brickreview_videos v
 LEFT JOIN brickreview_comments c ON c.video_id = v.id
+WHERE v.deleted_at IS NULL
 GROUP BY v.id;
 
 -- View: Comentários com informações do usuário

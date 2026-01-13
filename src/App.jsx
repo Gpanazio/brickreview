@@ -315,7 +315,7 @@ function ProjectsPage() {
       <header className="border-b border-zinc-800/50 glass-panel sticky top-0 z-30 px-4 md:px-8 py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 md:gap-4 flex-1">
-            <h1 className="brick-title text-xl md:text-2xl tracking-tighter truncate">Conta da Brick</h1>
+            <h1 className="brick-title text-xl md:text-2xl tracking-tighter truncate">Workspace</h1>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="glass-button-primary border-none rounded-none">
