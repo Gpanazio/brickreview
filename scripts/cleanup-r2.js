@@ -201,7 +201,7 @@ async function cleanupR2() {
   if (orphanedKeys.length > 0) {
     console.log('CHAVES R2 CANDIDATAS À EXCLUSÃO (DRY RUN):');
     orphanedKeys.forEach(key => console.log(key));
-    console.log('\\n⚠️  NENHUM ARQUIVO FOI DELETADO. Para deletar, remova o comentário da função "deleteOrphanedObjects" e rode o script novamente.');
+    console.log('\n⚠️  NENHUM ARQUIVO FOI DELETADO. Para deletar, remova o comentário da função "deleteOrphanedObjects" e rode o script novamente.');
   } else {
     console.log('🎉 Nenhum arquivo órfão encontrado dentro dos prefixos permitidos.');
   }
@@ -209,7 +209,7 @@ async function cleanupR2() {
   // Função de exclusão real (descomentar para ativar)
   /*
   if (orphanedKeys.length > 0) {
-    console.log('\\n--- INICIANDO EXCLUSÃO REAL ---');
+    console.log('\n--- INICIANDO EXCLUSÃO REAL ---');
     await deleteOrphanedObjects(orphanedKeys);
   }
   */

@@ -967,75 +967,90 @@ function FolderCard({ folder, onClick, onDelete }) {
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger>
+      <ContextMenuTrigger asChild>
         <div
-          className="group relative flex flex-col h-full cursor-pointer transition-all duration-300 hover:-translate-y-1"
+          className="group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all"
           onClick={onClick}
         >
-          <div className="relative aspect-video w-full">
-            <div className="absolute -top-3 left-0 w-1/3 h-4 bg-zinc-800 rounded-t-md border-t border-l border-r border-white/5 z-0" />
-
-            <div className="relative w-full h-full bg-zinc-900 rounded-md border border-white/10 overflow-hidden shadow-lg group-hover:border-zinc-700 transition-colors z-10">
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-20 pointer-events-none" />
-
-              {!hasPreviews ? (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800/50">
-                  <Folder className="w-12 h-12 text-zinc-700 group-hover:text-zinc-500 transition-colors" />
-                </div>
-              ) : (
-                <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px] bg-zinc-950">
-                  <div
-                    className={`relative bg-zinc-800 overflow-hidden ${
-                      previews.length === 1 ? 'col-span-2 row-span-2' : 'col-span-1 row-span-2'
-                    }`}
-                  >
-                    <img
-                      src={previews[0]}
-                      alt={`Pré-visualização 1 para a pasta ${folder.name}`}
-                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                    />
-                    {previews.length > 1 && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="bg-black/40 p-3 rounded-full backdrop-blur-sm">
-                          <Folder className="w-5 h-5 text-white/70" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
+          <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0">
+            {!hasPreviews ? (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-900">
+                <Folder className="w-12 h-12 text-zinc-800 group-hover:text-zinc-700 transition-colors" />
+              </div>
+            ) : (
+              <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px] bg-zinc-950">
+                <div
+                  className={`relative bg-zinc-900 overflow-hidden ${
+                    previews.length === 1 ? 'col-span-2 row-span-2' : 'col-span-1 row-span-2'
+                  }`}
+                >
+                  <img
+                    src={previews[0]}
+                    alt={`Pré-visualização 1 para a pasta ${folder.name}`}
+                    className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105"
+                  />
                   {previews.length > 1 && (
-                    <div className="col-span-1 row-span-2 flex flex-col gap-[1px]">
-                      {[previews[1], previews[2]].map((previewSrc, index) => (
-                        <div
-                          key={previewSrc || `placeholder-${index}`}
-                          className="flex-1 bg-zinc-800 overflow-hidden relative"
-                        >
-                          {previewSrc ? (
-                            <img
-                              src={previewSrc}
-                              alt={`Pré-visualização ${index + 2} para a pasta ${folder.name}`}
-                              className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-zinc-800/50" />
-                          )}
-                        </div>
-                      ))}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="bg-black/40 p-3 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Folder className="w-5 h-5 text-white/70" />
+                      </div>
                     </div>
                   )}
                 </div>
-              )}
+
+                {previews.length > 1 && (
+                  <div className="col-span-1 row-span-2 flex flex-col gap-[1px]">
+                    {[previews[1], previews[2]].map((previewSrc, index) => (
+                      <div
+                        key={previewSrc || `placeholder-${index}`}
+                        className="flex-1 bg-zinc-900 overflow-hidden relative"
+                      >
+                        {previewSrc ? (
+                          <img
+                            src={previewSrc}
+                            alt={`Pré-visualização ${index + 2} para a pasta ${folder.name}`}
+                            className="w-full h-full object-cover opacity-40 group-hover:opacity-80 transition-all duration-700 group-hover:scale-110"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-zinc-900/50" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Folder Icon Overlay (Always visible but subtle) */}
+            <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-[8px] font-black text-white uppercase tracking-[0.2em] shadow-lg flex items-center gap-1.5">
+              <Folder className="w-3 h-3" />
+              Pasta
             </div>
           </div>
 
-          <div className="mt-3 px-1">
-            <h3 className="brick-title text-sm text-white truncate uppercase tracking-tight group-hover:text-red-500 transition-colors">
-              {folder.name}
-            </h3>
-            <div className="flex items-center justify-between mt-1">
-              <p className="brick-tech text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
-                {(folder.videos_count || 0) + (folder.subfolders_count || 0)} Itens
-              </p>
+          <div className="p-5 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all flex-1 flex flex-col justify-between bg-zinc-950/30">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <h3 className="brick-title text-sm text-white truncate mb-1 group-hover:text-red-500 transition-colors">
+                  {folder.name}
+                </h3>
+                <p className="brick-manifesto text-[10px] text-zinc-500 truncate uppercase tracking-widest font-bold">
+                  {(folder.videos_count || 0) + (folder.subfolders_count || 0)} Itens no diretório
+                </p>
+              </div>
+              <button className="text-zinc-700 hover:text-white transition-colors">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-900/50">
+              <div className="flex items-center gap-1.5">
+                <FolderOpen className="w-3 h-3 text-zinc-600" />
+                <span className="brick-tech text-[9px] text-zinc-500 uppercase">Acessar conteúdo</span>
+              </div>
+              <div className="brick-tech text-[8px] text-zinc-600 uppercase tracking-widest">
+                Pasta
+              </div>
             </div>
           </div>
         </div>
