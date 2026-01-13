@@ -1093,6 +1093,23 @@ export function VideoPlayer({
               className="absolute top-0 left-0 h-full bg-red-600"
               style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
             />
+
+            {/* Comment Markers */}
+            {comments.map((comment) => {
+              const ts = parseTimestampSeconds(comment.timestamp);
+              if (ts === null || duration === 0) return null;
+              // Only markers for top-level comments or unique timestamps to avoid too many marks
+              const left = Math.min(100, (ts / duration) * 100);
+              
+              return (
+                <div
+                  key={`marker-${comment.id}`}
+                  className="absolute top-0 w-[2px] h-full bg-white/40 group-hover:bg-white/60 z-10 transition-colors"
+                  style={{ left: `${left}%` }}
+                />
+              );
+            })}
+
             {/* Scrubber Handle on Hover */}
             <div 
               className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
