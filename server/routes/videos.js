@@ -6,7 +6,8 @@ import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import { requireProjectAccess, requireProjectAccessFromVideo } from '../utils/permissions.js'
 import r2Client from '../utils/r2.js'
-import { generateThumbnail, getVideoMetadata, generateProxy, generateSpriteSheet, generateSpriteVtt } from '../utils/video.js';
+import { generateThumbnail, getVideoMetadata, generateProxy } from '../utils/video.js';
+import { buildDownloadFilename, getOriginalFilename } from '../utils/filename.js';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
@@ -365,24 +366,31 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
     const { r2_key, r2_url, proxy_r2_key, proxy_url, title } = videoResult.rows[0];
 
     let downloadKey, downloadUrl;
+    const resolvedType = type === 'proxy' ? 'proxy' : 'original';
+    const originalFilename = getOriginalFilename(r2_key, title);
+    const filename = buildDownloadFilename(originalFilename, resolvedType === 'proxy');
 
-    if (downloadType === 'proxy') {
+    if (resolvedType === 'proxy') {
       if (!proxy_r2_key || !proxy_url) {
         return res.status(404).json({ error: 'Proxy não disponível para este vídeo' });
       }
       downloadKey = proxy_r2_key;
       downloadUrl = proxy_url;
+      resolvedType = 'proxy';
+      filename = addSuffixToFilename(getOriginalFilename(r2_key, title), '_proxy');
     } else {
       downloadKey = r2_key;
       downloadUrl = r2_url;
+      resolvedType = 'original';
+      filename = getOriginalFilename(r2_key, title);
     }
 
     // Se temos URL pública, retorna diretamente
     if (process.env.R2_PUBLIC_URL && downloadUrl && downloadUrl.includes(process.env.R2_PUBLIC_URL)) {
       return res.json({
         url: downloadUrl,
-        filename: `${title}_${downloadType}.mp4`,
-        type: downloadType
+        filename,
+        type: resolvedType
       });
     }
 
@@ -402,8 +410,8 @@ router.get('/:id/download', authenticateToken, async (req, res) => {
 
     res.json({
       url: signedUrl,
-      filename: `${title}_${downloadType}.mp4`,
-      type: downloadType
+      filename,
+      type: resolvedType
     });
   } catch (error) {
     console.error('Erro ao gerar URL de download:', error);

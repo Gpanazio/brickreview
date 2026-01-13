@@ -8,6 +8,7 @@ import {
   requireProjectAccessFromVideo,
 } from '../utils/permissions.js'
 import { v4 as uuidv4 } from 'uuid'
+import { buildDownloadFilename, getOriginalFilename } from '../utils/filename.js'
 
 const router = express.Router()
 
@@ -476,7 +477,7 @@ router.get('/:token/video/:videoId/download', async (req, res) => {
     }
 
     const resDownload = await query(
-      'SELECT title, r2_url, proxy_url FROM brickreview_videos WHERE id = $1',
+      'SELECT title, r2_key, r2_url, proxy_url FROM brickreview_videos WHERE id = $1',
       [videoIdInt]
     );
 
@@ -485,11 +486,14 @@ router.get('/:token/video/:videoId/download', async (req, res) => {
     }
 
     const video = resDownload.rows[0];
-    const url = type === 'proxy' ? (video.proxy_url || video.r2_url) : video.r2_url;
+    const resolvedType = type === 'proxy' ? 'proxy' : 'original';
+    const url = resolvedType === 'proxy' ? (video.proxy_url || video.r2_url) : video.r2_url;
+    const originalFilename = getOriginalFilename(video.r2_key, video.title);
+    const filename = buildDownloadFilename(originalFilename, resolvedType === 'proxy');
 
     res.json({
       url,
-      filename: `${video.title}_${type || 'original'}.mp4`
+      filename
     });
   } catch (err) {
     console.error('Erro ao gerar download compartilhado:', err);
