@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Film, Folder, Play, MessageSquare, ChevronRight, Lock, Share2 } from 'lucide-react';
+import { Film, Folder, Play, MessageSquare, ChevronRight, Lock, Share2, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { VideoPlayer } from '../player/VideoPlayer';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { toast } from 'sonner';
 
 export function ShareViewPage() {
   const { token } = useParams();
@@ -93,6 +100,42 @@ export function ShareViewPage() {
   useEffect(() => {
     fetchShare();
   }, [token]);
+
+  const handleDownloadVideo = async (videoId, type) => {
+    const loadingToast = toast.loading('Gerando link de download...');
+    try {
+      const headers = password ? { 'x-share-password': password } : {};
+      const endpoint = `/api/shares/${token}/video/${videoId}/download?type=${type}`;
+      
+      const response = await fetch(endpoint, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Força download
+        const videoResponse = await fetch(data.url);
+        const blob = await videoResponse.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = data.filename;
+        document.body.appendChild(link);
+        link.click();
+        
+        toast.success('Download iniciado', { id: loadingToast });
+        
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+      } else {
+        toast.error('Erro ao baixar arquivo', { id: loadingToast });
+      }
+    } catch (err) {
+      console.error('Erro no download:', err);
+      toast.error('Erro ao processar download', { id: loadingToast });
+    }
+  };
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
@@ -261,45 +304,71 @@ export function ShareViewPage() {
                             </div>
                         ) : (
                             videos.map((video) => (
-                                <Card
-                                    key={video.id}
-                                    onClick={() => setSelectedVideo(video)}
-                                    className="glass-panel border-zinc-800 rounded-none overflow-hidden hover:border-red-600/50 transition-all cursor-pointer group bg-zinc-900/20"
-                                >
-                                    <div className="aspect-video bg-zinc-950 relative overflow-hidden">
-                                        {video.thumbnail_url ? (
-                                            <img
-                                                src={video.thumbnail_url}
-                                                alt={video.title}
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <Play className="w-12 h-12 text-zinc-800" />
+                                <ContextMenu key={video.id}>
+                                    <ContextMenuTrigger>
+                                        <Card
+                                            onClick={() => setSelectedVideo(video)}
+                                            className="glass-panel border-zinc-800 rounded-none overflow-hidden hover:border-red-600/50 transition-all cursor-pointer group bg-zinc-900/20 h-full"
+                                        >
+                                            <div className="aspect-video bg-zinc-950 relative overflow-hidden">
+                                                {video.thumbnail_url ? (
+                                                    <img
+                                                        src={video.thumbnail_url}
+                                                        alt={video.title}
+                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <Play className="w-12 h-12 text-zinc-800" />
+                                                    </div>
+                                                )}
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <div className="w-12 h-12 bg-red-600 flex items-center justify-center">
+                                                        <Play className="w-6 h-6 text-white fill-current" />
+                                                    </div>
+                                                </div>
                                             </div>
-                                        )}
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <div className="w-12 h-12 bg-red-600 flex items-center justify-center">
-                                                <Play className="w-6 h-6 text-white fill-current" />
+                                            <div className="p-4 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all">
+                                                <h3 className="brick-title text-xs tracking-tighter text-white truncate uppercase">{video.title}</h3>
+                                                <div className="flex items-center gap-3 mt-2 text-[8px] text-zinc-500 uppercase font-black tracking-widest">
+                                                    <span className="flex items-center gap-1">
+                                                        <MessageSquare className="w-3 h-3 text-red-600" />
+                                                        {video.comments_count || 0}
+                                                    </span>
+                                                    {video.duration && (
+                                                        <span className="flex items-center gap-1">
+                                                            <Play className="w-3 h-3" />
+                                                            {Math.floor(video.duration / 60)}:{String(Math.floor(video.duration % 60)).padStart(2, '0')}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div className="p-4 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all">
-                                        <h3 className="brick-title text-xs tracking-tighter text-white truncate uppercase">{video.title}</h3>
-                                        <div className="flex items-center gap-3 mt-2 text-[8px] text-zinc-500 uppercase font-black tracking-widest">
-                                            <span className="flex items-center gap-1">
-                                                <MessageSquare className="w-3 h-3 text-red-600" />
-                                                {video.comments_count || 0}
-                                            </span>
-                                            {video.duration && (
-                                                <span className="flex items-center gap-1">
-                                                    <Play className="w-3 h-3" />
-                                                    {Math.floor(video.duration / 60)}:{String(Math.floor(video.duration % 60)).padStart(2, '0')}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Card>
+                                        </Card>
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+                                        <ContextMenuItem
+                                            onClick={() => setSelectedVideo(video)}
+                                            className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                                        >
+                                            <Play className="w-3 h-3 mr-2" />
+                                            Abrir Vídeo
+                                        </ContextMenuItem>
+                                        <ContextMenuItem
+                                            onClick={() => handleDownloadVideo(video.id, 'original')}
+                                            className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                                        >
+                                            <Download className="w-3 h-3 mr-2" />
+                                            Baixar Original
+                                        </ContextMenuItem>
+                                        <ContextMenuItem
+                                            onClick={() => handleDownloadVideo(video.id, 'proxy')}
+                                            className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                                        >
+                                            <Download className="w-3 h-3 mr-2" />
+                                            Baixar Proxy (720p)
+                                        </ContextMenuItem>
+                                    </ContextMenuContent>
+                                </ContextMenu>
                             ))
                         )}
                     </div>

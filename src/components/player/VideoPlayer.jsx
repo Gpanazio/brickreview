@@ -1201,12 +1201,32 @@ export function VideoPlayer({
               )
             ) : videoSource ? (
               <div key={`player-${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
-                <video
-                  ref={videoRef}
-                  className="plyr-react plyr"
-                  crossOrigin="anonymous"
-                  playsInline
-                />
+                <ContextMenu>
+                  <ContextMenuTrigger className="w-full h-full">
+                    <video
+                      ref={videoRef}
+                      className="plyr-react plyr"
+                      crossOrigin="anonymous"
+                      playsInline
+                    />
+                  </ContextMenuTrigger>
+                  <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+                    <ContextMenuItem
+                      onClick={() => handleDownload('original')}
+                      className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                    >
+                      <Download className="w-3 h-3 mr-2" />
+                      Baixar Original
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      onClick={() => handleDownload('proxy')}
+                      className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                    >
+                      <Download className="w-3 h-3 mr-2" />
+                      Baixar Proxy (720p)
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
                 {/* Canvas overlay for drawing */}
                 <canvas
                   ref={canvasRef}
