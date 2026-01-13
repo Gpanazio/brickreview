@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export function CreateFolderDialog({ isOpen, onClose, onConfirm, title = "Nova Pasta" }) {
-  const [folderName, setFolderName] = useState('');
+  const [folderName, setFolderName] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      setFolderName('');
+      setFolderName("");
     }
   }, [isOpen]);
 

@@ -1,19 +1,31 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { 
-  Upload, Copy, Archive, Trash2, 
-  Image as ImageIcon, ZoomIn, ZoomOut, Move, 
-  Share2, Check, Globe, ArrowLeft, Link as LinkIcon, Search, RefreshCw
-} from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import {
+  Upload,
+  Copy,
+  Archive,
+  Trash2,
+  Image as ImageIcon,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  Share2,
+  Check,
+  Globe,
+  ArrowLeft,
+  Link as LinkIcon,
+  Search,
+  RefreshCw,
+} from "lucide-react";
 
 export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token }) {
   // Estados de Navegação: 'main', 'cover-selection', 'cover-editor', 'cover-browser'
-  const [viewMode, setViewMode] = useState('main'); 
-  
+  const [viewMode, setViewMode] = useState("main");
+
   // Estados do Editor de Capa, Browser e Upload
-  const [coverImageUrl, setCoverImageUrl] = useState('');
-  const [searchQuery, setSearchQuery] = useState(''); // Estado para a busca na web
+  const [coverImageUrl, setCoverImageUrl] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // Estado para a busca na web
   const [_settingCoverFromUrl, _setSettingCoverFromUrl] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
@@ -29,14 +41,14 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const [webHasMore, setWebHasMore] = useState(false);
   const [webLoading, setWebLoading] = useState(false);
   const [webPicking, setWebPicking] = useState(false);
-  const [webError, setWebError] = useState('');
+  const [webError, setWebError] = useState("");
 
   // Estados do Projeto e Gerais
   const [projectDetails, setProjectDetails] = useState(null);
   const [_loadingDetails, setLoadingDetails] = useState(true);
   const [projectName, setProjectName] = useState(project.name);
   const [isRenaming, setIsRenaming] = useState(false);
-  const [shareLink, setShareLink] = useState('');
+  const [shareLink, setShareLink] = useState("");
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -47,14 +59,14 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const fetchProjectDetails = async () => {
     try {
       const response = await fetch(`/api/projects/${project.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
       setProjectDetails(data);
       setProjectName(data.name);
       setSearchQuery(data.name);
     } catch (error) {
-      console.error('Erro ao buscar detalhes do projeto:', error);
+      console.error("Erro ao buscar detalhes do projeto:", error);
     } finally {
       setLoadingDetails(false);
     }
@@ -66,8 +78,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
   const formatBytes = (bytes) => {
     const value = Number(bytes);
-    if (!Number.isFinite(value) || value <= 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    if (!Number.isFinite(value) || value <= 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB", "TB"];
     let unitIndex = 0;
     let size = value;
     while (size >= 1024 && unitIndex < units.length - 1) {
@@ -97,31 +109,31 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!url) return;
 
     setUploadingCover(true); // Reutilizando estado de loading visual
-    const coverToast = toast.loading('Atualizando imagem de capa...');
+    const coverToast = toast.loading("Atualizando imagem de capa...");
 
     try {
       const response = await fetch(`/api/projects/${project.id}/cover-url`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url }),
       });
 
       if (response.ok) {
-        toast.success('Imagem de capa atualizada!', { id: coverToast });
+        toast.success("Imagem de capa atualizada!", { id: coverToast });
         await fetchProjectDetails();
         onProjectUpdate();
-        setCoverImageUrl('');
-        setViewMode('main');
+        setCoverImageUrl("");
+        setViewMode("main");
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Erro ao atualizar imagem de capa', { id: coverToast });
+        toast.error(errorData.error || "Erro ao atualizar imagem de capa", { id: coverToast });
       }
     } catch (error) {
-      console.error('Erro ao atualizar capa por URL:', error);
-      toast.error('Erro ao atualizar imagem de capa', { id: coverToast });
+      console.error("Erro ao atualizar capa por URL:", error);
+      toast.error("Erro ao atualizar imagem de capa", { id: coverToast });
     } finally {
       setUploadingCover(false);
     }
@@ -131,14 +143,14 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!file) return;
 
     setSelectedFile(file);
-    setCoverImageUrl(''); // Limpa URL se selecionou arquivo
+    setCoverImageUrl(""); // Limpa URL se selecionou arquivo
 
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewImage(reader.result);
       setZoom(1);
       setPosition({ x: 0, y: 0 });
-      setViewMode('cover-editor'); // Vai para o editor
+      setViewMode("cover-editor"); // Vai para o editor
     };
     reader.readAsDataURL(file);
   };
@@ -155,7 +167,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     setSelectedFile(null); // Limpa arquivo se usou URL
     setZoom(1);
     setPosition({ x: 0, y: 0 });
-    setViewMode('cover-editor');
+    setViewMode("cover-editor");
   };
 
   const coverWebWidth = 1280;
@@ -167,20 +179,20 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     const limit = 10;
     const offset = append ? webOffset : 0;
 
-    setWebError('');
+    setWebError("");
     setWebLoading(true);
 
     try {
       const response = await fetch(
         `/api/images/search?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`,
         {
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.error || 'Falha ao buscar imagens');
+        throw new Error(data.error || "Falha ao buscar imagens");
       }
 
       const results = Array.isArray(data.results) ? data.results : [];
@@ -190,12 +202,14 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         setWebResults(results);
       }
 
-      const nextOffset = Number.isFinite(data.nextOffset) ? data.nextOffset : offset + results.length;
+      const nextOffset = Number.isFinite(data.nextOffset)
+        ? data.nextOffset
+        : offset + results.length;
       setWebOffset(nextOffset);
       setWebHasMore(Boolean(data.hasMore));
     } catch (error) {
-      console.error('Erro ao buscar imagens:', error);
-      setWebError(error?.message || 'Erro ao buscar imagens');
+      console.error("Erro ao buscar imagens:", error);
+      setWebError(error?.message || "Erro ao buscar imagens");
     } finally {
       setWebLoading(false);
     }
@@ -205,57 +219,57 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!title) return;
 
     setWebPicking(true);
-    setWebError('');
+    setWebError("");
 
     try {
       const resolveResponse = await fetch(
         `/api/images/resolve?title=${encodeURIComponent(title)}&width=${coverWebWidth}`,
         {
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       const resolved = await resolveResponse.json().catch(() => ({}));
       if (!resolveResponse.ok) {
-        throw new Error(resolved.error || 'Falha ao resolver imagem');
+        throw new Error(resolved.error || "Falha ao resolver imagem");
       }
 
       const imageUrl = resolved.url;
-      if (!imageUrl) throw new Error('URL da imagem inválida');
+      if (!imageUrl) throw new Error("URL da imagem inválida");
 
       const imageResponse = await fetch(imageUrl);
-      if (!imageResponse.ok) throw new Error('Não foi possível baixar a imagem');
+      if (!imageResponse.ok) throw new Error("Não foi possível baixar a imagem");
 
       const blob = await imageResponse.blob();
 
       const maxBytes = 10 * 1024 * 1024;
       if (blob.size > maxBytes) {
-        throw new Error('Imagem muito grande (máx 10MB)');
+        throw new Error("Imagem muito grande (máx 10MB)");
       }
 
-      const mime = (resolved.mime || blob.type || '').split(';')[0].trim().toLowerCase();
+      const mime = (resolved.mime || blob.type || "").split(";")[0].trim().toLowerCase();
       const extByType = {
-        'image/jpeg': '.jpg',
-        'image/jpg': '.jpg',
-        'image/png': '.png',
-        'image/webp': '.webp',
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
       };
       const ext = extByType[mime];
       if (!ext) {
-        throw new Error('Tipo de imagem não suportado (use JPG, PNG ou WebP)');
+        throw new Error("Tipo de imagem não suportado (use JPG, PNG ou WebP)");
       }
 
       const file = new File([blob], `cover${ext}`, { type: mime });
       openEditorWithFile(file);
     } catch (error) {
-      console.error('Erro ao selecionar imagem:', error);
-      toast.error(error?.message || 'Erro ao selecionar imagem');
+      console.error("Erro ao selecionar imagem:", error);
+      toast.error(error?.message || "Erro ao selecionar imagem");
     } finally {
       setWebPicking(false);
     }
   };
 
   useEffect(() => {
-    if (viewMode !== 'cover-browser') return;
+    if (viewMode !== "cover-browser") return;
     if (!searchQuery.trim()) return;
     setWebOffset(0);
     searchWebImages({ append: false });
@@ -264,11 +278,11 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
   // --- Lógica do Editor (Zoom/Pan) ---
   const handleMouseDown = (e) => {
-    if (e.target.tagName === 'IMG') {
+    if (e.target.tagName === "IMG") {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - position.x,
-        y: e.clientY - position.y
+        y: e.clientY - position.y,
       });
     }
   };
@@ -277,7 +291,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!isDragging) return;
     setPosition({
       x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y
+      y: e.clientY - dragStart.y,
     });
   };
 
@@ -285,8 +299,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     setIsDragging(false);
   };
 
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 3));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.1, 3));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.1, 0.5));
   const handleResetTransform = () => {
     setZoom(1);
     setPosition({ x: 0, y: 0 });
@@ -296,31 +310,31 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!selectedFile) return;
 
     setUploadingCover(true);
-    const uploadToast = toast.loading('Enviando imagem de capa...');
+    const uploadToast = toast.loading("Enviando imagem de capa...");
     const formData = new FormData();
-    formData.append('cover', selectedFile);
+    formData.append("cover", selectedFile);
 
     try {
       const response = await fetch(`/api/projects/${project.id}/cover`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
       });
 
       if (response.ok) {
-        toast.success('Imagem de capa atualizada!', { id: uploadToast });
+        toast.success("Imagem de capa atualizada!", { id: uploadToast });
         await fetchProjectDetails();
         onProjectUpdate();
         setPreviewImage(null);
         setSelectedFile(null);
-        setViewMode('main');
+        setViewMode("main");
       } else {
         const errorData = await response.json();
-        toast.error(errorData.error || 'Erro ao fazer upload', { id: uploadToast });
+        toast.error(errorData.error || "Erro ao fazer upload", { id: uploadToast });
       }
     } catch (error) {
-      console.error('Erro no upload:', error);
-      toast.error('Erro ao fazer upload da imagem', { id: uploadToast });
+      console.error("Erro no upload:", error);
+      toast.error("Erro ao fazer upload da imagem", { id: uploadToast });
     } finally {
       setUploadingCover(false);
     }
@@ -329,31 +343,31 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   // --- Funções Gerais do Projeto ---
 
   const handleDuplicateProject = () => {
-    toast.info('Funcionalidade de duplicar projeto em desenvolvimento');
+    toast.info("Funcionalidade de duplicar projeto em desenvolvimento");
   };
 
   const handleRename = async () => {
     if (!projectName.trim() || projectName === projectData.name) return;
     setIsRenaming(true);
-    const renameToast = toast.loading('Renomeando projeto...');
+    const renameToast = toast.loading("Renomeando projeto...");
     try {
       const response = await fetch(`/api/projects/${project.id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: projectName.trim() })
+        body: JSON.stringify({ name: projectName.trim() }),
       });
 
       if (response.ok) {
-        toast.success('Projeto renomeado!', { id: renameToast });
+        toast.success("Projeto renomeado!", { id: renameToast });
         onProjectUpdate();
       } else {
-        toast.error('Erro ao renomear', { id: renameToast });
+        toast.error("Erro ao renomear", { id: renameToast });
       }
     } catch (_error) {
-      toast.error('Erro ao renomear', { id: renameToast });
+      toast.error("Erro ao renomear", { id: renameToast });
     } finally {
       setIsRenaming(false);
     }
@@ -361,54 +375,56 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
   const handleToggleStatus = async () => {
     try {
-      const newStatus = projectData.status === 'active' ? 'inactive' : 'active';
-      const statusToast = toast.loading('Alterando status...');
+      const newStatus = projectData.status === "active" ? "inactive" : "active";
+      const statusToast = toast.loading("Alterando status...");
       const response = await fetch(`/api/projects/${project.id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus }),
       });
 
       if (response.ok) {
-        toast.success(`Projeto ${newStatus === 'active' ? 'ativado' : 'inativado'}`, { id: statusToast });
+        toast.success(`Projeto ${newStatus === "active" ? "ativado" : "inativado"}`, {
+          id: statusToast,
+        });
         onProjectUpdate();
         onClose();
       } else {
-        toast.error('Erro ao alterar status', { id: statusToast });
+        toast.error("Erro ao alterar status", { id: statusToast });
       }
     } catch (_error) {
-      toast.error('Erro ao alterar status');
+      toast.error("Erro ao alterar status");
     }
   };
 
   const handleGenerateShare = async () => {
     setIsGeneratingShare(true);
-    const shareToast = toast.loading('Gerando link...');
+    const shareToast = toast.loading("Gerando link...");
     try {
-      const response = await fetch('/api/shares', {
-        method: 'POST',
+      const response = await fetch("/api/shares", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           project_id: project.id,
-          access_type: 'comment'
-        })
+          access_type: "comment",
+        }),
       });
 
-      if (!response.ok) throw new Error('Erro na API');
+      if (!response.ok) throw new Error("Erro na API");
       const data = await response.json();
-      if (!data.token) throw new Error('Token inválido');
+      if (!data.token) throw new Error("Token inválido");
 
       const fullUrl = `${window.location.origin}/share/${data.token}`;
       setShareLink(fullUrl);
-      toast.success('Link gerado!', { id: shareToast });
+      toast.success("Link gerado!", { id: shareToast });
     } catch (_err) {
-      toast.error('Erro ao gerar link', { id: shareToast });
+      toast.error("Erro ao gerar link", { id: shareToast });
     } finally {
       setIsGeneratingShare(false);
     }
@@ -417,28 +433,28 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareLink);
     setCopied(true);
-    toast.success('Copiado para área de transferência');
+    toast.success("Copiado para área de transferência");
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDeleteProject = async () => {
     if (!confirm(`Tem certeza que deseja excluir "${projectData.name}"?`)) return;
-    const deleteToast = toast.loading('Excluindo...');
+    const deleteToast = toast.loading("Excluindo...");
     try {
       const response = await fetch(`/api/projects/${project.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
-        toast.success('Projeto excluído', { id: deleteToast });
+        toast.success("Projeto excluído", { id: deleteToast });
         onProjectUpdate();
         onClose();
       } else {
-        toast.error('Erro ao excluir', { id: deleteToast });
+        toast.error("Erro ao excluir", { id: deleteToast });
       }
     } catch (_error) {
-      toast.error('Erro ao excluir', { id: deleteToast });
+      toast.error("Erro ao excluir", { id: deleteToast });
     }
   };
 
@@ -452,7 +468,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setViewMode('cover-selection')}
+          onClick={() => setViewMode("cover-selection")}
           className="h-6 w-6 rounded-none hover:bg-zinc-800 shrink-0"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -465,7 +481,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') searchWebImages({ append: false });
+              if (e.key === "Enter") searchWebImages({ append: false });
             }}
             className="flex-1 bg-transparent border-none text-xs text-white outline-none placeholder:text-zinc-700 font-mono"
             placeholder="Pesquisar imagem..."
@@ -479,7 +495,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
           onClick={() => searchWebImages({ append: false })}
           disabled={webLoading || webPicking}
         >
-          <RefreshCw className={`w-3 h-3 ${webLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-3 h-3 ${webLoading ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
@@ -533,7 +549,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       {/* Paginação */}
       <div className="mt-3 p-3 bg-zinc-900/50 border border-zinc-800 flex items-center justify-between">
         <div className="text-[10px] text-zinc-500 uppercase tracking-widest">
-          {webResults.length ? `${webResults.length} resultados` : 'Resultados'}
+          {webResults.length ? `${webResults.length} resultados` : "Resultados"}
         </div>
         <Button
           className="glass-button border border-zinc-800 rounded-none h-8 text-[10px]"
@@ -541,7 +557,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
           disabled={!webHasMore || webLoading || webPicking}
           onClick={() => searchWebImages({ append: true })}
         >
-          {webLoading ? 'Carregando...' : 'Carregar mais'}
+          {webLoading ? "Carregando..." : "Carregar mais"}
         </Button>
       </div>
     </div>
@@ -550,10 +566,10 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const renderCoverEditor = () => (
     <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-200">
       <div className="flex items-center gap-3 mb-4">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setViewMode(selectedFile ? 'cover-selection' : 'cover-browser')}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setViewMode(selectedFile ? "cover-selection" : "cover-browser")}
           className="h-8 w-8 rounded-none hover:bg-zinc-800"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -575,15 +591,22 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
             className="absolute inset-0 w-full h-full object-contain select-none transition-transform will-change-transform"
             style={{
               transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-              transition: isDragging ? 'none' : 'transform 0.1s'
+              transition: isDragging ? "none" : "transform 0.1s",
             }}
             draggable={false}
           />
         )}
-        
+
         {/* Grid Overlay para referência visual */}
         <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-20 transition-opacity">
-            <div className="w-full h-full border border-white/20" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '33.3% 33.3%' }}></div>
+          <div
+            className="w-full h-full border border-white/20"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)",
+              backgroundSize: "33.3% 33.3%",
+            }}
+          ></div>
         </div>
 
         <div className="absolute top-2 left-2 bg-black/80 text-white text-[10px] font-bold px-2 py-1 uppercase tracking-widest flex items-center gap-2 pointer-events-none">
@@ -630,7 +653,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         <Button
           variant="ghost"
           className="flex-1 glass-button border border-zinc-800 rounded-none"
-          onClick={() => setViewMode(selectedFile ? 'cover-selection' : 'cover-browser')}
+          onClick={() => setViewMode(selectedFile ? "cover-selection" : "cover-browser")}
           disabled={uploadingCover}
         >
           Cancelar
@@ -642,10 +665,12 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         >
           {uploadingCover ? (
             <div className="flex items-center">
-                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                Salvando...
+              <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+              Salvando...
             </div>
-          ) : 'Confirmar e Salvar'}
+          ) : (
+            "Confirmar e Salvar"
+          )}
         </Button>
       </div>
     </div>
@@ -654,10 +679,10 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const renderCoverSelection = () => (
     <div className="flex flex-col h-full animate-in slide-in-from-right-10 fade-in duration-200">
       <div className="flex items-center gap-3 mb-6">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setViewMode('main')}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setViewMode("main")}
           className="h-8 w-8 rounded-none hover:bg-zinc-800"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -669,12 +694,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         {/* Opção 1: Upload */}
         <div className="p-4 border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-900/50 transition-colors group">
           <label className="cursor-pointer flex items-center gap-4">
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
+            <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
             <div className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:border-red-600 transition-colors">
               <Upload className="w-5 h-5 text-zinc-400 group-hover:text-red-500" />
             </div>
@@ -686,8 +706,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         </div>
 
         {/* Opção 2: Google Images (Agora vai para o Mini Navegador) */}
-        <div 
-          onClick={() => setViewMode('cover-browser')}
+        <div
+          onClick={() => setViewMode("cover-browser")}
           className="p-4 border border-zinc-800 bg-zinc-900/30 hover:bg-zinc-900/50 transition-colors group cursor-pointer flex items-center gap-4"
         >
           <div className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center group-hover:border-blue-500 transition-colors">
@@ -737,9 +757,11 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
       {/* Edição de Nome */}
       <div className="mb-6 space-y-2">
-        <label className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Nome do Projeto</label>
+        <label className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+          Nome do Projeto
+        </label>
         <div className="flex gap-2">
-          <input 
+          <input
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
@@ -747,13 +769,13 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
             placeholder="NOME DO PROJETO"
           />
           {projectName !== projectData.name && (
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               className="glass-button-primary border-none rounded-none px-4 h-auto text-[10px]"
               onClick={handleRename}
               disabled={isRenaming}
             >
-              {isRenaming ? '...' : 'OK'}
+              {isRenaming ? "..." : "OK"}
             </Button>
           )}
         </div>
@@ -764,7 +786,9 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-zinc-400 text-xs uppercase tracking-wider">Itens</span>
-            <span className="text-white font-bold text-xs">{rootVideos.length} (+{versionsCount} versões)</span>
+            <span className="text-white font-bold text-xs">
+              {rootVideos.length} (+{versionsCount} versões)
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-zinc-400 text-xs uppercase tracking-wider">Tamanho</span>
@@ -772,8 +796,10 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-zinc-400 text-xs uppercase tracking-wider">Status</span>
-            <span className={`font-bold uppercase text-xs ${projectData.status === 'active' ? 'text-green-500' : 'text-zinc-500'}`}>
-              {projectData.status === 'active' ? 'Ativo' : 'Inativo'}
+            <span
+              className={`font-bold uppercase text-xs ${projectData.status === "active" ? "text-green-500" : "text-zinc-500"}`}
+            >
+              {projectData.status === "active" ? "Ativo" : "Inativo"}
             </span>
           </div>
         </div>
@@ -785,7 +811,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         <Button
           variant="ghost"
           className="w-full justify-start glass-button border border-zinc-800 rounded-none h-10 group"
-          onClick={() => setViewMode('cover-selection')}
+          onClick={() => setViewMode("cover-selection")}
         >
           <ImageIcon className="w-4 h-4 mr-3 text-zinc-500 group-hover:text-white" />
           Alterar Imagem de Capa
@@ -806,7 +832,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
           onClick={handleToggleStatus}
         >
           <Archive className="w-4 h-4 mr-3 text-zinc-500 group-hover:text-white" />
-          {projectData.status === 'active' ? 'Marcar como Inativo' : 'Marcar como Ativo'}
+          {projectData.status === "active" ? "Marcar como Inativo" : "Marcar como Ativo"}
         </Button>
 
         {/* Share Section */}
@@ -819,24 +845,28 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
               disabled={isGeneratingShare}
             >
               <Share2 className="w-4 h-4 mr-3" />
-              {isGeneratingShare ? 'Gerando...' : 'Gerar Link de Revisão'}
+              {isGeneratingShare ? "Gerando..." : "Gerar Link de Revisão"}
             </Button>
           ) : (
             <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="flex items-center gap-2 p-2 bg-black border border-zinc-800 rounded-none">
                 <Globe className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                <input 
-                  readOnly 
-                  value={shareLink} 
+                <input
+                  readOnly
+                  value={shareLink}
                   className="flex-1 bg-transparent border-none text-[10px] text-zinc-400 font-mono outline-none truncate"
                 />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="h-6 w-6 hover:bg-zinc-800 rounded-none"
                   onClick={copyToClipboard}
                 >
-                  {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3 text-zinc-500" />}
+                  {copied ? (
+                    <Check className="w-3 h-3 text-green-500" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-zinc-500" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -871,14 +901,14 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     >
       <div
         className={`glass-panel p-6 w-full mx-4 rounded-none border border-zinc-800 flex flex-col overflow-hidden transition-all duration-300 ${
-          viewMode === 'cover-browser' ? 'max-w-4xl h-[80vh]' : 'max-w-md h-auto max-h-[85vh]'
+          viewMode === "cover-browser" ? "max-w-4xl h-[80vh]" : "max-w-md h-auto max-h-[85vh]"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        {viewMode === 'main' && renderMainView()}
-        {viewMode === 'cover-selection' && renderCoverSelection()}
-        {viewMode === 'cover-browser' && renderCoverBrowser()}
-        {viewMode === 'cover-editor' && renderCoverEditor()}
+        {viewMode === "main" && renderMainView()}
+        {viewMode === "cover-selection" && renderCoverSelection()}
+        {viewMode === "cover-browser" && renderCoverBrowser()}
+        {viewMode === "cover-editor" && renderCoverEditor()}
       </div>
     </div>
   );

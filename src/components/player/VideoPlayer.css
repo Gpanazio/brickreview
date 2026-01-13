@@ -1,8 +1,8 @@
 /* Remove o box-shadow padrão e bordas do Plyr */
 :root {
-  --plyr-color-main: #DC2626; /* Vermelho BRICK */
+  --plyr-color-main: #dc2626; /* Vermelho BRICK */
   --plyr-control-radius: 0px;
-  --plyr-font-family: 'JetBrains Mono', monospace;
+  --plyr-font-family: "JetBrains Mono", monospace;
   --plyr-font-size-time: 12px;
 }
 
@@ -24,10 +24,10 @@
 /* Tooltip do tempo */
 .plyr__tooltip {
   background: #000000;
-  border: 1px solid #DC2626;
+  border: 1px solid #dc2626;
   border-radius: 0;
   box-shadow: none;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   text-transform: uppercase;
   font-size: 10px;
   padding: 4px 8px;
@@ -37,13 +37,13 @@
 .plyr__control {
   background: transparent;
   transition: all 0.2s ease;
-  color: #A1A1AA; /* zinc-400 */
+  color: #a1a1aa; /* zinc-400 */
 }
 
 .plyr__control:hover,
 .plyr__control[aria-expanded="true"] {
-  background: #DC2626;
-  color: #FFFFFF;
+  background: #dc2626;
+  color: #ffffff;
 }
 
 /* Ícone de play grande no centro */
@@ -53,18 +53,20 @@
   border: 2px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
   padding: 20px;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
   transform: translate(-50%, -50%);
 }
 
 .plyr__control--overlaid:hover {
-  background: #EF4444; /* red-500 */
+  background: #ef4444; /* red-500 */
   transform: translate(-50%, -50%) scale(1.05);
 }
 
 .plyr__control--overlaid svg {
-    width: 30px;
-    height: 30px;
+  width: 30px;
+  height: 30px;
 }
 
 /* Barra de controles inferior */
@@ -77,20 +79,21 @@
 
 /* Ajustes de fonte para tempo */
 .plyr__time {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 12px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* Slider de volume */
-.plyr--audio .plyr__controls, .plyr--video .plyr__controls {
+.plyr--audio .plyr__controls,
+.plyr--video .plyr__controls {
   padding-left: 5px;
   padding-right: 5px;
 }
 
 /* Remove borda do input de progresso */
-.plyr__progress input[type=range] {
-  color: #DC2626;
+.plyr__progress input[type="range"] {
+  color: #dc2626;
 }
 
 /* Garante que os controles do player fiquem acima do canvas quando não estiver desenhando */
@@ -156,38 +159,38 @@ video.plyr-react {
 }
 
 .plyr__video-wrapper {
-    height: 100% !important;
-    width: 100% !important;
-    position: absolute !important;
-    top: 0;
-    left: 0;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #000 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    aspect-ratio: unset !important;
+  height: 100% !important;
+  width: 100% !important;
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  aspect-ratio: unset !important;
 }
 
 /* Custom Range Input Styles */
-input[type=range] {
+input[type="range"] {
   -webkit-appearance: none;
   background: transparent;
 }
 
-input[type=range]::-webkit-slider-thumb {
+input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   height: 10px;
   width: 10px;
   border-radius: 50%;
-  background: #DC2626;
+  background: #dc2626;
   cursor: pointer;
   margin-top: -3px;
   box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
 }
 
-input[type=range]::-webkit-slider-runnable-track {
+input[type="range"]::-webkit-slider-runnable-track {
   width: 100%;
   height: 4px;
   cursor: pointer;
@@ -195,7 +198,7 @@ input[type=range]::-webkit-slider-runnable-track {
   border-radius: 2px;
 }
 
-input[type=range]:focus {
+input[type="range"]:focus {
   outline: none;
 }
 
@@ -228,12 +231,11 @@ input[type=range]:focus {
 
 /* 2. Ajustes específicos para Mobile, PRESERVANDO sua correção anterior */
 @media (max-width: 768px) {
-  
   /* IMPORTANTE: Mantemos z-index baixo APENAS quando NÃO estiver em fullscreen.
      Isso preserva sua correção para que dropdowns/headers funcionem no layout normal. */
   .plyr:not(.plyr--fullscreen),
   .plyr--full-ui.plyr--video:not(.plyr--fullscreen) {
-    z-index: 1 !important; 
+    z-index: 1 !important;
   }
 
   /* Ajusta botões de controle do Plyr no mobile */
@@ -277,6 +279,6 @@ input[type=range]:focus {
 }
 
 /* Garante que o volume slider funcione em mobile (touch) */
-input[type=range] {
+input[type="range"] {
   touch-action: manipulation !important;
 }

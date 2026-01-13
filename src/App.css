@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
 @import "tailwindcss";
 
@@ -38,8 +38,8 @@
 
 @layer base {
   :root {
-    --background: 240 5% 4%; 
-    --foreground: 0 0% 90%; 
+    --background: 240 5% 4%;
+    --foreground: 0 0% 90%;
     --card: 0 0% 2%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 2%;
@@ -49,7 +49,7 @@
     --secondary: 0 0% 9%;
     --secondary-foreground: 0 0% 90%;
     --muted: 0 0% 9%;
-    --muted-foreground: 0 0% 50%; 
+    --muted-foreground: 0 0% 50%;
     --accent: 0 0% 15%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
@@ -59,15 +59,26 @@
     --ring: 356 85% 55%;
     --radius: 0px;
   }
-  * { border-color: hsl(var(--border)); border-style: solid; }
-  body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); font-feature-settings: "rlig" 1, "calt" 1; overflow-x: hidden; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+  * {
+    border-color: hsl(var(--border));
+    border-style: solid;
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
+    overflow-x: hidden;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
 }
 
 /* BRICK Typography Classes */
 @layer utilities {
   /* Títulos de impacto - Inter Black com -5% tracking */
   .brick-title {
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
     font-weight: 900;
     letter-spacing: -0.05em;
     text-transform: uppercase;
@@ -75,7 +86,7 @@
 
   /* Manifestos & Apoio - Inter Light (300) */
   .brick-manifesto {
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
     font-weight: 300;
     letter-spacing: 0.02em;
     line-height: 1.6;
@@ -83,7 +94,7 @@
 
   /* Textos técnicos - JetBrains Mono */
   .brick-tech {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: "JetBrains Mono", monospace;
     font-weight: 400;
     letter-spacing: -0.02em;
   }
@@ -108,10 +119,10 @@
   }
 
   .glass-card::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
     opacity: 0;
     transition: opacity 0.5s ease;
     pointer-events: none;
@@ -126,7 +137,9 @@
   .glass-card:hover {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255,255,255,0.02);
+    box-shadow:
+      0 20px 50px rgba(0, 0, 0, 0.5),
+      inset 0 0 20px rgba(255, 255, 255, 0.02);
     transform: translateY(-8px) scale(1.01);
   }
 
@@ -144,11 +157,13 @@
   .glass-input:focus {
     background: rgba(255, 255, 255, 0.06) !important;
     border-color: rgba(220, 38, 38, 0.4) !important;
-    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.3), 0 10px 20px rgba(0,0,0,0.2);
+    box-shadow:
+      0 0 0 1px rgba(220, 38, 38, 0.3),
+      0 10px 20px rgba(0, 0, 0, 0.2);
   }
 
   .glass-button-primary {
-    background: #DC2626;
+    background: #dc2626;
     border: 1px solid rgba(255, 255, 255, 0.1);
     transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
     position: relative;
@@ -156,18 +171,18 @@
   }
 
   .glass-button-primary::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     transition: left 0.6s ease;
   }
 
   .glass-button-primary:hover {
-    background: #EF4444;
+    background: #ef4444;
     box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
     transform: translateY(-1px);
   }
@@ -188,15 +203,19 @@
   }
 
   @keyframes orb-float {
-    0% { transform: translate(0, 0) scale(1); }
-    100% { transform: translate(10%, 15%) scale(1.1); }
+    0% {
+      transform: translate(0, 0) scale(1);
+    }
+    100% {
+      transform: translate(10%, 15%) scale(1.1);
+    }
   }
 
   /* Reveal Animation Utility */
   .reveal-text {
     overflow: hidden;
   }
-  
+
   .reveal-text span {
     display: block;
     animation: text-reveal 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
@@ -204,14 +223,28 @@
   }
 
   @keyframes text-reveal {
-    to { transform: translateY(0); }
+    to {
+      transform: translateY(0);
+    }
   }
 }
 
 @layer utilities {
-  .text-shadow { text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: #000; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #DC2626; }
+  .text-shadow {
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #000;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #222;
+    border-radius: 3px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #dc2626;
+  }
 }

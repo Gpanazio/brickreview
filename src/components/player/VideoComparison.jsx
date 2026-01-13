@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { ChevronsLeftRight } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { ChevronsLeftRight } from "lucide-react";
 
 const DRIFT_THRESHOLD = 0.05;
 
@@ -13,7 +13,7 @@ export function VideoComparison({
   onDurationChange,
   onPlayStateChange,
   onVolumeChange,
-  onRateChange
+  onRateChange,
 }) {
   const containerRef = useRef(null);
   const masterRef = useRef(null);
@@ -83,24 +83,24 @@ export function VideoComparison({
       onDurationChange?.(master.duration);
     };
 
-    master.addEventListener('play', handlePlay);
-    master.addEventListener('pause', handlePause);
-    master.addEventListener('seeking', handleSeeking);
-    master.addEventListener('timeupdate', handleTimeUpdate);
-    master.addEventListener('durationchange', handleDuration);
-    master.addEventListener('ratechange', handleRateChange);
-    master.addEventListener('volumechange', handleVolumeChange);
-    master.addEventListener('loadedmetadata', handleLoadedMetadata);
+    master.addEventListener("play", handlePlay);
+    master.addEventListener("pause", handlePause);
+    master.addEventListener("seeking", handleSeeking);
+    master.addEventListener("timeupdate", handleTimeUpdate);
+    master.addEventListener("durationchange", handleDuration);
+    master.addEventListener("ratechange", handleRateChange);
+    master.addEventListener("volumechange", handleVolumeChange);
+    master.addEventListener("loadedmetadata", handleLoadedMetadata);
 
     return () => {
-      master.removeEventListener('play', handlePlay);
-      master.removeEventListener('pause', handlePause);
-      master.removeEventListener('seeking', handleSeeking);
-      master.removeEventListener('timeupdate', handleTimeUpdate);
-      master.removeEventListener('durationchange', handleDuration);
-      master.removeEventListener('ratechange', handleRateChange);
-      master.removeEventListener('volumechange', handleVolumeChange);
-      master.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      master.removeEventListener("play", handlePlay);
+      master.removeEventListener("pause", handlePause);
+      master.removeEventListener("seeking", handleSeeking);
+      master.removeEventListener("timeupdate", handleTimeUpdate);
+      master.removeEventListener("durationchange", handleDuration);
+      master.removeEventListener("ratechange", handleRateChange);
+      master.removeEventListener("volumechange", handleVolumeChange);
+      master.removeEventListener("loadedmetadata", handleLoadedMetadata);
       cancelAnimationFrame(rafRef.current);
     };
   }, [onDurationChange, onPlayStateChange, onRateChange, onTimeUpdate, onVolumeChange]);
@@ -172,8 +172,8 @@ export function VideoComparison({
           } else {
             container.requestFullscreen?.();
           }
-        }
-      }
+        },
+      },
     };
 
     onControllerReady?.(controller);
@@ -196,16 +196,16 @@ export function VideoComparison({
 
     const handleUp = () => setIsDragging(false);
 
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    window.addEventListener('touchmove', handleMove);
-    window.addEventListener('touchend', handleUp);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+    window.addEventListener("touchmove", handleMove);
+    window.addEventListener("touchend", handleUp);
 
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      window.removeEventListener('touchmove', handleMove);
-      window.removeEventListener('touchend', handleUp);
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleUp);
     };
   }, [isDragging]);
 

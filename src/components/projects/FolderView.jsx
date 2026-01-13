@@ -1,10 +1,23 @@
-import { useState } from 'react';
-import { Folder, FolderOpen, File, FileImage, FileText, FileAudio, Plus, MoreVertical, Edit, Trash2, ExternalLink, Share2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { CreateFolderDialog } from './CreateFolderDialog';
-import { formatVideoDuration } from '../../utils/time';
-import { toast } from 'sonner';
+import { useState } from "react";
+import {
+  Folder,
+  FolderOpen,
+  File,
+  FileImage,
+  FileText,
+  FileAudio,
+  Plus,
+  MoreVertical,
+  Edit,
+  Trash2,
+  ExternalLink,
+  Share2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { CreateFolderDialog } from "./CreateFolderDialog";
+import { formatVideoDuration } from "../../utils/time";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +27,7 @@ import {
 
 // Helper para formatar tamanho de arquivo
 const formatFileSize = (bytes) => {
-  if (!bytes) return '';
+  if (!bytes) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -23,20 +36,28 @@ const formatFileSize = (bytes) => {
 // Helper para ícone baseado no tipo de arquivo
 const getFileIcon = (fileType) => {
   switch (fileType) {
-    case 'image': return FileImage;
-    case 'audio': return FileAudio;
-    case 'document': return FileText;
-    default: return File;
+    case "image":
+      return FileImage;
+    case "audio":
+      return FileAudio;
+    case "document":
+      return FileText;
+    default:
+      return File;
   }
 };
 
 // Helper para cor baseada no tipo de arquivo
 const getFileColor = (fileType) => {
   switch (fileType) {
-    case 'image': return 'text-green-400';
-    case 'audio': return 'text-purple-400';
-    case 'document': return 'text-orange-400';
-    default: return 'text-zinc-400';
+    case "image":
+      return "text-green-400";
+    case "audio":
+      return "text-purple-400";
+    case "document":
+      return "text-orange-400";
+    default:
+      return "text-zinc-400";
   }
 };
 
@@ -54,33 +75,40 @@ export function FolderView({
   onMoveVideo,
   onFileDelete,
   onGenerateFolderShare,
-  token
+  token,
 }) {
   const normalizedFolders = Array.isArray(folders) ? folders : [];
   const normalizedVideos = Array.isArray(videos) ? videos : [];
   const normalizedFiles = Array.isArray(files) ? files : [];
   const [expandedFolders, setExpandedFolders] = useState(new Set());
   const [renamingFolder, setRenamingFolder] = useState(null);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [, setCreatingFolder] = useState(false)
-  const [, setNewSubfolderParent] = useState(null)
+  const [newFolderName, setNewFolderName] = useState("");
+  const [, setCreatingFolder] = useState(false);
+  const [, setNewSubfolderParent] = useState(null);
   const [dragOverFolder, setDragOverFolder] = useState(null);
   const [createFolderDialog, setCreateFolderDialog] = useState({
     isOpen: false,
     parentFolderId: null,
-    title: 'Nova Pasta'
+    title: "Nova Pasta",
   });
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
-    title: 'Confirmar ação',
-    message: 'Tem certeza que deseja continuar?',
-    confirmText: 'Confirmar',
-    cancelText: 'Cancelar',
-    variant: 'danger',
+    title: "Confirmar ação",
+    message: "Tem certeza que deseja continuar?",
+    confirmText: "Confirmar",
+    cancelText: "Cancelar",
+    variant: "danger",
     onConfirm: null,
   });
 
-  const openConfirmDialog = ({ title, message, confirmText = 'Confirmar', cancelText = 'Cancelar', variant = 'danger', onConfirm }) => {
+  const openConfirmDialog = ({
+    title,
+    message,
+    confirmText = "Confirmar",
+    cancelText = "Cancelar",
+    variant = "danger",
+    onConfirm,
+  }) => {
     setConfirmDialog({
       isOpen: true,
       title,
@@ -97,21 +125,19 @@ export function FolderView({
   };
 
   // Filtra pastas do nível atual
-  const currentLevelFolders = normalizedFolders.filter(f =>
-    f.parent_folder_id === currentFolderId ||
-    (!currentFolderId && f.parent_folder_id === null)
+  const currentLevelFolders = normalizedFolders.filter(
+    (f) =>
+      f.parent_folder_id === currentFolderId || (!currentFolderId && f.parent_folder_id === null)
   );
 
   // Filtra vídeos do nível atual
-  const currentLevelVideos = normalizedVideos.filter(v =>
-    v.folder_id === currentFolderId ||
-    (!currentFolderId && v.folder_id === null)
+  const currentLevelVideos = normalizedVideos.filter(
+    (v) => v.folder_id === currentFolderId || (!currentFolderId && v.folder_id === null)
   );
 
   // Filtra arquivos do nível atual
-  const currentLevelFiles = normalizedFiles.filter(f =>
-    f.folder_id === currentFolderId ||
-    (!currentFolderId && f.folder_id === null)
+  const currentLevelFiles = normalizedFiles.filter(
+    (f) => f.folder_id === currentFolderId || (!currentFolderId && f.folder_id === null)
   );
 
   const toggleFolder = (folderId) => {
@@ -134,51 +160,52 @@ export function FolderView({
 
     try {
       const response = await fetch(`/api/folders/${folderId}`, {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: newFolderName })
+        body: JSON.stringify({ name: newFolderName }),
       });
 
       if (response.ok) {
         onRenameFolder();
         setRenamingFolder(null);
-        setNewFolderName('');
+        setNewFolderName("");
       }
     } catch (error) {
-      console.error('Erro ao renomear pasta:', error);
+      console.error("Erro ao renomear pasta:", error);
     }
   };
 
   const performDeleteFolder = async (folderId) => {
     try {
       const response = await fetch(`/api/folders/${folderId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
-        toast.success('Pasta excluída');
+        toast.success("Pasta excluída");
         onDeleteFolder();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Erro ao excluir pasta');
+        toast.error(errorData.error || "Erro ao excluir pasta");
       }
     } catch (error) {
-      console.error('Erro ao excluir pasta:', error);
-      toast.error('Erro ao excluir pasta');
+      console.error("Erro ao excluir pasta:", error);
+      toast.error("Erro ao excluir pasta");
     }
   };
 
   const handleDeleteFolder = (folderId) => {
     openConfirmDialog({
-      title: 'Excluir pasta',
-      message: 'Tem certeza que deseja excluir esta pasta? Todas as subpastas serão excluídas e os vídeos ficarão sem pasta.',
-      confirmText: 'Excluir',
-      cancelText: 'Cancelar',
-      variant: 'danger',
+      title: "Excluir pasta",
+      message:
+        "Tem certeza que deseja excluir esta pasta? Todas as subpastas serão excluídas e os vídeos ficarão sem pasta.",
+      confirmText: "Excluir",
+      cancelText: "Cancelar",
+      variant: "danger",
       onConfirm: () => performDeleteFolder(folderId),
     });
   };
@@ -186,30 +213,30 @@ export function FolderView({
   const performDeleteFile = async (fileId) => {
     try {
       const response = await fetch(`/api/files/${fileId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
-        toast.success('Arquivo excluído');
+        toast.success("Arquivo excluído");
         onFileDelete?.();
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Erro ao excluir arquivo');
+        toast.error(errorData.error || "Erro ao excluir arquivo");
       }
     } catch (error) {
-      console.error('Erro ao excluir arquivo:', error);
-      toast.error('Erro ao excluir arquivo');
+      console.error("Erro ao excluir arquivo:", error);
+      toast.error("Erro ao excluir arquivo");
     }
   };
 
   const handleDeleteFile = (fileId) => {
     openConfirmDialog({
-      title: 'Excluir arquivo',
-      message: 'Tem certeza que deseja excluir este arquivo?',
-      confirmText: 'Excluir',
-      cancelText: 'Cancelar',
-      variant: 'danger',
+      title: "Excluir arquivo",
+      message: "Tem certeza que deseja excluir este arquivo?",
+      confirmText: "Excluir",
+      cancelText: "Cancelar",
+      variant: "danger",
       onConfirm: () => performDeleteFile(fileId),
     });
   };
@@ -218,7 +245,7 @@ export function FolderView({
     setCreateFolderDialog({
       isOpen: true,
       parentFolderId,
-      title: parentFolderId ? 'Nova Subpasta' : 'Nova Pasta'
+      title: parentFolderId ? "Nova Subpasta" : "Nova Pasta",
     });
   };
 
@@ -231,12 +258,12 @@ export function FolderView({
   const handleFolderDragOver = (e, folderId) => {
     e.preventDefault();
     e.stopPropagation();
-    const hasVideoData = Array.from(e.dataTransfer.types).some(type => 
-      type === 'video' || type === 'application/x-brick-video-id'
+    const hasVideoData = Array.from(e.dataTransfer.types).some(
+      (type) => type === "video" || type === "application/x-brick-video-id"
     );
     if (hasVideoData) {
       setDragOverFolder(folderId);
-      e.dataTransfer.dropEffect = 'move';
+      e.dataTransfer.dropEffect = "move";
     }
   };
 
@@ -254,9 +281,9 @@ export function FolderView({
     setDragOverFolder(null);
 
     try {
-      let videoData = e.dataTransfer.getData('video');
+      let videoData = e.dataTransfer.getData("video");
       if (!videoData) {
-        const videoId = e.dataTransfer.getData('application/x-brick-video-id');
+        const videoId = e.dataTransfer.getData("application/x-brick-video-id");
         if (videoId) {
           videoData = JSON.stringify({ id: parseInt(videoId) });
         }
@@ -266,7 +293,7 @@ export function FolderView({
         await onMoveVideo?.(video.id, folderId);
       }
     } catch (error) {
-      console.error('Erro ao processar drop na pasta:', error);
+      console.error("Erro ao processar drop na pasta:", error);
     }
   };
 
@@ -297,7 +324,7 @@ export function FolderView({
           <DropdownMenuContent className="glass-panel border-zinc-800 rounded-none">
             <DropdownMenuItem
               className="text-xs uppercase tracking-wider cursor-pointer"
-              onClick={() => window.open(file.r2_url, '_blank')}
+              onClick={() => window.open(file.r2_url, "_blank")}
             >
               <ExternalLink className="w-3 h-3 mr-2" />
               Abrir
@@ -317,16 +344,18 @@ export function FolderView({
 
   const renderFolder = (folder, depth = 0) => {
     const isExpanded = expandedFolders.has(folder.id);
-    const subfolders = normalizedFolders.filter(f => f.parent_folder_id === folder.id);
-    const folderVideos = normalizedVideos.filter(v => v.folder_id === folder.id);
-    const folderFiles = normalizedFiles.filter(f => f.folder_id === folder.id);
+    const subfolders = normalizedFolders.filter((f) => f.parent_folder_id === folder.id);
+    const folderVideos = normalizedVideos.filter((v) => v.folder_id === folder.id);
+    const folderFiles = normalizedFiles.filter((f) => f.folder_id === folder.id);
     const isDragOver = dragOverFolder === folder.id;
 
     return (
       <div key={folder.id} style={{ marginLeft: `${depth * 20}px` }}>
         <div
           className={`group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 transition-all ${
-            isDragOver ? 'border-l-blue-500 bg-blue-900/20' : 'border-l-transparent hover:border-l-red-600'
+            isDragOver
+              ? "border-l-blue-500 bg-blue-900/20"
+              : "border-l-transparent hover:border-l-red-600"
           }`}
           onDragOver={(e) => handleFolderDragOver(e, folder.id)}
           onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
@@ -346,8 +375,8 @@ export function FolderView({
               onChange={(e) => setNewFolderName(e.target.value)}
               onBlur={() => handleRenameSubmit(folder.id)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleRenameSubmit(folder.id);
-                if (e.key === 'Escape') setRenamingFolder(null);
+                if (e.key === "Enter") handleRenameSubmit(folder.id);
+                if (e.key === "Escape") setRenamingFolder(null);
               }}
               className="flex-1 bg-zinc-900 border border-zinc-700 px-2 py-1 text-xs text-white focus:outline-none focus:border-red-600"
               autoFocus
@@ -406,15 +435,15 @@ export function FolderView({
 
         {isExpanded && (
           <div>
-            {subfolders.map(subfolder => renderFolder(subfolder, depth + 1))}
-            {folderVideos.map(video => (
+            {subfolders.map((subfolder) => renderFolder(subfolder, depth + 1))}
+            {folderVideos.map((video) => (
               <div
                 key={video.id}
                 draggable
                 onDragStart={(e) => {
                   e.stopPropagation();
-                  e.dataTransfer.effectAllowed = 'move';
-                  e.dataTransfer.setData('video', JSON.stringify(video));
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("video", JSON.stringify(video));
                 }}
                 style={{ marginLeft: `${(depth + 1) * 20}px` }}
                 className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-blue-600 transition-all cursor-pointer"
@@ -429,7 +458,7 @@ export function FolderView({
                 </span>
               </div>
             ))}
-            {folderFiles.map(file => renderFileItem(file, depth + 1))}
+            {folderFiles.map((file) => renderFileItem(file, depth + 1))}
           </div>
         )}
       </div>
@@ -439,75 +468,77 @@ export function FolderView({
   return (
     <>
       <div className="space-y-1">
-      <div className="flex items-center justify-between mb-4 px-3">
-        <h3 className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
-          Estrutura de Pastas
-        </h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="glass-button border border-zinc-800 rounded-none h-7 text-[10px] uppercase tracking-wider"
-          onClick={() => handleCreateFolder(currentFolderId)}
-        >
-          <Plus className="w-3 h-3 mr-1" />
-          Nova Pasta
-        </Button>
-      </div>
+        <div className="flex items-center justify-between mb-4 px-3">
+          <h3 className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
+            Estrutura de Pastas
+          </h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="glass-button border border-zinc-800 rounded-none h-7 text-[10px] uppercase tracking-wider"
+            onClick={() => handleCreateFolder(currentFolderId)}
+          >
+            <Plus className="w-3 h-3 mr-1" />
+            Nova Pasta
+          </Button>
+        </div>
 
-      {/* Pastas do nível atual */}
-      {currentLevelFolders.map(folder => renderFolder(folder))}
+        {/* Pastas do nível atual */}
+        {currentLevelFolders.map((folder) => renderFolder(folder))}
 
-      {/* Vídeos do nível atual (sem pasta) */}
-      {currentLevelVideos.length > 0 && (
-        <div className="mt-4">
-          <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-3">
-            Vídeos sem pasta
-          </div>
-          {currentLevelVideos.map(video => (
-            <div
-              key={video.id}
-              draggable
-              onDragStart={(e) => {
-                e.stopPropagation();
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('video', JSON.stringify(video));
-                e.dataTransfer.setData('application/x-brick-video-id', String(video.id));
-              }}
-              className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-blue-600 transition-all cursor-pointer"
-              onClick={() => onVideoClick(video)}
-            >
-              <File className="w-4 h-4 text-blue-400" />
-              <span className="flex-1 text-sm text-zinc-400 hover:text-white uppercase tracking-tight">
-                {video.title}
-              </span>
-              <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-                {formatVideoDuration(video.duration)}
-              </span>
+        {/* Vídeos do nível atual (sem pasta) */}
+        {currentLevelVideos.length > 0 && (
+          <div className="mt-4">
+            <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-3">
+              Vídeos sem pasta
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Arquivos do nível atual (sem pasta) */}
-      {currentLevelFiles.length > 0 && (
-        <div className="mt-4">
-          <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-3">
-            Arquivos sem pasta
+            {currentLevelVideos.map((video) => (
+              <div
+                key={video.id}
+                draggable
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("video", JSON.stringify(video));
+                  e.dataTransfer.setData("application/x-brick-video-id", String(video.id));
+                }}
+                className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-blue-600 transition-all cursor-pointer"
+                onClick={() => onVideoClick(video)}
+              >
+                <File className="w-4 h-4 text-blue-400" />
+                <span className="flex-1 text-sm text-zinc-400 hover:text-white uppercase tracking-tight">
+                  {video.title}
+                </span>
+                <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
+                  {formatVideoDuration(video.duration)}
+                </span>
+              </div>
+            ))}
           </div>
-          {currentLevelFiles.map(file => renderFileItem(file))}
-        </div>
-      )}
+        )}
 
-      {currentLevelFolders.length === 0 && currentLevelVideos.length === 0 && currentLevelFiles.length === 0 && (
-        <div className="text-center py-8 text-zinc-600 text-xs uppercase tracking-wider">
-          Nenhuma pasta, vídeo ou arquivo neste nível
-        </div>
-      )}
-    </div>
+        {/* Arquivos do nível atual (sem pasta) */}
+        {currentLevelFiles.length > 0 && (
+          <div className="mt-4">
+            <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-3">
+              Arquivos sem pasta
+            </div>
+            {currentLevelFiles.map((file) => renderFileItem(file))}
+          </div>
+        )}
+
+        {currentLevelFolders.length === 0 &&
+          currentLevelVideos.length === 0 &&
+          currentLevelFiles.length === 0 && (
+            <div className="text-center py-8 text-zinc-600 text-xs uppercase tracking-wider">
+              Nenhuma pasta, vídeo ou arquivo neste nível
+            </div>
+          )}
+      </div>
 
       <CreateFolderDialog
         isOpen={createFolderDialog.isOpen}
-        onClose={() => setCreateFolderDialog(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setCreateFolderDialog((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={handleCreateConfirm}
         title={createFolderDialog.title}
       />

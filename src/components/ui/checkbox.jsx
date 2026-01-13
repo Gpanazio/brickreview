@@ -1,14 +1,11 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as CheckboxPrimitive from "@radix-ui/react-checkbox"
+import * as React from "react";
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 
-import { cn } from "../../lib/utils"
+import { cn } from "../../lib/utils";
 
-function Checkbox({
-  className,
-  ...props
-}) {
+function Checkbox({ className, ...props }) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
@@ -21,4 +18,4 @@ function Checkbox({
   );
 }
 
-export { Checkbox }
+export { Checkbox };

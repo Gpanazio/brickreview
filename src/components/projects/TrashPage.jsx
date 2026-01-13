@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -83,10 +82,19 @@ const TrashPage = () => {
           <li key={item.id} className="flex items-center justify-between p-2 border-b">
             <span>{item.name}</span>
             <div>
-              <Button onClick={() => handleRestore(type, item.id)} variant="outline" size="sm" className="mr-2">
+              <Button
+                onClick={() => handleRestore(type, item.id)}
+                variant="outline"
+                size="sm"
+                className="mr-2"
+              >
                 Restore
               </Button>
-              <Button onClick={() => handlePermanentDelete(type, item.id)} variant="destructive" size="sm">
+              <Button
+                onClick={() => handlePermanentDelete(type, item.id)}
+                variant="destructive"
+                size="sm"
+              >
                 Delete Permanently
               </Button>
             </div>
@@ -95,7 +103,7 @@ const TrashPage = () => {
       </ul>
     );
   };
-  
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -103,7 +111,7 @@ const TrashPage = () => {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Trash</h1>
-      
+
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-2">Projects</h2>
         {renderItems(trashItems.projects, "project")}
