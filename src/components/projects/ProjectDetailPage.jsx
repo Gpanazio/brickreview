@@ -576,7 +576,7 @@ export function ProjectDetailPage() {
             />
             <Button
               asChild
-              className="glass-button-primary border-none rounded-none px-6 py-6 h-auto font-black uppercase tracking-widest text-xs"
+              className="glass-button-primary border-none rounded-none px-6 h-10 font-black uppercase tracking-widest text-xs"
               disabled={uploading}
             >
               <label htmlFor="file-upload" className="cursor-pointer flex items-center">
