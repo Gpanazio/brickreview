@@ -16,8 +16,12 @@ CREATE TABLE IF NOT EXISTS brickreview_projects (
   cover_image_url TEXT,
   created_by UUID REFERENCES master_users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP
 );
+
+-- Soft delete: adiciona coluna para bancos existentes
+ALTER TABLE brickreview_projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 
 -- Trigger para atualizar updated_at automaticamente
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -43,8 +47,12 @@ CREATE TABLE IF NOT EXISTS brickreview_folders (
   project_id INTEGER NOT NULL REFERENCES brickreview_projects(id) ON DELETE CASCADE,
   parent_folder_id INTEGER REFERENCES brickreview_folders(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP
 );
+
+-- Soft delete: adiciona coluna para bancos existentes
+ALTER TABLE brickreview_folders ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 
 -- ============================================
 -- 3. VIDEOS (armazenados no Cloudflare R2)
@@ -75,8 +83,12 @@ CREATE TABLE IF NOT EXISTS brickreview_videos (
   parent_video_id INTEGER REFERENCES brickreview_videos(id) ON DELETE SET NULL, -- Para versionamento
   uploaded_by UUID REFERENCES master_users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP
 );
+
+-- Soft delete: adiciona coluna para bancos existentes
+ALTER TABLE brickreview_videos ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 
 -- Adiciona colunas de proxy se não existirem (para migração de bancos existentes)
 DO $$
@@ -144,8 +156,12 @@ CREATE TABLE IF NOT EXISTS brickreview_files (
   height INTEGER, -- Para imagens
   uploaded_by UUID REFERENCES master_users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP
 );
+
+-- Soft delete: adiciona coluna para bancos existentes
+ALTER TABLE brickreview_files ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP;
 
 DROP TRIGGER IF EXISTS update_brickreview_files_updated_at ON brickreview_files;
 CREATE TRIGGER update_brickreview_files_updated_at
@@ -310,12 +326,13 @@ SELECT
   f.parent_folder_id,
   f.name,
   f.created_at,
+  f.deleted_at,
   COUNT(DISTINCT v.id) as videos_count,
   COUNT(DISTINCT sf.id) as subfolders_count
 FROM brickreview_folders f
-LEFT JOIN brickreview_videos v ON v.folder_id = f.id
-LEFT JOIN brickreview_folders sf ON sf.parent_folder_id = f.id
-GROUP BY f.id, f.project_id, f.parent_folder_id, f.name, f.created_at;
+LEFT JOIN brickreview_videos v ON v.folder_id = f.id AND v.deleted_at IS NULL
+LEFT JOIN brickreview_folders sf ON sf.parent_folder_id = f.id AND sf.deleted_at IS NULL
+GROUP BY f.id, f.project_id, f.parent_folder_id, f.name, f.created_at, f.deleted_at;
 
 -- View: Projetos com estatísticas
 CREATE VIEW brickreview_projects_with_stats AS
@@ -330,14 +347,15 @@ SELECT
   p.created_by,
   p.created_at,
   p.updated_at,
+  p.deleted_at,
   COUNT(DISTINCT v.id) as videos_count,
-  COUNT(DISTINCT CASE WHEN v.version_number = 1 THEN v.id END) as unique_videos_count,
+  COUNT(DISTINCT CASE WHEN v.version_number = 1 AND v.deleted_at IS NULL THEN v.id END) as unique_videos_count,
   COUNT(DISTINCT m.user_id) as members_count,
   (SELECT username FROM master_users WHERE id = p.created_by) as created_by_username
 FROM brickreview_projects p
-LEFT JOIN brickreview_videos v ON v.project_id = p.id
+LEFT JOIN brickreview_videos v ON v.project_id = p.id AND v.deleted_at IS NULL
 LEFT JOIN brickreview_project_members m ON m.project_id = p.id
-GROUP BY p.id, p.name, p.description, p.client_name, p.status, p.cover_image_r2_key, p.cover_image_url, p.created_by, p.created_at, p.updated_at;
+GROUP BY p.id, p.name, p.description, p.client_name, p.status, p.cover_image_r2_key, p.cover_image_url, p.created_by, p.created_at, p.updated_at, p.deleted_at;
 
 -- ============================================
 -- 9. DRAWINGS (Desenhos sobre frames - Frame.io style)

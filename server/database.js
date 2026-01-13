@@ -54,14 +54,73 @@ export async function initDatabase() {
             SELECT array_agg(table_name)
             FROM information_schema.views
             WHERE table_name = ANY($1)
-          ) as "existingViewNames"
+          ) as "existingViewNames",
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'brickreview_projects' AND column_name = 'deleted_at'
+            )
+          ) as "projectsHaveDeletedAt",
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'brickreview_folders' AND column_name = 'deleted_at'
+            )
+          ) as "foldersHaveDeletedAt",
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'brickreview_videos' AND column_name = 'deleted_at'
+            )
+          ) as "videosHaveDeletedAt",
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'brickreview_files' AND column_name = 'deleted_at'
+            )
+          ) as "filesHaveDeletedAt",
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'brickreview_projects_with_stats' AND column_name = 'deleted_at'
+            )
+          ) as "projectsViewHasDeletedAt",
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'brickreview_folders_with_stats' AND column_name = 'deleted_at'
+            )
+          ) as "foldersViewHasDeletedAt"
       `, [requiredViews])
 
-      const { shareTableExists, existingViewNames } = schemaCheck.rows[0]
+      const {
+        shareTableExists,
+        existingViewNames,
+        projectsHaveDeletedAt,
+        foldersHaveDeletedAt,
+        videosHaveDeletedAt,
+        filesHaveDeletedAt,
+        projectsViewHasDeletedAt,
+        foldersViewHasDeletedAt,
+      } = schemaCheck.rows[0]
+
       const existingViews = new Set(existingViewNames || [])
       const missingViews = requiredViews.filter(view => !existingViews.has(view))
+      const softDeleteReady =
+        projectsHaveDeletedAt &&
+        foldersHaveDeletedAt &&
+        videosHaveDeletedAt &&
+        filesHaveDeletedAt &&
+        projectsViewHasDeletedAt &&
+        foldersViewHasDeletedAt
 
-      if (shareTableExists && missingViews.length === 0) {
+      if (shareTableExists && missingViews.length === 0 && softDeleteReady) {
         console.log('✅ Database schema already initialized. Skipping setup.')
         return
       }
@@ -74,9 +133,16 @@ export async function initDatabase() {
         missingItems.push(`${missingViews.length} view(s)`)
       }
 
+      if (!softDeleteReady) {
+        missingItems.push('soft delete columns/views')
+      }
+
       console.log(`📦 Main tables exist but ${missingItems.join(' and ')} are missing. Updating schema...`)
       if (missingViews.length > 0) {
         console.log('   Missing views:', missingViews.join(', '))
+      }
+      if (!softDeleteReady) {
+        console.log('   Missing soft delete columns or view columns (deleted_at)')
       }
     }
 
