@@ -260,11 +260,11 @@ export function VideoPlayer({
     };
   }, [videoUrl, currentVideo.mime_type]);
 
-  const parseTimestampSeconds = (value) => {
+  const parseTimestampSeconds = useCallback((value) => {
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
-  };
+  }, []);
 
   const compareCommentsByTimestamp = useCallback((a, b) => {
     const aTs = parseTimestampSeconds(a?.timestamp);
@@ -278,7 +278,7 @@ export function VideoPlayer({
     if (aTs !== bTs) return aTs - bTs;
 
     return new Date(a.created_at) - new Date(b.created_at);
-  }, []);
+  }, [parseTimestampSeconds]);
 
   const addComment = async (e) => {
     e.preventDefault();
