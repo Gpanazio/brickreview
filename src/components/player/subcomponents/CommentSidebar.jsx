@@ -52,6 +52,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   const [editingComment, setEditingComment] = useState(null);
   const [attachedFile, setAttachedFile] = useState(null);
   const [hasTimestamp, setHasTimestamp] = useState(true);
+  const [rangeEndTime, setRangeEndTime] = useState(null);
+  const [isRangeMode, setIsRangeMode] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState({
@@ -152,6 +154,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
         video_id: currentVideoId,
         content: newComment,
         timestamp: hasTimestamp ? currentTime : null,
+        timestamp_end: hasTimestamp && isRangeMode && rangeEndTime !== null ? rangeEndTime : null,
       };
 
       if (isGuest) body.visitor_name = visitorName;
@@ -324,7 +327,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   };
 
   return (
-    <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none">
+    <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none overflow-hidden">
       <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
         <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
           {showHistory ? (
@@ -727,6 +730,40 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   >
                     {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
                   </button>
+
+                  {hasTimestamp && (
+                    <button
+                      type="button"
+                      className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
+                      onClick={() => {
+                        if (!isRangeMode) {
+                          // Ao ativar o range, define o fim como +5 segundos do tempo atual como default
+                          setRangeEndTime(currentTime + 5);
+                        } else {
+                          setRangeEndTime(null);
+                        }
+                        setIsRangeMode(!isRangeMode);
+                      }}
+                    >
+                      <span className="text-[10px] font-black uppercase border border-current px-1">
+                        Range
+                      </span>
+                    </button>
+                  )}
+
+                  {hasTimestamp && isRangeMode && (
+                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800">
+                      <span>Fim:</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        className="w-12 bg-transparent border-none focus:outline-none text-white font-bold"
+                        value={rangeEndTime !== null ? rangeEndTime.toFixed(1) : ""}
+                        onChange={(e) => setRangeEndTime(parseFloat(e.target.value))}
+                      />
+                      <span className="text-zinc-600">s</span>
+                    </div>
+                  )}
 
                   <input
                     type="file"

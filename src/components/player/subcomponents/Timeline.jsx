@@ -4,6 +4,14 @@ import { parseTimestampSeconds } from "../../../utils/time";
 export function Timeline() {
   const { currentTime, duration, seekTo, comments } = useVideo();
 
+  const getCommentRange = (comment) => {
+    if (!comment || comment.timestamp === null) return null;
+    const start = parseTimestampSeconds(comment.timestamp);
+    const end = parseTimestampSeconds(comment.timestamp_end);
+    if (start === null) return null;
+    return { start, end };
+  };
+
   const handleSeek = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
@@ -20,6 +28,20 @@ export function Timeline() {
           width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%`,
         }}
       />
+
+      {comments.map((comment) => {
+        const range = getCommentRange(comment);
+        if (!range || range.end === null || duration === 0) return null;
+        const startPct = (range.start / duration) * 100;
+        const endPct = (range.end / duration) * 100;
+        return (
+          <div
+            key={`range-${comment.id}`}
+            className="absolute top-0 h-full bg-red-600/40 border-l border-r border-white/60 z-0 pointer-events-none"
+            style={{ left: `${startPct}%`, width: `${endPct - startPct}%` }}
+          />
+        );
+      })}
 
       {comments.map((comment) => {
         const ts = parseTimestampSeconds(comment.timestamp);

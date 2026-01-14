@@ -1,7 +1,7 @@
-import express from 'express';
-import { query } from '../db.js';
-import { authenticateToken } from '../middleware/auth.js'
-import { requireProjectAccess } from '../utils/permissions.js'
+import express from "express";
+import { query } from "../db.js";
+import { authenticateToken } from "../middleware/auth.js";
+import { requireProjectAccess } from "../utils/permissions.js";
 
 const router = express.Router();
 
@@ -9,17 +9,17 @@ const router = express.Router();
  * @route GET /api/comments/video/:videoId
  * @desc Get all comments for a video
  */
-router.get('/video/:videoId', authenticateToken, async (req, res) => {
+router.get("/video/:videoId", authenticateToken, async (req, res) => {
   try {
-    const videoId = Number(req.params.videoId)
+    const videoId = Number(req.params.videoId);
     if (!Number.isInteger(videoId)) {
-      return res.status(400).json({ error: 'videoId inválido' })
+      return res.status(400).json({ error: "videoId inválido" });
     }
 
     // Permite leitura livre para qualquer usuário autenticado
-    const videoExists = await query('SELECT 1 FROM brickreview_videos WHERE id = $1', [videoId])
+    const videoExists = await query("SELECT 1 FROM brickreview_videos WHERE id = $1", [videoId]);
     if (videoExists.rows.length === 0) {
-      return res.status(404).json({ error: 'Vídeo não encontrado' })
+      return res.status(404).json({ error: "Vídeo não encontrado" });
     }
 
     const comments = await query(
@@ -37,8 +37,8 @@ router.get('/video/:videoId', authenticateToken, async (req, res) => {
 
     res.json(comments.rows);
   } catch (error) {
-    console.error('Erro ao buscar comentários:', error);
-    res.status(500).json({ error: 'Erro ao buscar comentários' });
+    console.error("Erro ao buscar comentários:", error);
+    res.status(500).json({ error: "Erro ao buscar comentários" });
   }
 });
 
@@ -46,42 +46,42 @@ router.get('/video/:videoId', authenticateToken, async (req, res) => {
  * @route POST /api/comments
  * @desc Add a comment to a video
  */
-router.post('/', authenticateToken, async (req, res) => {
-  const { video_id, parent_comment_id, content, timestamp } = req.body;
+router.post("/", authenticateToken, async (req, res) => {
+  const { video_id, parent_comment_id, content, timestamp, timestamp_end } = req.body;
 
   if (!video_id || !content) {
-    return res.status(400).json({ error: 'Vídeo ID e conteúdo são obrigatórios' });
+    return res.status(400).json({ error: "Vídeo ID e conteúdo são obrigatórios" });
   }
 
   try {
-    const videoId = Number(video_id)
+    const videoId = Number(video_id);
     if (!Number.isInteger(videoId)) {
-      return res.status(400).json({ error: 'video_id inválido' })
+      return res.status(400).json({ error: "video_id inválido" });
     }
 
     // Permite comentário/reply livre para qualquer usuário autenticado
-    const videoExists = await query('SELECT 1 FROM brickreview_videos WHERE id = $1', [videoId])
+    const videoExists = await query("SELECT 1 FROM brickreview_videos WHERE id = $1", [videoId]);
     if (videoExists.rows.length === 0) {
-      return res.status(404).json({ error: 'Vídeo não encontrado' })
+      return res.status(404).json({ error: "Vídeo não encontrado" });
     }
 
     const result = await query(
-      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp, timestamp_end)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [videoId, parent_comment_id, req.user.id, content, timestamp]
-    )
+      [videoId, parent_comment_id, req.user.id, content, timestamp, timestamp_end]
+    );
 
     // Busca detalhes do comentário recém criado com dados do usuário
     const commentResult = await query(
-      'SELECT * FROM brickreview_comments_with_user WHERE id = $1',
+      "SELECT * FROM brickreview_comments_with_user WHERE id = $1",
       [result.rows[0].id]
     );
 
     res.status(201).json(commentResult.rows[0]);
   } catch (error) {
-    console.error('Erro ao adicionar comentário:', error);
-    res.status(500).json({ error: 'Erro ao adicionar comentário' });
+    console.error("Erro ao adicionar comentário:", error);
+    res.status(500).json({ error: "Erro ao adicionar comentário" });
   }
 });
 
@@ -89,13 +89,13 @@ router.post('/', authenticateToken, async (req, res) => {
  * @route PATCH /api/comments/:id
  * @desc Update comment status or content
  */
-router.patch('/:id', authenticateToken, async (req, res) => {
+router.patch("/:id", authenticateToken, async (req, res) => {
   const { content, status } = req.body;
 
   try {
-    const commentId = Number(req.params.id)
+    const commentId = Number(req.params.id);
     if (!Number.isInteger(commentId)) {
-      return res.status(400).json({ error: 'ID de comentário inválido' })
+      return res.status(400).json({ error: "ID de comentário inválido" });
     }
 
     const projectResult = await query(
@@ -104,32 +104,42 @@ router.patch('/:id', authenticateToken, async (req, res) => {
        JOIN brickreview_videos v ON v.id = c.video_id
        WHERE c.id = $1`,
       [commentId]
-    )
+    );
 
     if (projectResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Comentário não encontrado' })
+      return res.status(404).json({ error: "Comentário não encontrado" });
     }
 
-    if (!(await requireProjectAccess(req, res, projectResult.rows[0].project_id))) return
+    if (!(await requireProjectAccess(req, res, projectResult.rows[0].project_id))) return;
 
     const result = await query(
       `UPDATE brickreview_comments
        SET content = COALESCE($1, content),
            status = COALESCE($2, status),
+           timestamp = COALESCE($6, timestamp),
+           timestamp_end = COALESCE($7, timestamp_end),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $3 AND (user_id = $4 OR $5 = 'admin')
        RETURNING *`,
-      [content, status, commentId, req.user.id, req.user.role]
-    )
+      [
+        content,
+        status,
+        commentId,
+        req.user.id,
+        req.user.role,
+        req.body.timestamp,
+        req.body.timestamp_end,
+      ]
+    );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Comentário não encontrado ou sem permissão' });
+      return res.status(404).json({ error: "Comentário não encontrado ou sem permissão" });
     }
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao atualizar comentário:', error);
-    res.status(500).json({ error: 'Erro ao atualizar comentário' });
+    console.error("Erro ao atualizar comentário:", error);
+    res.status(500).json({ error: "Erro ao atualizar comentário" });
   }
 });
 
@@ -137,27 +147,26 @@ router.patch('/:id', authenticateToken, async (req, res) => {
  * @route DELETE /api/comments/:id
  * @desc Delete comment
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete("/:id", authenticateToken, async (req, res) => {
   try {
-    const commentId = Number(req.params.id)
+    const commentId = Number(req.params.id);
     if (!Number.isInteger(commentId)) {
-      return res.status(400).json({ error: 'ID de comentário inválido' })
+      return res.status(400).json({ error: "ID de comentário inválido" });
     }
 
     // Permite que qualquer usuário autenticado delete comentários (inclui comentários de guests)
-    const result = await query(
-      'DELETE FROM brickreview_comments WHERE id = $1 RETURNING id',
-      [commentId]
-    )
+    const result = await query("DELETE FROM brickreview_comments WHERE id = $1 RETURNING id", [
+      commentId,
+    ]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Comentário não encontrado' });
+      return res.status(404).json({ error: "Comentário não encontrado" });
     }
 
-    res.json({ message: 'Comentário removido com sucesso', id: commentId })
+    res.json({ message: "Comentário removido com sucesso", id: commentId });
   } catch (error) {
-    console.error('Erro ao remover comentário:', error);
-    res.status(500).json({ error: 'Erro ao remover comentário' });
+    console.error("Erro ao remover comentário:", error);
+    res.status(500).json({ error: "Erro ao remover comentário" });
   }
 });
 

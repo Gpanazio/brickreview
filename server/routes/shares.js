@@ -1,92 +1,92 @@
-import express from 'express'
-import bcrypt from 'bcryptjs'
-import { query } from '../db.js'
-import { authenticateToken } from '../middleware/auth.js'
+import express from "express";
+import bcrypt from "bcryptjs";
+import { query } from "../db.js";
+import { authenticateToken } from "../middleware/auth.js";
 import {
   requireProjectAccess,
   requireProjectAccessFromFolder,
   requireProjectAccessFromVideo,
-} from '../utils/permissions.js'
-import { v4 as uuidv4 } from 'uuid'
-import { buildDownloadFilename, getOriginalFilename } from '../utils/filename.js'
+} from "../utils/permissions.js";
+import { v4 as uuidv4 } from "uuid";
+import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js";
 
-const router = express.Router()
+const router = express.Router();
 
 function getSharePassword(req) {
-  const headerPassword = req.headers['x-share-password']
-  if (typeof headerPassword === 'string' && headerPassword.trim()) return headerPassword
+  const headerPassword = req.headers["x-share-password"];
+  if (typeof headerPassword === "string" && headerPassword.trim()) return headerPassword;
 
-  const bodyPassword = req.body?.password
-  if (typeof bodyPassword === 'string' && bodyPassword.trim()) return bodyPassword
+  const bodyPassword = req.body?.password;
+  if (typeof bodyPassword === "string" && bodyPassword.trim()) return bodyPassword;
 
-  return null
+  return null;
 }
 
 async function enforceSharePassword(req, res, share) {
-  if (!share.password_hash) return true
+  if (!share.password_hash) return true;
 
-  const password = getSharePassword(req)
+  const password = getSharePassword(req);
   if (!password) {
-    res.status(401).json({ requires_password: true })
-    return false
+    res.status(401).json({ requires_password: true });
+    return false;
   }
 
-  const ok = await bcrypt.compare(password, share.password_hash)
+  const ok = await bcrypt.compare(password, share.password_hash);
   if (!ok) {
-    res.status(401).json({ requires_password: true })
-    return false
+    res.status(401).json({ requires_password: true });
+    return false;
   }
 
-  return true
+  return true;
 }
 
 async function loadShare(req, res, token) {
-  const shareResult = await query('SELECT * FROM brickreview_shares WHERE token = $1', [token])
+  const shareResult = await query("SELECT * FROM brickreview_shares WHERE token = $1", [token]);
 
   if (shareResult.rows.length === 0) {
-    res.status(404).json({ error: 'Link de compartilhamento não encontrado' })
-    return null
+    res.status(404).json({ error: "Link de compartilhamento não encontrado" });
+    return null;
   }
 
-  const share = shareResult.rows[0]
+  const share = shareResult.rows[0];
 
   if (share.expires_at && new Date() > new Date(share.expires_at)) {
-    res.status(410).json({ error: 'Este link expirou' })
-    return null
+    res.status(410).json({ error: "Este link expirou" });
+    return null;
   }
 
-  const allowed = await enforceSharePassword(req, res, share)
-  return allowed ? share : null
+  const allowed = await enforceSharePassword(req, res, share);
+  return allowed ? share : null;
 }
 
 // Helper para verificar se o share permite acesso a um vídeo específico (incluindo versões)
 async function checkShareAccess(share, videoId) {
-  const videoIdInt = Number(videoId)
-  if (!Number.isInteger(videoIdInt)) return false
+  const videoIdInt = Number(videoId);
+  if (!Number.isInteger(videoIdInt)) return false;
 
   const videoResult = await query(
-    'SELECT id, parent_video_id, project_id, folder_id FROM brickreview_videos WHERE id = $1',
+    "SELECT id, parent_video_id, project_id, folder_id FROM brickreview_videos WHERE id = $1",
     [videoIdInt]
-  )
-  if (videoResult.rows.length === 0) return false
+  );
+  if (videoResult.rows.length === 0) return false;
 
-  const video = videoResult.rows[0]
+  const video = videoResult.rows[0];
 
   if (share.video_id) {
-    if (video.id === share.video_id) return true
-    if (video.parent_video_id === share.video_id) return true
+    if (video.id === share.video_id) return true;
+    if (video.parent_video_id === share.video_id) return true;
 
     const sharedVideoResult = await query(
-      'SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1',
+      "SELECT id, parent_video_id FROM brickreview_videos WHERE id = $1",
       [share.video_id]
-    )
+    );
 
-    if (sharedVideoResult.rows.length === 0) return false
+    if (sharedVideoResult.rows.length === 0) return false;
 
-    const sharedVideo = sharedVideoResult.rows[0]
+    const sharedVideo = sharedVideoResult.rows[0];
 
     // Se o vídeo alvo é o pai do compartilhado
-    if (sharedVideo.parent_video_id === video.id) return true
+    if (sharedVideo.parent_video_id === video.id) return true;
 
     // Se ambos têm o mesmo pai (irmãos/versões)
     if (
@@ -94,139 +94,150 @@ async function checkShareAccess(share, videoId) {
       sharedVideo.parent_video_id &&
       video.parent_video_id === sharedVideo.parent_video_id
     ) {
-      return true
+      return true;
     }
 
-    return false
+    return false;
   }
 
   if (share.folder_id) {
-    return video.folder_id === share.folder_id
+    return video.folder_id === share.folder_id;
   }
 
   if (share.project_id) {
-    return video.project_id === share.project_id
+    return video.project_id === share.project_id;
   }
 
-  return false
+  return false;
 }
 
 // POST /api/shares - Gera um novo share link
-router.post('/', authenticateToken, async (req, res) => {
+router.post("/", authenticateToken, async (req, res) => {
   try {
-    const { project_id, folder_id, video_id, access_type, expires_in_days, password } = req.body
+    const { project_id, folder_id, video_id, access_type, expires_in_days, password } = req.body;
 
     // Validação básica: pelo menos um ID deve ser fornecido
     if (!project_id && !folder_id && !video_id) {
       return res
         .status(400)
-        .json({ error: 'É necessário fornecer um projeto, pasta ou vídeo para compartilhar' })
+        .json({ error: "É necessário fornecer um projeto, pasta ou vídeo para compartilhar" });
     }
 
     // Verifica se usuário tem acesso ao recurso compartilhado
     if (project_id) {
-      const projectId = Number(project_id)
+      const projectId = Number(project_id);
       if (!Number.isInteger(projectId)) {
-        return res.status(400).json({ error: 'project_id inválido' })
+        return res.status(400).json({ error: "project_id inválido" });
       }
-      if (!(await requireProjectAccess(req, res, projectId))) return
+      if (!(await requireProjectAccess(req, res, projectId))) return;
     } else if (folder_id) {
-      const folderId = Number(folder_id)
+      const folderId = Number(folder_id);
       if (!Number.isInteger(folderId)) {
-        return res.status(400).json({ error: 'folder_id inválido' })
+        return res.status(400).json({ error: "folder_id inválido" });
       }
-      if (!(await requireProjectAccessFromFolder(req, res, folderId))) return
+      if (!(await requireProjectAccessFromFolder(req, res, folderId))) return;
     } else if (video_id) {
-      const videoId = Number(video_id)
+      const videoId = Number(video_id);
       if (!Number.isInteger(videoId)) {
-        return res.status(400).json({ error: 'video_id inválido' })
+        return res.status(400).json({ error: "video_id inválido" });
       }
-      if (!(await requireProjectAccessFromVideo(req, res, videoId))) return
+      if (!(await requireProjectAccessFromVideo(req, res, videoId))) return;
     }
 
     // Gera um token curto usando a primeira parte de um UUID
-    const token = uuidv4().split('-')[0]
-    let expires_at = null
+    const token = uuidv4().split("-")[0];
+    let expires_at = null;
     if (expires_in_days) {
-      expires_at = new Date()
-      expires_at.setDate(expires_at.getDate() + parseInt(expires_in_days))
+      expires_at = new Date();
+      expires_at.setDate(expires_at.getDate() + parseInt(expires_in_days));
     }
 
-    const password_hash = password ? await bcrypt.hash(password, 10) : null
+    const password_hash = password ? await bcrypt.hash(password, 10) : null;
 
     const result = await query(
       `INSERT INTO brickreview_shares 
        (token, project_id, folder_id, video_id, access_type, password_hash, expires_at, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [token, project_id, folder_id, video_id, access_type || 'view', password_hash, expires_at, req.user.id]
+      [
+        token,
+        project_id,
+        folder_id,
+        video_id,
+        access_type || "view",
+        password_hash,
+        expires_at,
+        req.user.id,
+      ]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Erro ao gerar share link:', err);
-    res.status(500).json({ error: 'Erro interno ao gerar link de compartilhamento' });
+    console.error("Erro ao gerar share link:", err);
+    res.status(500).json({ error: "Erro interno ao gerar link de compartilhamento" });
   }
 });
 
 // POST /api/shares/:token/comments - Adiciona comentário como convidado (PÚBLICO)
-router.post('/:token/comments', async (req, res) => {
+router.post("/:token/comments", async (req, res) => {
   try {
     const { token } = req.params;
-    const { video_id, parent_comment_id, content, timestamp, visitor_name } = req.body;
+    const { video_id, parent_comment_id, content, timestamp, visitor_name, timestamp_end } =
+      req.body;
 
     if (!video_id || !content || !visitor_name) {
-      return res.status(400).json({ error: 'Vídeo ID, conteúdo e nome do visitante são obrigatórios' });
+      return res
+        .status(400)
+        .json({ error: "Vídeo ID, conteúdo e nome do visitante são obrigatórios" });
     }
 
-    const share = await loadShare(req, res, token)
-    if (!share) return
+    const share = await loadShare(req, res, token);
+    if (!share) return;
 
     // Comentários são permitidos para qualquer link compartilhado (BRICK review mode)
 
     // Verifica que o vídeo pertence ao recurso compartilhado (incluindo versões)
     if (!(await checkShareAccess(share, video_id))) {
-      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+      return res.status(403).json({ error: "Vídeo não pertence a este compartilhamento" });
     }
 
-    const visitorName = visitor_name.trim()
+    const visitorName = visitor_name.trim();
 
     // Insere comentário como convidado (user_id = NULL)
     const commentResult = await query(
-      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, visitor_name, content, timestamp)
-       VALUES ($1, $2, NULL, $3, $4, $5)
+      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, visitor_name, content, timestamp, timestamp_end)
+       VALUES ($1, $2, NULL, $3, $4, $5, $6)
        RETURNING *`,
-      [video_id, parent_comment_id, visitorName, content, timestamp]
-    )
+      [video_id, parent_comment_id, visitorName, content, timestamp, timestamp_end]
+    );
 
     // Busca detalhes do comentário com dados do usuário
-    const fullComment = await query(
-      'SELECT * FROM brickreview_comments_with_user WHERE id = $1',
-      [commentResult.rows[0].id]
-    );
+    const fullComment = await query("SELECT * FROM brickreview_comments_with_user WHERE id = $1", [
+      commentResult.rows[0].id,
+    ]);
 
     res.status(201).json(fullComment.rows[0]);
   } catch (err) {
-    console.error('Erro ao adicionar comentário de convidado:', err);
-    res.status(500).json({ error: 'Erro ao adicionar comentário' });
+    console.error("Erro ao adicionar comentário de convidado:", err);
+    res.status(500).json({ error: "Erro ao adicionar comentário" });
   }
 });
 
 // GET /api/shares/:token/comments/video/:videoId - Busca comentários de um vídeo (PÚBLICO)
-router.get('/:token/comments/video/:videoId', async (req, res) => {
+router.get("/:token/comments/video/:videoId", async (req, res) => {
   try {
-    const { token, videoId } = req.params
+    const { token, videoId } = req.params;
 
-    const share = await loadShare(req, res, token)
-    if (!share) return
+    const share = await loadShare(req, res, token);
+    if (!share) return;
 
-    const videoIdInt = Number(videoId)
+    const videoIdInt = Number(videoId);
     if (!Number.isInteger(videoIdInt)) {
-      return res.status(400).json({ error: 'videoId inválido' })
+      return res.status(400).json({ error: "videoId inválido" });
     }
 
     if (!(await checkShareAccess(share, videoIdInt))) {
-      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+      return res.status(403).json({ error: "Vídeo não pertence a este compartilhamento" });
     }
 
     // Busca comentários do vídeo
@@ -245,26 +256,26 @@ router.get('/:token/comments/video/:videoId', async (req, res) => {
 
     res.json(comments.rows);
   } catch (err) {
-    console.error('Erro ao buscar comentários de vídeo compartilhado:', err);
-    res.status(500).json({ error: 'Erro ao buscar comentários' });
+    console.error("Erro ao buscar comentários de vídeo compartilhado:", err);
+    res.status(500).json({ error: "Erro ao buscar comentários" });
   }
 });
 
 // GET /api/shares/:token/drawings/video/:videoId - Busca desenhos de um vídeo (PÚBLICO)
-router.get('/:token/drawings/video/:videoId', async (req, res) => {
+router.get("/:token/drawings/video/:videoId", async (req, res) => {
   try {
-    const { token, videoId } = req.params
+    const { token, videoId } = req.params;
 
-    const share = await loadShare(req, res, token)
-    if (!share) return
+    const share = await loadShare(req, res, token);
+    if (!share) return;
 
-    const videoIdInt = Number(videoId)
+    const videoIdInt = Number(videoId);
     if (!Number.isInteger(videoIdInt)) {
-      return res.status(400).json({ error: 'videoId inválido' })
+      return res.status(400).json({ error: "videoId inválido" });
     }
 
     if (!(await checkShareAccess(share, videoIdInt))) {
-      return res.status(403).json({ error: 'Acesso negado ao vídeo' })
+      return res.status(403).json({ error: "Acesso negado ao vídeo" });
     }
 
     // Busca desenhos do vídeo
@@ -277,42 +288,42 @@ router.get('/:token/drawings/video/:videoId', async (req, res) => {
 
     res.json(drawings.rows);
   } catch (err) {
-    console.error('Erro ao buscar desenhos de vídeo compartilhado:', err);
-    res.status(500).json({ error: 'Erro ao buscar desenhos' });
+    console.error("Erro ao buscar desenhos de vídeo compartilhado:", err);
+    res.status(500).json({ error: "Erro ao buscar desenhos" });
   }
 });
 
 // GET /api/shares/:token/video/:videoId/stream - Busca URL de streaming de um vídeo (PÚBLICO)
-router.get('/:token/video/:videoId/stream', async (req, res) => {
+router.get("/:token/video/:videoId/stream", async (req, res) => {
   try {
-    const { token, videoId } = req.params
-    const { quality } = req.query // 'original' or 'proxy'
+    const { token, videoId } = req.params;
+    const { quality } = req.query; // 'original' or 'proxy'
 
-    const share = await loadShare(req, res, token)
-    if (!share) return
+    const share = await loadShare(req, res, token);
+    if (!share) return;
 
-    const videoIdInt = Number(videoId)
+    const videoIdInt = Number(videoId);
     if (!Number.isInteger(videoIdInt)) {
-      return res.status(400).json({ error: 'videoId inválido' })
+      return res.status(400).json({ error: "videoId inválido" });
     }
 
     if (!(await checkShareAccess(share, videoIdInt))) {
-      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+      return res.status(403).json({ error: "Vídeo não pertence a este compartilhamento" });
     }
 
     const resStream = await query(
-      'SELECT r2_url, proxy_url, mime_type FROM brickreview_videos WHERE id = $1',
+      "SELECT r2_url, proxy_url, mime_type FROM brickreview_videos WHERE id = $1",
       [videoIdInt]
-    )
+    );
 
     if (resStream.rows.length === 0) {
-      return res.status(404).json({ error: 'Vídeo não encontrado' })
+      return res.status(404).json({ error: "Vídeo não encontrado" });
     }
 
-    const videoData = resStream.rows[0]
-    
+    const videoData = resStream.rows[0];
+
     let url, isOriginal;
-    if (quality === 'original') {
+    if (quality === "original") {
       url = videoData.r2_url;
       isOriginal = true;
     } else {
@@ -323,24 +334,24 @@ router.get('/:token/video/:videoId/stream', async (req, res) => {
     res.json({
       url,
       isProxy: !isOriginal,
-      mime: isOriginal ? (videoData.mime_type || 'video/mp4') : 'video/mp4',
-    })
+      mime: isOriginal ? videoData.mime_type || "video/mp4" : "video/mp4",
+    });
   } catch (err) {
-    console.error('Erro ao buscar stream de vídeo compartilhado:', err);
-    res.status(500).json({ error: 'Erro ao buscar stream' });
+    console.error("Erro ao buscar stream de vídeo compartilhado:", err);
+    res.status(500).json({ error: "Erro ao buscar stream" });
   }
 });
 
 // GET /api/shares/:token/project-videos - Busca vídeos de um projeto compartilhado (PÚBLICO)
-router.get('/:token/project-videos', async (req, res) => {
+router.get("/:token/project-videos", async (req, res) => {
   try {
-    const { token } = req.params
+    const { token } = req.params;
 
-    const share = await loadShare(req, res, token)
-    if (!share) return
+    const share = await loadShare(req, res, token);
+    if (!share) return;
 
     if (!share.project_id) {
-      return res.status(400).json({ error: 'Este compartilhamento não é de um projeto' });
+      return res.status(400).json({ error: "Este compartilhamento não é de um projeto" });
     }
 
     const videosResult = await query(
@@ -365,21 +376,21 @@ router.get('/:token/project-videos', async (req, res) => {
 
     res.json(videosResult.rows);
   } catch (err) {
-    console.error('❌ Erro ao buscar vídeos do projeto:', err);
-    res.status(500).json({ error: 'Erro ao buscar vídeos' });
+    console.error("❌ Erro ao buscar vídeos do projeto:", err);
+    res.status(500).json({ error: "Erro ao buscar vídeos" });
   }
 });
 
 // GET /api/shares/:token/folder-videos - Busca vídeos de uma pasta compartilhada (PÚBLICO)
-router.get('/:token/folder-videos', async (req, res) => {
+router.get("/:token/folder-videos", async (req, res) => {
   try {
-    const { token } = req.params
+    const { token } = req.params;
 
-    const share = await loadShare(req, res, token)
-    if (!share) return
+    const share = await loadShare(req, res, token);
+    if (!share) return;
 
     if (!share.folder_id) {
-      return res.status(400).json({ error: 'Este compartilhamento não é de uma pasta' });
+      return res.status(400).json({ error: "Este compartilhamento não é de uma pasta" });
     }
 
     const videosResult = await query(
@@ -402,28 +413,36 @@ router.get('/:token/folder-videos', async (req, res) => {
 
     res.json(videosResult.rows);
   } catch (err) {
-    console.error('❌ Erro ao buscar vídeos da pasta:', err);
-    res.status(500).json({ error: 'Erro ao buscar vídeos' });
+    console.error("❌ Erro ao buscar vídeos da pasta:", err);
+    res.status(500).json({ error: "Erro ao buscar vídeos" });
   }
 });
 
 // GET /api/shares/:token - Busca informações do link compartilhado (PÚBLICO)
-router.get('/:token', async (req, res) => {
+router.get("/:token", async (req, res) => {
   try {
-    const { token } = req.params
+    const { token } = req.params;
 
-    const share = await loadShare(req, res, token)
-    if (!share) return
+    const share = await loadShare(req, res, token);
+    if (!share) return;
 
     let data = null;
     if (share.project_id) {
-      const projectResult = await query('SELECT * FROM brickreview_projects_with_stats WHERE id = $1', [share.project_id]);
-      data = { type: 'project', content: projectResult.rows[0] };
+      const projectResult = await query(
+        "SELECT * FROM brickreview_projects_with_stats WHERE id = $1",
+        [share.project_id]
+      );
+      data = { type: "project", content: projectResult.rows[0] };
     } else if (share.folder_id) {
-      const folderResult = await query('SELECT * FROM brickreview_folders_with_stats WHERE id = $1', [share.folder_id]);
-      data = { type: 'folder', content: folderResult.rows[0] };
+      const folderResult = await query(
+        "SELECT * FROM brickreview_folders_with_stats WHERE id = $1",
+        [share.folder_id]
+      );
+      data = { type: "folder", content: folderResult.rows[0] };
     } else if (share.video_id) {
-      const videoResult = await query('SELECT * FROM brickreview_videos_with_stats WHERE id = $1', [share.video_id]);
+      const videoResult = await query("SELECT * FROM brickreview_videos_with_stats WHERE id = $1", [
+        share.video_id,
+      ]);
       const video = videoResult.rows[0];
 
       let versions = [];
@@ -445,64 +464,64 @@ router.get('/:token', async (req, res) => {
         versions = versionsResult.rows;
       }
 
-      data = { type: 'video', content: video, versions };
+      data = { type: "video", content: video, versions };
     }
 
     res.json({
       ...share,
-      resource: data
+      resource: data,
     });
   } catch (err) {
-    console.error('❌ Erro ao buscar share link:', err);
-    res.status(500).json({ error: 'Erro interno ao processar link' });
+    console.error("❌ Erro ao buscar share link:", err);
+    res.status(500).json({ error: "Erro interno ao processar link" });
   }
 });
 
 // GET /api/shares/:token/video/:videoId/download - Gera link de download (PÚBLICO)
-router.get('/:token/video/:videoId/download', async (req, res) => {
+router.get("/:token/video/:videoId/download", async (req, res) => {
   try {
     const { token, videoId } = req.params;
-    const { type } = req.query; 
+    const { type } = req.query;
 
     const share = await loadShare(req, res, token);
     if (!share) return;
 
-    const videoIdInt = Number(videoId)
+    const videoIdInt = Number(videoId);
     if (!Number.isInteger(videoIdInt)) {
-      return res.status(400).json({ error: 'videoId inválido' })
+      return res.status(400).json({ error: "videoId inválido" });
     }
 
     if (!(await checkShareAccess(share, videoIdInt))) {
-      return res.status(403).json({ error: 'Vídeo não pertence a este compartilhamento' });
+      return res.status(403).json({ error: "Vídeo não pertence a este compartilhamento" });
     }
 
     const resDownload = await query(
-      'SELECT title, r2_key, r2_url, proxy_url FROM brickreview_videos WHERE id = $1',
+      "SELECT title, r2_key, r2_url, proxy_url FROM brickreview_videos WHERE id = $1",
       [videoIdInt]
     );
 
     if (resDownload.rows.length === 0) {
-      return res.status(404).json({ error: 'Vídeo não encontrado' });
+      return res.status(404).json({ error: "Vídeo não encontrado" });
     }
 
     const video = resDownload.rows[0];
-    const resolvedType = type === 'proxy' ? 'proxy' : 'original';
-    const url = resolvedType === 'proxy' ? (video.proxy_url || video.r2_url) : video.r2_url;
+    const resolvedType = type === "proxy" ? "proxy" : "original";
+    const url = resolvedType === "proxy" ? video.proxy_url || video.r2_url : video.r2_url;
     const originalFilename = getOriginalFilename(video.r2_key, video.title);
-    const filename = buildDownloadFilename(originalFilename, resolvedType === 'proxy');
+    const filename = buildDownloadFilename(originalFilename, resolvedType === "proxy");
 
     res.json({
       url,
-      filename
+      filename,
     });
   } catch (err) {
-    console.error('Erro ao gerar download compartilhado:', err);
-    res.status(500).json({ error: 'Erro ao processar download' });
+    console.error("Erro ao gerar download compartilhado:", err);
+    res.status(500).json({ error: "Erro ao processar download" });
   }
 });
 
 // DELETE /api/shares/:token/comments/:id - Deleta um comentário de convidado
-router.delete('/:token/comments/:id', async (req, res) => {
+router.delete("/:token/comments/:id", async (req, res) => {
   try {
     const { token, id } = req.params;
     const share = await loadShare(req, res, token);
@@ -510,33 +529,37 @@ router.delete('/:token/comments/:id', async (req, res) => {
 
     const commentId = Number(id);
     if (!Number.isInteger(commentId)) {
-      return res.status(400).json({ error: 'ID de comentário inválido' });
+      return res.status(400).json({ error: "ID de comentário inválido" });
     }
 
-    const commentResult = await query('SELECT * FROM brickreview_comments WHERE id = $1', [commentId]);
+    const commentResult = await query("SELECT * FROM brickreview_comments WHERE id = $1", [
+      commentId,
+    ]);
     if (commentResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Comentário não encontrado' });
+      return res.status(404).json({ error: "Comentário não encontrado" });
     }
     const comment = commentResult.rows[0];
 
     if (comment.user_id !== null) {
-      return res.status(403).json({ error: 'Não é possível deletar comentários de usuários registrados' });
+      return res
+        .status(403)
+        .json({ error: "Não é possível deletar comentários de usuários registrados" });
     }
 
     if (!(await checkShareAccess(share, comment.video_id))) {
-      return res.status(403).json({ error: 'Comentário não pertence a este compartilhamento' });
+      return res.status(403).json({ error: "Comentário não pertence a este compartilhamento" });
     }
 
-    await query('DELETE FROM brickreview_comments WHERE id = $1', [commentId]);
-    res.status(200).json({ message: 'Comentário deletado com sucesso' });
+    await query("DELETE FROM brickreview_comments WHERE id = $1", [commentId]);
+    res.status(200).json({ message: "Comentário deletado com sucesso" });
   } catch (err) {
-    console.error('Erro ao deletar comentário de convidado:', err);
-    res.status(500).json({ error: 'Erro ao deletar comentário' });
+    console.error("Erro ao deletar comentário de convidado:", err);
+    res.status(500).json({ error: "Erro ao deletar comentário" });
   }
 });
 
 // PATCH /api/shares/:token/comments/:id - Edita um comentário de convidado
-router.patch('/:token/comments/:id', async (req, res) => {
+router.patch("/:token/comments/:id", async (req, res) => {
   try {
     const { token, id } = req.params;
     const { content } = req.body;
@@ -545,38 +568,41 @@ router.patch('/:token/comments/:id', async (req, res) => {
 
     const commentId = Number(id);
     if (!Number.isInteger(commentId)) {
-      return res.status(400).json({ error: 'ID de comentário inválido' });
+      return res.status(400).json({ error: "ID de comentário inválido" });
     }
 
     if (!content) {
-      return res.status(400).json({ error: 'Conteúdo é obrigatório' });
+      return res.status(400).json({ error: "Conteúdo é obrigatório" });
     }
 
-    const commentResult = await query('SELECT * FROM brickreview_comments WHERE id = $1', [commentId]);
+    const commentResult = await query("SELECT * FROM brickreview_comments WHERE id = $1", [
+      commentId,
+    ]);
     if (commentResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Comentário não encontrado' });
+      return res.status(404).json({ error: "Comentário não encontrado" });
     }
     const comment = commentResult.rows[0];
 
     if (comment.user_id !== null) {
-      return res.status(403).json({ error: 'Não é possível editar comentários de usuários registrados' });
+      return res
+        .status(403)
+        .json({ error: "Não é possível editar comentários de usuários registrados" });
     }
 
     if (!(await checkShareAccess(share, comment.video_id))) {
-      return res.status(403).json({ error: 'Comentário não pertence a este compartilhamento' });
+      return res.status(403).json({ error: "Comentário não pertence a este compartilhamento" });
     }
 
     const updatedComment = await query(
-      'UPDATE brickreview_comments SET content = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      "UPDATE brickreview_comments SET content = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
       [content, commentId]
     );
 
     res.status(200).json(updatedComment.rows[0]);
   } catch (err) {
-    console.error('Erro ao editar comentário de convidado:', err);
-    res.status(500).json({ error: 'Erro ao editar comentário' });
+    console.error("Erro ao editar comentário de convidado:", err);
+    res.status(500).json({ error: "Erro ao editar comentário" });
   }
 });
-
 
 export default router;

@@ -1,85 +1,78 @@
-# 🚀 Plano de Ação: BrickReview v0.6+
+# 🚀 Plano de Ação: BrickReview v0.7+ (Fase de Infraestrutura)
 
-Este documento descreve o roteiro estratégico para as próximas fases de desenvolvimento do BrickReview, focando em refatoração técnica, escalabilidade de infraestrutura e integração com ferramentas de edição profissional (NLEs).
-
----
-
-## 📅 Fase 1: Refatoração e Estabilidade (Imediato)
-**Foco:** Resolver dívidas técnicas críticas e melhorar a performance do cliente.
-
-### 1.1 Desacoplamento do `VideoPlayer.jsx`
-O componente atual acumula muitas responsabilidades (player, canvas, comentários, aprovação).
-- [ ] **Extrair `ReviewCanvas.jsx`**: Isolar toda a lógica de desenho (`canvasRef`, eventos de mouse) em um componente puro que recebe apenas dimensões e timestamp.
-- [ ] **Extrair `CommentSidebar.jsx`**: Mover a lista de comentários, lógica de threads e formulário de input para um componente lateral independente.
-- [ ] **Extrair `TimelineMarkers.jsx`**: Criar um componente dedicado para renderizar os "pontos" de comentários/desenhos na barra de progresso.
-- [ ] **Gerenciamento de Estado**: Implementar um Contexto (`VideoContext`) ou Zustand para compartilhar o estado do player (`currentTime`, `isPlaying`, `duration`) entre esses sub-componentes sem *prop drilling*.
-
-### 1.2 Otimização de Performance
-- [ ] **Virtualização de Listas**: Implementar `react-window` ou `virtua` na lista de arquivos (`FolderView`) e na lista de comentários para suportar centenas de itens sem travar a UI.
-- [ ] **Memoização**: Revisar componentes de cartões (`VideoCard`, `FileCard`) e aplicar `React.memo` corretamente, garantindo que funções de callback (`onDelete`, `onMove`) sejam estáveis com `useCallback`.
+Este documento descreve o roteiro para a implementação da infraestrutura de processamento assíncrono, focando na qualidade de vídeo e estabilidade do servidor.
 
 ---
 
-## 📅 Fase 2: Infraestrutura e Escalabilidade (Curto Prazo)
-**Foco:** Resolver o gargalo de processamento de vídeo e evitar timeouts em uploads grandes.
+## 📅 Fase 10: Infraestrutura de Escala & Fidelidade (Prioridade Imediata)
 
-### 2.1 Processamento Assíncrono (Background Jobs)
-O processamento atual do FFmpeg bloqueia a requisição HTTP.
-- [ ] **Setup de Fila**: Adicionar Redis e BullMQ ao stack do projeto (serviço adicional no Railway).
-- [ ] **Worker de Processamento**: Criar um processo Node.js separado (worker) que consome a fila de uploads.
-- [ ] **Refatoração do Upload**:
-    1. Rota `POST /upload` apenas salva o arquivo "cru" no R2 e cria registro no DB com status `processing`.
-    2. Retorna `202 Accepted` imediatamente.
-    3. Worker baixa o arquivo, gera thumbnail/proxy/sprites e atualiza o DB para `ready`.
-- [ ] **Feedback na UI**: Implementar *polling* ou *sockets* para atualizar o status do vídeo na tela do usuário ("Processando... 45%").
+**Foco:** Garantir que uploads grandes não travem o servidor e que a qualidade de imagem seja profissional.
 
-### 2.2 Streaming Adaptativo (HLS)
-- [ ] **Transcodificação**: Atualizar o script FFmpeg para gerar playlists HLS (`.m3u8`) e segmentos (`.ts`) além do MP4 proxy.
-- [ ] **Player HLS**: Configurar o Plyr para consumir o stream HLS nativamente, permitindo ajuste automático de qualidade (360p, 720p, 1080p) conforme a banda do cliente.
+### 10.1 Setup de Fila (Background Jobs)
 
----
+- [ ] **Instalar Dependências**: `bullmq` e `ioredis`.
+- [ ] **Configurar Redis**: Adicionar conexão Redis ao projeto (Railway ou local).
+- [ ] **Criar Queue**: Inicializar a fila `video-processing`.
+- [ ] **Criar Worker**: Implementar o processador de jobs que rodará o FFmpeg.
 
-## 📅 Fase 3: Integração Profissional (Médio Prazo)
-**Foco:** Conectar o BrickReview ao fluxo de trabalho dos editores (DaVinci Resolve / Premiere).
+### 10.2 Pipeline de Decisão de Qualidade (The Bitrate Matrix)
 
-### 3.1 Plugin DaVinci Resolve (MVP - Scripting)
-Uma abordagem inicial baseada em scripts para importar feedback.
-- [ ] **Script Python Local**: Criar um script `.py` que roda dentro do console do DaVinci.
-- [ ] **Fluxo de Autenticação**: O script pede Login/Senha do BrickReview.
-- [ ] **Seleção de Projeto**: Lista os projetos/vídeos disponíveis na API.
-- [ ] **Importação de Marcadores**: Lê os comentários do vídeo selecionado e cria marcadores na timeline ativa do DaVinci usando a API `Resolve().GetCurrentTimeline().AddMarker()`.
+Implementar a lógica inteligente que decide se o vídeo original pode ser usado diretamente ou se precisa de re-encoding de alta qualidade.
 
-### 3.2 Painel de Extensão (Workflow Integration)
-Uma aplicação visual dentro do DaVinci.
-- [ ] **Setup Electron**: Configurar um projeto Electron compatível com o Workflow Integration do DaVinci.
-- [ ] **Frontend Embarcado**: Reutilizar os componentes React (`CommentSidebar`, `Login`) adaptados para o painel estreito do editor.
-- [ ] **Comunicação Bidirecional**: Implementar lógica onde clicar em um comentário no painel move a agulha da timeline do DaVinci para o frame exato.
+- [ ] **Análise**: Usar `ffprobe` para extrair bitrate e resolução.
+- [ ] **Regras de Negócio**:
+  - **Original**: Se bitrate < Threshold (ex: 15Mbps para 1080p), usa o original.
+  - **Streaming High**: Se bitrate > Threshold, gera novo MP4 (ex: 35Mbps para 4K).
+  - **Proxy**: Sempre gera 720p leve.
+- [ ] **Normalização de Áudio**: Converter áudio para AAC 320kbps em todos os processamentos.
 
----
+### 10.3 Pipeline de Cor (FFmpeg)
 
-## 📅 Fase 4: Funcionalidades Avançadas (Longo Prazo)
-**Foco:** Colaboração em tempo real e busca.
+Configurar flags do FFmpeg para garantir que não haja mudança de gama ou cor.
 
-### 4.1 Colaboração em Tempo Real (WebSockets)
-- [ ] **Servidor Socket.io**: Subir instância de Socket.io junto ao Express.
-- [ ] **Eventos**:
-    - `new_comment`: Atualiza a lista de todos os conectados no mesmo vídeo.
-    - `typing`: Mostra "Fulano está digitando...".
-    - `cursor_move`: (Opcional) Mostra cursores de outros usuários sobre o vídeo.
+- [ ] **Flags Obrigatórias**: `-pix_fmt yuv420p -color_primaries bt709 -color_trc bt709 -colorspace bt709`.
+- [ ] **Otimização de Seek**: Garantir GOP fixo para navegação rápida.
 
-### 4.2 Busca Global (Full Text Search)
-- [ ] **Indexação**: Configurar índices `tsvector` no PostgreSQL para as tabelas `brickreview_projects`, `brickreview_videos` e `brickreview_comments`.
-- [ ] **Endpoint de Busca**: Criar rota `/api/search` que aceita uma query e retorna resultados categorizados.
-- [ ] **UI de Busca**: Conectar o componente `Command` (Cmd+K) existente a este endpoint.
+### 10.4 Feedback na UI (Tempo Real)
+
+- [ ] **API de Status**: Criar endpoint para consultar status do job (`pending`, `processing`, `completed`, `failed`).
+- [ ] **Polling no Frontend**: Atualizar o `VideoCard` e `ProjectDetailPage` para mostrar "Processando..." ou barra de progresso.
 
 ---
 
-## 🛠️ Stack Tecnológica Sugerida para Expansão
+## 📅 Fase 11: Performance de UI (Frontend)
 
-| Componente | Tecnologia Atual | Sugestão de Upgrade |
-|:---|:---|:---|
-| **Fila** | *Nenhuma (Síncrono)* | **BullMQ + Redis** |
-| **Streaming** | MP4 Progressivo | **HLS (HTTP Live Streaming)** |
-| **Real-time** | *Nenhum (Polling)* | **Socket.io** |
-| **Busca** | `ILIKE` SQL simples | **PostgreSQL Full Text Search** |
-| **DaVinci** | *Nenhum* | **Python Scripting API** |
+**Foco:** Otimizar a experiência do usuário em projetos grandes.
+
+### 11.1 Virtualização
+
+- [ ] **CommentSidebar**: Implementar `virtua` para listas com centenas de comentários.
+- [ ] **FolderView**: Virtualizar grid de arquivos.
+
+### 11.2 Atalhos Profissionais
+
+- [ ] **Navegação**: J-K-L (Play/Pause/Rewind).
+- [ ] **Precisão**: Setas para frame-by-frame.
+- [ ] **Marcação**: I / O para In/Out points (futuro).
+
+---
+
+## 📅 Fase 12: Integrações Externas (Médio Prazo)
+
+**Foco:** Conectar com NLEs (DaVinci/Premiere).
+
+### 12.1 Scripting DaVinci Resolve
+
+- [ ] **Python Script**: Script local que autentica na API do BrickReview.
+- [ ] **Importação de Markers**: Baixar comentários como marcadores na timeline do DaVinci.
+
+---
+
+## 🛠️ Stack Tecnológica (Atualizada)
+
+| Componente        | Tecnologia Atual       | Upgrade Fase 10                            |
+| :---------------- | :--------------------- | :----------------------------------------- |
+| **Fila**          | _Nenhuma (Síncrono)_   | **BullMQ + Redis**                         |
+| **Processamento** | Servidor Web (Express) | **Worker Isolado (Node.js)**               |
+| **Streaming**     | MP4 Básico             | **MP4 High Fidelity (Bitrate Controlado)** |
+| **Cor**           | Padrão FFmpeg          | **Pipeline BT.709 Gerenciado**             |
