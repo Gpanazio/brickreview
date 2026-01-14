@@ -7,15 +7,6 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("brickreview_token"));
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem("brickreview_token");
-    if (storedToken) {
-      verifyToken(storedToken);
-    } else {
-      setLoading(false);
-    }
-  }, [verifyToken]);
-
   const logout = useCallback(() => {
     localStorage.removeItem("brickreview_token");
     setToken(null);
@@ -42,6 +33,15 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   }, [logout]);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem("brickreview_token");
+    if (storedToken) {
+      verifyToken(storedToken);
+    } else {
+      setLoading(false);
+    }
+  }, [verifyToken]);
 
   const login = async (username, password) => {
     try {
