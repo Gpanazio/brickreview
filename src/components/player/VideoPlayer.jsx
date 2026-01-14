@@ -54,26 +54,6 @@ const PLYR_OPTIONS = {
   playsinline: true, // Permite tocar "inline" no mobile sem forçar fullscreen automaticamente no play
 };
 
-const parseTimestampSeconds = (value) => {
-  if (value === null || value === undefined) return null;
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
-};
-
-const compareCommentsByTimestamp = (a, b) => {
-  const aTs = parseTimestampSeconds(a?.timestamp);
-  const bTs = parseTimestampSeconds(b?.timestamp);
-
-  if (aTs === null && bTs === null) {
-    return new Date(a.created_at) - new Date(b.created_at);
-  }
-  if (aTs === null) return -1;
-  if (bTs === null) return 1;
-  if (aTs !== bTs) return aTs - bTs;
-
-  return new Date(a.created_at) - new Date(b.created_at);
-};
-
 export function VideoPlayer({
   video,
   versions = [],
@@ -165,7 +145,7 @@ export function VideoPlayer({
     try {
       const ids = localStorage.getItem('brickreview_guest_comment_ids');
       return ids ? JSON.parse(ids) : [];
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   };
@@ -280,7 +260,25 @@ export function VideoPlayer({
     };
   }, [videoUrl, currentVideo.mime_type]);
 
+  const parseTimestampSeconds = (value) => {
+    if (value === null || value === undefined) return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  };
 
+  const compareCommentsByTimestamp = (a, b) => {
+    const aTs = parseTimestampSeconds(a?.timestamp);
+    const bTs = parseTimestampSeconds(b?.timestamp);
+
+    if (aTs === null && bTs === null) {
+      return new Date(a.created_at) - new Date(b.created_at);
+    }
+    if (aTs === null) return -1;
+    if (bTs === null) return 1;
+    if (aTs !== bTs) return aTs - bTs;
+
+    return new Date(a.created_at) - new Date(b.created_at);
+  };
 
   const addComment = async (e) => {
     e.preventDefault();
@@ -632,21 +630,21 @@ export function VideoPlayer({
     }
   };
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = async () => {
     try {
       const response = await fetch(`/api/reviews/${currentVideoId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
       setHistory(data);
     } catch (error) {
-      console.error("Erro ao buscar histórico:", error);
+      console.error('Erro ao buscar histórico:', error);
     }
-  }, [currentVideoId, token]);
+  };
 
   useEffect(() => {
     if (showHistory) fetchHistory();
-  }, [showHistory, fetchHistory]);
+  }, [showHistory]);
 
   // Função para trocar de versão
   const handleVersionChange = (versionId) => {
@@ -702,7 +700,7 @@ export function VideoPlayer({
     };
 
     fetchComments();
-  }, [currentVideoId, token, isGuest, shareToken, currentVideo.duration, sharePassword]);
+  }, [currentVideoId, token, isGuest, shareToken]);
 
   // Carrega desenhos quando a versão muda
   useEffect(() => {
@@ -735,7 +733,7 @@ export function VideoPlayer({
     };
 
     fetchDrawings();
-  }, [currentVideoId, token, isGuest, shareToken, sharePassword]);
+  }, [currentVideoId, token, isGuest, shareToken]);
 
   // Função para fazer download do vídeo (proxy ou original)
   const handleDownload = async (type) => {
@@ -848,13 +846,13 @@ export function VideoPlayer({
           const data = await response.json();
           if (data.url) {
             // Se mudou o vídeo ou qualidade, salvamos o tempo atual
-            // const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
+            const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
             setVideoUrl(data.url);
 
             // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
           }
         }
-      } catch (_) {
+      } catch (error) {
         // Erro silencioso em produção
       } finally {
         setIsLoadingVideo(false);
@@ -960,7 +958,7 @@ export function VideoPlayer({
       }
       playerRef.current = null;
     };
-  }, [currentVideo?.sprite_vtt_url, isComparing, videoSource, currentTime]);
+  }, [currentVideo?.sprite_vtt_url, isComparing, videoSource]);
 
   // Polling para atualizar currentTime removido em favor de eventos nativos
 
@@ -1675,7 +1673,7 @@ export function VideoPlayer({
                             if (target?.closest?.('button, a, input, textarea, form, label')) return;
 
                             const ts = parseTimestampSeconds(comment.timestamp);
-                            // const endTs = parseTimestampSeconds(comment.timestamp_end);
+                            const endTs = parseTimestampSeconds(comment.timestamp_end);
 
                             if (ts !== null) {
                               seekTo(ts);
