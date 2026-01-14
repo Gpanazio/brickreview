@@ -54,6 +54,26 @@ const PLYR_OPTIONS = {
   playsinline: true, // Permite tocar "inline" no mobile sem forçar fullscreen automaticamente no play
 };
 
+const parseTimestampSeconds = (value) => {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const compareCommentsByTimestamp = (a, b) => {
+  const aTs = parseTimestampSeconds(a?.timestamp);
+  const bTs = parseTimestampSeconds(b?.timestamp);
+
+  if (aTs === null && bTs === null) {
+    return new Date(a.created_at) - new Date(b.created_at);
+  }
+  if (aTs === null) return -1;
+  if (bTs === null) return 1;
+  if (aTs !== bTs) return aTs - bTs;
+
+  return new Date(a.created_at) - new Date(b.created_at);
+};
+
 export function VideoPlayer({
   video,
   versions = [],
@@ -260,25 +280,7 @@ export function VideoPlayer({
     };
   }, [videoUrl, currentVideo.mime_type]);
 
-  const parseTimestampSeconds = useCallback((value) => {
-    if (value === null || value === undefined) return null;
-    const num = Number(value);
-    return Number.isFinite(num) ? num : null;
-  }, []);
 
-  const compareCommentsByTimestamp = useCallback((a, b) => {
-    const aTs = parseTimestampSeconds(a?.timestamp);
-    const bTs = parseTimestampSeconds(b?.timestamp);
-
-    if (aTs === null && bTs === null) {
-      return new Date(a.created_at) - new Date(b.created_at);
-    }
-    if (aTs === null) return -1;
-    if (bTs === null) return 1;
-    if (aTs !== bTs) return aTs - bTs;
-
-    return new Date(a.created_at) - new Date(b.created_at);
-  }, [parseTimestampSeconds]);
 
   const addComment = async (e) => {
     e.preventDefault();
@@ -700,7 +702,7 @@ export function VideoPlayer({
     };
 
     fetchComments();
-  }, [currentVideoId, token, isGuest, shareToken, compareCommentsByTimestamp, currentVideo.duration, sharePassword]);
+  }, [currentVideoId, token, isGuest, shareToken, currentVideo.duration, sharePassword]);
 
   // Carrega desenhos quando a versão muda
   useEffect(() => {
