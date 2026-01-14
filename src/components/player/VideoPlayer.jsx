@@ -1944,9 +1944,9 @@ export function VideoPlayer({
                           <span className="text-zinc-600 mx-1">à</span>
                           <span className={`cursor-pointer hover:text-white ${rangeEndTime !== null ? 'text-red-500' : 'text-zinc-500'}`}
                             onClick={() => {
-                              // Ao clicar, define o tempo atual como fim (se for maior que inicio)
-                              if (currentTime > currentTime) {
-                                // Lógica simplificada: user deve scrubbar e clicar
+                              // Se clicar no tempo final, ele reseta ou foca
+                              if (rangeEndTime !== null) {
+                                seekTo(rangeEndTime);
                               }
                             }}
                           >

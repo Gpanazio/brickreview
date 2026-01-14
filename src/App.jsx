@@ -19,6 +19,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import './App.css'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+const APP_VERSION = "1.1.0-range-support";
+console.log("BRICK Review Version:", APP_VERSION);
 import { LoginPage } from './components/LoginPage'
 import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
 import { ProjectSettingsModal } from './components/projects/ProjectSettingsModal'
@@ -39,7 +41,7 @@ function App() {
         <Routes>
           {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
           <Route path="/share/:token" element={<ShareViewPage />} />
-          
+
           {/* Rotas Principais do App */}
           <Route path="/*" element={<AppContent />} />
         </Routes>
@@ -57,10 +59,10 @@ function AppContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-        <motion.div 
+        <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-12 h-12 border-2 border-red-600 border-t-transparent" 
+          className="w-12 h-12 border-2 border-red-600 border-t-transparent"
         />
       </div>
     )
@@ -89,25 +91,25 @@ function AppContent() {
           className="flex min-h-screen bg-[#0d0d0e] text-white relative overflow-hidden font-sans"
         >
           {/* Background Accents for Glassmorphism */}
-          <motion.div 
-            animate={{ 
+          <motion.div
+            animate={{
               scale: [1, 1.1, 1],
               opacity: [0.04, 0.06, 0.04],
             }}
             transition={{ duration: 12, repeat: Infinity }}
-            className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[180px] rounded-full pointer-events-none" 
+            className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[180px] rounded-full pointer-events-none"
           />
-          <motion.div 
-            animate={{ 
+          <motion.div
+            animate={{
               scale: [1, 1.3, 1],
               opacity: [0.03, 0.06, 0.03],
             }}
             transition={{ duration: 20, repeat: Infinity }}
-            className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full" 
+            className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full"
           />
-          
+
           <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
-          
+
           <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen bg-black/20 pb-20 md:pb-0">
             <AnimatePresence mode="wait">
               <motion.div
@@ -150,105 +152,103 @@ function Sidebar({ collapsed, setCollapsed }) {
 
   return (
     <>
-    <MobileNav navItems={navItems} user={user} logout={logout} />
-    <aside className={`hidden md:flex glass-panel border-r border-zinc-800/50 flex-col transition-all duration-300 relative z-20 ${
-      collapsed ? 'w-20' : 'w-64'
-    }`}>
-      {/* Logo */}
-      <div className="p-8 border-b border-zinc-900/50 flex items-center justify-between bg-zinc-950/20">
-        <Link to="/" className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-red-600 flex items-center justify-center flex-shrink-0 relative">
-            <div className="absolute inset-0 bg-red-600 blur-[10px] opacity-20" />
-            <Film className="w-5 h-5 text-white relative z-10" />
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <h1 className="brick-title text-xl text-white whitespace-nowrap leading-none">BRICK</h1>
-              <span className="brick-tech text-[8px] text-zinc-500 uppercase tracking-[0.4em] mt-1">Review</span>
+      <MobileNav navItems={navItems} user={user} logout={logout} />
+      <aside className={`hidden md:flex glass-panel border-r border-zinc-800/50 flex-col transition-all duration-300 relative z-20 ${collapsed ? 'w-20' : 'w-64'
+        }`}>
+        {/* Logo */}
+        <div className="p-8 border-b border-zinc-900/50 flex items-center justify-between bg-zinc-950/20">
+          <Link to="/" className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-red-600 flex items-center justify-center flex-shrink-0 relative">
+              <div className="absolute inset-0 bg-red-600 blur-[10px] opacity-20" />
+              <Film className="w-5 h-5 text-white relative z-10" />
             </div>
-          )}
-        </Link>
-      </div>
-
-      {/* Collapse Toggle */}
-      <div className="px-4 py-2 flex justify-end">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="text-zinc-400 hover:text-white hover:bg-zinc-900"
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
-        </Button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-6 space-y-2">
-        {navItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`flex items-center gap-4 px-4 py-3 border-l-2 transition-all group ${
-              isActive(item.path)
-                ? 'bg-red-600/10 border-red-600 text-white shadow-[inset_10px_0_20px_rgba(220,38,38,0.05)]'
-                : 'border-transparent text-zinc-500 hover:text-white hover:bg-zinc-900/50'
-            } ${collapsed ? 'justify-center' : ''}`}
-            title={collapsed ? item.label : ''}
-          >
-            <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive(item.path) ? 'text-red-500' : 'group-hover:text-red-400'} transition-colors`} />
-            {!collapsed && <span className="brick-tech text-[10px] uppercase tracking-widest">{item.label}</span>}
-          </Link>
-        ))}
-      </nav>
-
-      {/* User */}
-      <div className="p-4 border-t border-zinc-900">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-white/5 transition-colors ${collapsed ? 'justify-center' : ''}`}>
-              <div className="w-8 h-8 bg-red-600 rounded-none flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-black text-white">{user.username.substring(0, 2).toUpperCase()}</span>
+            {!collapsed && (
+              <div className="flex flex-col">
+                <h1 className="brick-title text-xl text-white whitespace-nowrap leading-none">BRICK</h1>
+                <span className="brick-tech text-[8px] text-zinc-500 uppercase tracking-[0.4em] mt-1">Review</span>
               </div>
-              {!collapsed && (
-                <>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="text-sm text-white truncate">{user.username}</p>
-                    <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">{user.role}</p>
-                  </div>
-                  <Settings className="w-4 h-4 text-zinc-400" />
-                </>
-              )}
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56 side-right">
-            <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
-              <User className="w-4 h-4 mr-2" />
-              Perfil
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
-              <Settings className="w-4 h-4 mr-2" />
-              Configurações
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                logout();
-                window.location.href = '/login';
-              }}
-              className="text-red-500 focus:text-red-400 focus:bg-red-500/10 rounded-none cursor-pointer"
+            )}
+          </Link>
+        </div>
+
+        {/* Collapse Toggle */}
+        <div className="px-4 py-2 flex justify-end">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed(!collapsed)}
+            className="text-zinc-400 hover:text-white hover:bg-zinc-900"
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-6 space-y-2">
+          {navItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center gap-4 px-4 py-3 border-l-2 transition-all group ${isActive(item.path)
+                  ? 'bg-red-600/10 border-red-600 text-white shadow-[inset_10px_0_20px_rgba(220,38,38,0.05)]'
+                  : 'border-transparent text-zinc-500 hover:text-white hover:bg-zinc-900/50'
+                } ${collapsed ? 'justify-center' : ''}`}
+              title={collapsed ? item.label : ''}
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </aside>
+              <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive(item.path) ? 'text-red-500' : 'group-hover:text-red-400'} transition-colors`} />
+              {!collapsed && <span className="brick-tech text-[10px] uppercase tracking-widest">{item.label}</span>}
+            </Link>
+          ))}
+        </nav>
+
+        {/* User */}
+        <div className="p-4 border-t border-zinc-900">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-white/5 transition-colors ${collapsed ? 'justify-center' : ''}`}>
+                <div className="w-8 h-8 bg-red-600 rounded-none flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-black text-white">{user.username.substring(0, 2).toUpperCase()}</span>
+                </div>
+                {!collapsed && (
+                  <>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="text-sm text-white truncate">{user.username}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">{user.role}</p>
+                    </div>
+                    <Settings className="w-4 h-4 text-zinc-400" />
+                  </>
+                )}
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56 side-right">
+              <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
+                <User className="w-4 h-4 mr-2" />
+                Perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
+                <Settings className="w-4 h-4 mr-2" />
+                Configurações
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  logout();
+                  window.location.href = '/login';
+                }}
+                className="text-red-500 focus:text-red-400 focus:bg-red-500/10 rounded-none cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </aside>
     </>
   )
 }
@@ -296,7 +296,7 @@ function ProjectsPage() {
     try {
       const isRecentPage = location.pathname === '/recent'
       const url = isRecentPage ? '/api/projects?recent=true' : '/api/projects'
-      
+
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
@@ -330,34 +330,34 @@ function ProjectsPage() {
                 <form onSubmit={handleCreateProject} className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Nome do Projeto</Label>
-                    <Input 
+                    <Input
                       required
                       value={newProject.name}
-                      onChange={(e) => setNewProject({...newProject, name: e.target.value})}
-                      className="glass-input border-none rounded-none h-12" 
-                      placeholder="Ex: CAMPANHA KEETA" 
+                      onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                      className="glass-input border-none rounded-none h-12"
+                      placeholder="Ex: CAMPANHA KEETA"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Nome do Cliente</Label>
-                    <Input 
+                    <Input
                       value={newProject.client_name}
-                      onChange={(e) => setNewProject({...newProject, client_name: e.target.value})}
-                      className="glass-input border-none rounded-none h-12" 
-                      placeholder="Ex: Brick Produtora" 
+                      onChange={(e) => setNewProject({ ...newProject, client_name: e.target.value })}
+                      className="glass-input border-none rounded-none h-12"
+                      placeholder="Ex: Brick Produtora"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">Descrição</Label>
-                    <Input 
+                    <Input
                       value={newProject.description}
-                      onChange={(e) => setNewProject({...newProject, description: e.target.value})}
-                      className="glass-input border-none rounded-none h-12" 
-                      placeholder="Detalhes opcionais..." 
+                      onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                      className="glass-input border-none rounded-none h-12"
+                      placeholder="Detalhes opcionais..."
                     />
                   </div>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isCreating}
                     className="w-full glass-button-primary border-none rounded-none h-12 font-black uppercase tracking-widest"
                   >
@@ -450,22 +450,20 @@ function ProjectsPage() {
         <div className="flex items-center p-1 bg-zinc-900/80 border border-zinc-800 rounded-lg">
           <button
             onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === 'grid' 
-                ? 'bg-zinc-800 text-white shadow-sm' 
+            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid'
+                ? 'bg-zinc-800 text-white shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-300'
-            }`}
+              }`}
             title="Grid View"
           >
             <Grid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode('list')}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === 'list' 
-                ? 'bg-zinc-800 text-white shadow-sm' 
+            className={`p-1.5 rounded-md transition-all ${viewMode === 'list'
+                ? 'bg-zinc-800 text-white shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-300'
-            }`}
+              }`}
             title="List View"
           >
             <List className="w-4 h-4" />
@@ -490,14 +488,14 @@ function ProjectsPage() {
             </div>
           )
         ) : projects.length === 0 ? (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center justify-center h-64 border border-zinc-900 bg-zinc-950/20"
           >
             <p className="text-zinc-500 uppercase tracking-[0.3em] font-black text-[10px]">Nenhum projeto encontrado</p>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               onClick={() => setIsDialogOpen(true)}
               className="mt-6 glass-button-primary border-none rounded-none px-8 py-6 h-auto"
             >
@@ -505,7 +503,7 @@ function ProjectsPage() {
             </Button>
           </motion.div>
         ) : viewMode === 'grid' ? (
-          <motion.div 
+          <motion.div
             initial="hidden"
             animate="show"
             variants={{
@@ -522,16 +520,16 @@ function ProjectsPage() {
             {projects
               .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.client_name?.toLowerCase().includes(searchQuery.toLowerCase()))
               .map((project) => (
-              <motion.div
-                key={project.id}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  show: { opacity: 1, y: 0 }
-                }}
-              >
-                <ProjectCard project={project} onProjectUpdate={fetchProjects} />
-              </motion.div>
-            ))}
+                <motion.div
+                  key={project.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    show: { opacity: 1, y: 0 }
+                  }}
+                >
+                  <ProjectCard project={project} onProjectUpdate={fetchProjects} />
+                </motion.div>
+              ))}
             {/* New Project Card */}
             <motion.div
               variants={{
@@ -539,7 +537,7 @@ function ProjectsPage() {
                 show: { opacity: 1, y: 0 }
               }}
             >
-              <div 
+              <div
                 onClick={() => setIsDialogOpen(true)}
                 className="group cursor-pointer h-full min-h-[280px] border border-dashed border-zinc-800 hover:border-red-600/50 bg-zinc-900/20 hover:bg-zinc-900/40 transition-all duration-300 flex flex-col items-center justify-center gap-4 rounded-lg relative overflow-hidden"
               >
@@ -575,16 +573,16 @@ function ProjectsPage() {
               {projects
                 .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.client_name?.toLowerCase().includes(searchQuery.toLowerCase()))
                 .map((project) => (
-                <motion.div
-                  key={project.id}
-                  variants={{
-                    hidden: { opacity: 0, x: -10 },
-                    show: { opacity: 1, x: 0 }
-                  }}
-                >
-                  <ProjectListItem project={project} onProjectUpdate={fetchProjects} />
-                </motion.div>
-              ))}
+                  <motion.div
+                    key={project.id}
+                    variants={{
+                      hidden: { opacity: 0, x: -10 },
+                      show: { opacity: 1, x: 0 }
+                    }}
+                  >
+                    <ProjectListItem project={project} onProjectUpdate={fetchProjects} />
+                  </motion.div>
+                ))}
               {/* New Project Row */}
               <motion.div
                 variants={{
@@ -592,7 +590,7 @@ function ProjectsPage() {
                   show: { opacity: 1, x: 0 }
                 }}
               >
-                <div 
+                <div
                   onClick={() => setIsDialogOpen(true)}
                   className="group flex items-center px-6 py-4 hover:bg-zinc-900/30 transition-all cursor-pointer border-l-2 border-transparent hover:border-l-red-600/50"
                 >
@@ -714,9 +712,8 @@ function MobileNav({ navItems, user, logout }) {
         <Link
           key={item.path}
           to={item.path}
-          className={`flex flex-col items-center gap-1 transition-colors ${
-            isActive(item.path) ? 'text-red-500' : 'text-zinc-500'
-          }`}
+          className={`flex flex-col items-center gap-1 transition-colors ${isActive(item.path) ? 'text-red-500' : 'text-zinc-500'
+            }`}
         >
           <item.icon className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-tighter">
@@ -724,7 +721,7 @@ function MobileNav({ navItems, user, logout }) {
           </span>
         </Link>
       ))}
-      
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button className="flex flex-col items-center gap-1 text-zinc-500">
@@ -741,7 +738,7 @@ function MobileNav({ navItems, user, logout }) {
           <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">
             <Settings className="w-4 h-4 mr-2" /> Configurações
           </DropdownMenuItem>
-          <DropdownMenuItem 
+          <DropdownMenuItem
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
