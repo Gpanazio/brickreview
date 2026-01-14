@@ -114,7 +114,7 @@ export function ProjectDetailPage() {
     fetchProjectDetails();
     fetchFolders();
     fetchFiles();
-  }, [id]);
+  }, [id]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const fetchProjectDetails = async () => {
     try {
@@ -132,8 +132,8 @@ export function ProjectDetailPage() {
       }
 
       setProject(data);
-    } catch (error) {
-      console.error("Erro ao buscar detalhes do projeto:", error);
+    } catch (_err) {
+      console.error("Erro ao buscar detalhes do projeto:", _err);
       toast.error("Erro ao buscar detalhes do projeto");
       setProject(null);
     } finally {
@@ -157,7 +157,7 @@ export function ProjectDetailPage() {
       }
 
       setFolders(Array.isArray(data) ? data : []);
-    } catch (error) {
+    } catch (_error) {
       console.error("Erro ao buscar pastas:", error);
       toast.error("Erro ao buscar pastas");
       setFolders([]);
@@ -180,7 +180,7 @@ export function ProjectDetailPage() {
       }
 
       setFiles(Array.isArray(data) ? data : []);
-    } catch (error) {
+    } catch (_error) {
       console.error("Erro ao buscar arquivos:", error);
       toast.error("Erro ao buscar arquivos");
       setFiles([]);
@@ -205,7 +205,7 @@ export function ProjectDetailPage() {
       if (response.ok) {
         fetchFolders();
       }
-    } catch (error) {
+    } catch (_error) {
       console.error("Erro ao criar pasta:", error);
     }
   };
@@ -220,8 +220,8 @@ export function ProjectDetailPage() {
           await navigator.clipboard.writeText(text);
           return true;
         }
-      } catch (err) {
-        console.warn(err);
+      } catch (_err) {
+        console.warn(_err);
       }
 
       try {
@@ -235,7 +235,7 @@ export function ProjectDetailPage() {
         const successful = document.execCommand("copy");
         document.body.removeChild(textArea);
         return successful;
-      } catch (err) {
+      } catch (_err) {
         return false;
       }
     };
@@ -272,7 +272,7 @@ export function ProjectDetailPage() {
         const errorData = await response.json();
         toast.error(errorData.error || "Erro ao gerar link", { id: loadingToast });
       }
-    } catch (error) {
+    } catch (_error) {
       console.error("Erro ao gerar link:", error);
       toast.error("Erro ao gerar link de compartilhamento", { id: loadingToast });
     }
@@ -288,8 +288,8 @@ export function ProjectDetailPage() {
           await navigator.clipboard.writeText(text);
           return true;
         }
-      } catch (err) {
-        console.warn(err);
+      } catch (_err) {
+        console.warn(_err);
       }
 
       try {
@@ -303,7 +303,7 @@ export function ProjectDetailPage() {
         const successful = document.execCommand("copy");
         document.body.removeChild(textArea);
         return successful;
-      } catch (err) {
+      } catch (_err) {
         return false;
       }
     };
@@ -340,7 +340,7 @@ export function ProjectDetailPage() {
         const errorData = await response.json();
         toast.error(errorData.error || "Erro ao gerar link", { id: loadingToast });
       }
-    } catch (error) {
+    } catch (_error) {
       console.error("Erro ao gerar link:", error);
       toast.error("Erro ao gerar link de compartilhamento", { id: loadingToast });
     }
@@ -365,7 +365,7 @@ export function ProjectDetailPage() {
         const errorData = await response.json();
         toast.error(errorData.error || "Erro ao excluir vídeo", { id: loadingToast });
       }
-    } catch (error) {
+    } catch (_error) {
       console.error("Erro ao excluir vídeo:", error);
       toast.error("Erro ao excluir vídeo", { id: loadingToast });
     }
@@ -389,7 +389,7 @@ export function ProjectDetailPage() {
       // TODO: Implementar lógica de arquivamento no backend
       // Por ora, apenas mostra mensagem
       toast.info("Funcionalidade de arquivamento em breve!", { id: loadingToast });
-    } catch (error) {
+    } catch (_error) {
       console.error("Erro ao arquivar vídeo:", error);
       toast.error("Erro ao arquivar vídeo", { id: loadingToast });
     }
@@ -469,7 +469,7 @@ export function ProjectDetailPage() {
             prev.map((u) => (u.id === currentUploadId ? { ...u, status: "error" } : u))
           );
         }
-      } catch (error) {
+      } catch (_error) {
         console.error("Erro no upload:", error);
         toast.error("ERRO DE CONEXÃO", {
           description: `Falha ao enviar ${file.name}`,
@@ -535,7 +535,7 @@ export function ProjectDetailPage() {
         const errorData = await response.json();
         toast.error(errorData.error || "Erro ao criar versão", { id: versionToast });
       }
-    } catch (error) {
+    } catch (_error) {
       console.error("Erro ao criar versão:", error);
       toast.error("Erro ao criar versão", { id: versionToast });
     }
@@ -562,82 +562,18 @@ export function ProjectDetailPage() {
         const errorData = await response.json();
         toast.error(errorData.error || "Erro ao mover vídeo", { id: moveToast });
       }
-    } catch (error) {
-      console.error("Erro ao mover vídeo:", error);
-      toast.error("Erro ao mover vídeo", { id: moveToast });
-    }
-  };
-
-  const handleMoveFolder = async (folderId, parentFolderId) => {
-    const moveToast = toast.loading("Movendo pasta...");
-
-    try {
-      const response = await fetch(`/api/folders/${folderId}/move`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ new_parent_folder_id: parentFolderId }),
-      });
-
-      if (response.ok) {
-        toast.success("Pasta movida com sucesso!", { id: moveToast });
-        fetchProjectDetails();
-        fetchFolders();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || "Erro ao mover pasta", { id: moveToast });
+      } catch (_error) {
+        console.error("Erro ao mover vídeo:", _error);
+        toast.error("Erro ao mover vídeo", { id: moveToast });
       }
-    } catch (error) {
-      console.error("Erro ao mover pasta:", error);
-      toast.error("Erro ao mover pasta", { id: moveToast });
-    }
-  };
+    };
 
-  const handleDownloadVideo = async (videoId, type) => {
-    try {
-      const endpoint = `/api/videos/${videoId}/download?type=${type}`;
-      const response = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    useEffect(() => {
+      fetchProjectDetails(); // eslint-disable-next-line react-hooks/exhaustive-deps
+      fetchFolders();
+      fetchFiles();
+    }, [id]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
-      if (response.ok) {
-        const data = await response.json();
-        // Força download
-        const videoResponse = await fetch(data.url);
-        const blob = await videoResponse.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = data.filename;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => {
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(blobUrl);
-        }, 100);
-      } else {
-        toast.error("Erro ao gerar link de download");
-      }
-    } catch (error) {
-      console.error("Erro no download:", error);
-      toast.error("Erro ao baixar arquivo");
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full bg-[#050505]">
-        <div className="w-10 h-10 border-4 border-red-600 border-t-transparent animate-spin" />
-      </div>
-    );
-  }
-
-  if (!project) return <div className="p-8 text-white">Projeto não encontrado</div>;
-
-  if (selectedVideo) {
-    // Busca versões do vídeo selecionado
     const videoVersions =
       project?.videos?.filter((v) => v.parent_video_id === selectedVideo.id) || [];
 
@@ -823,7 +759,6 @@ export function ProjectDetailPage() {
                     onFolderClick={(folder) => setCurrentFolderId(folder.id)}
                     onVideoClick={(video) => setSelectedVideo(video)}
                     onCreateFolder={handleCreateFolder}
-                    onRenameFolder={fetchFolders}
                     onDeleteFolder={fetchFolders}
                     onMoveVideo={handleMoveVideo}
                     onMoveFolder={handleMoveFolder}
@@ -901,7 +836,7 @@ export function ProjectDetailPage() {
                                       const errorData = await response.json().catch(() => ({}));
                                       toast.error(errorData.error || "Erro ao excluir pasta");
                                     }
-                                  } catch (error) {
+                                  } catch (_error) {
                                     console.error("Erro ao excluir pasta:", error);
                                     toast.error("Erro ao excluir pasta");
                                   }
@@ -1062,7 +997,7 @@ export function ProjectDetailPage() {
                                       const errorData = await response.json().catch(() => ({}));
                                       toast.error(errorData.error || "Erro ao excluir arquivo");
                                     }
-                                  } catch (error) {
+                                  } catch (_error) {
                                     console.error("Erro ao excluir arquivo:", error);
                                     toast.error("Erro ao excluir arquivo");
                                   }
@@ -1213,7 +1148,7 @@ const FolderCard = memo(
             onMoveFolder?.(parseInt(folderId), folder.id);
           }
         }
-      } catch (error) {
+      } catch (_error) {
         console.error("Erro ao processar drop na pasta:", error);
       }
     };
@@ -1571,7 +1506,7 @@ const VideoCard = memo(
             onCreateVersion?.(draggedVideo.id, video.id);
           }
         }
-      } catch (error) {
+      } catch (_error) {
         console.error("Erro ao processar drop:", error);
       }
     };

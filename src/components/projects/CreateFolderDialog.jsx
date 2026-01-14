@@ -12,22 +12,23 @@ import { Button } from "@/components/ui/button";
 export function CreateFolderDialog({ isOpen, onClose, onConfirm, title = "Nova Pasta" }) {
   const [folderName, setFolderName] = useState("");
 
-  useEffect(() => {
-    if (isOpen) {
+  const handleOpenChange = (open) => {
+    if (!open) {
       setFolderName("");
     }
-  }, [isOpen]);
+    onClose(open);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (folderName.trim()) {
       onConfirm(folderName.trim());
-      onClose();
+      handleOpenChange(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="brick-title text-xl uppercase tracking-tighter text-white">

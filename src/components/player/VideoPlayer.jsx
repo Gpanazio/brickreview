@@ -3,6 +3,7 @@ import Plyr from "plyr";
 import "plyr/dist/plyr.css";
 import "./VideoPlayer.css";
 import { useAuth } from "../../hooks/useAuth";
+import { DRAWING_COLORS } from "../../constants/drawing.js";
 
 const isMobile = () => {
   return (
@@ -257,10 +258,6 @@ export function VideoPlayer({
 
   const videoSource = useMemo(() => {
     if (!videoUrl) return null;
-    console.log("[VideoPlayer] Creating video source:", {
-      url: videoUrl,
-      mimeType: currentVideo.mime_type,
-    });
     return {
       type: "video",
       preload: "auto",
@@ -867,14 +864,10 @@ export function VideoPlayer({
         if (response.ok) {
           const data = await response.json();
           if (data.url) {
-            // Se mudou o vídeo ou qualidade, salvamos o tempo atual
-            const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
             setVideoUrl(data.url);
-
-            // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
           }
         }
-      } catch (error) {
+      } catch (_) {
         // Erro silencioso em produção
       } finally {
         setIsLoadingVideo(false);

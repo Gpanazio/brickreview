@@ -754,7 +754,6 @@ function ProjectCard({ project, onProjectUpdate }) {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log("Botão de engrenagem clicado para o projeto:", project.id);
               setShowSettings(true);
             }}
           >
