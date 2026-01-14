@@ -1095,7 +1095,7 @@ export function VideoPlayer({
 
   return (
     <>
-      <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden">
+      <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden min-h-0">
         {/* Área do Player */}
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
@@ -1592,7 +1592,7 @@ export function VideoPlayer({
         </div>
 
         {/* Barra Lateral de Comentários / Histórico */}
-        <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none overflow-hidden">
+        <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 h-auto min-h-0 lg:h-full flex-1 lg:flex-none overflow-hidden">
           <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
             <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
               {showHistory ? (
@@ -1609,7 +1609,7 @@ export function VideoPlayer({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar min-h-0">
             {showHistory ? (
               history.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">

@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label"
 import './App.css'
 import { AuthProvider, useAuth } from './hooks/useAuth'
-const APP_VERSION = "1.1.0-range-support";
+const APP_VERSION = "1.1.1-flex-fix";
 console.log("BRICK Review Version:", APP_VERSION);
 import { LoginPage } from './components/LoginPage'
 import { ProjectDetailPage } from './components/projects/ProjectDetailPage'
@@ -194,8 +194,8 @@ function Sidebar({ collapsed, setCollapsed }) {
               key={item.path}
               to={item.path}
               className={`flex items-center gap-4 px-4 py-3 border-l-2 transition-all group ${isActive(item.path)
-                  ? 'bg-red-600/10 border-red-600 text-white shadow-[inset_10px_0_20px_rgba(220,38,38,0.05)]'
-                  : 'border-transparent text-zinc-500 hover:text-white hover:bg-zinc-900/50'
+                ? 'bg-red-600/10 border-red-600 text-white shadow-[inset_10px_0_20px_rgba(220,38,38,0.05)]'
+                : 'border-transparent text-zinc-500 hover:text-white hover:bg-zinc-900/50'
                 } ${collapsed ? 'justify-center' : ''}`}
               title={collapsed ? item.label : ''}
             >
@@ -451,8 +451,8 @@ function ProjectsPage() {
           <button
             onClick={() => setViewMode('grid')}
             className={`p-1.5 rounded-md transition-all ${viewMode === 'grid'
-                ? 'bg-zinc-800 text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-300'
+              ? 'bg-zinc-800 text-white shadow-sm'
+              : 'text-zinc-500 hover:text-zinc-300'
               }`}
             title="Grid View"
           >
@@ -461,8 +461,8 @@ function ProjectsPage() {
           <button
             onClick={() => setViewMode('list')}
             className={`p-1.5 rounded-md transition-all ${viewMode === 'list'
-                ? 'bg-zinc-800 text-white shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-300'
+              ? 'bg-zinc-800 text-white shadow-sm'
+              : 'text-zinc-500 hover:text-zinc-300'
               }`}
             title="List View"
           >

@@ -233,7 +233,7 @@ export function ShareViewPage() {
           </div>
           <div className="hidden sm:block">
             <h1 className="brick-title text-sm tracking-tighter uppercase">BRICK <span className="text-red-500">SHARE</span></h1>
-            <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-none">Review Mode v1.1.0</p>
+            <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-none">Review Mode v1.1.1</p>
           </div>
         </div>
 
@@ -270,7 +270,7 @@ export function ShareViewPage() {
               </div>
             )}
 
-            <div className="flex-1 relative">
+            <div className="flex-1 relative min-h-0">
               <VideoPlayer
                 video={currentVideo}
                 versions={currentVersions}
