@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Folder,
   FolderOpen,
@@ -24,6 +24,87 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+
+const VideoItem = ({ video, onVideoClick }) => {
+  return (
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.stopPropagation();
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("video", JSON.stringify(video));
+        e.dataTransfer.setData("application/x-brick-video-id", String(video.id));
+      }}
+      className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-blue-600 transition-all cursor-pointer h-12"
+      onClick={() => onVideoClick(video)}
+    >
+      <File className="w-4 h-4 text-blue-400" />
+      <span className="flex-1 text-sm text-zinc-400 hover:text-white uppercase tracking-tight">
+        {video.title}
+      </span>
+      <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
+        {formatVideoDuration(video.duration)}
+      </span>
+    </div>
+  );
+};
+
+const FileItem = ({ file, getFileColor, handleDeleteFile }) => {
+  const colorClass = getFileColor(file.file_type);
+
+  // Render icon based on file type inline to avoid component-during-render error
+  const renderFileIcon = () => {
+    switch (file.file_type) {
+      case "image":
+        return <FileImage className={`w-4 h-4 ${colorClass}`} />;
+      case "audio":
+        return <FileAudio className={`w-4 h-4 ${colorClass}`} />;
+      case "document":
+        return <FileText className={`w-4 h-4 ${colorClass}`} />;
+      default:
+        return <File className={`w-4 h-4 ${colorClass}`} />;
+    }
+  };
+
+  return (
+    <div className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-green-600 transition-all h-12">
+      {renderFileIcon()}
+      <span className="flex-1 text-sm text-zinc-400 hover:text-white uppercase tracking-tight truncate">
+        {file.name}
+      </span>
+      <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
+        {formatFileSize(file.file_size)}
+      </span>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-white transition-all p-1">
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="glass-panel border-zinc-800 rounded-none">
+          <DropdownMenuItem
+            className="text-xs uppercase tracking-wider cursor-pointer"
+            onClick={() => window.open(file.r2_url, "_blank")}
+          >
+            <ExternalLink className="w-3 h-3 mr-2" />
+            Abrir
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-xs uppercase tracking-wider text-red-500 cursor-pointer"
+            onClick={() => handleDeleteFile(file.id)}
+          >
+            <Trash2 className="w-3 h-3 mr-2" />
+            Excluir
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
+// Helper para cor baseada no tipo de arquivo
 
 // Helper para formatar tamanho de arquivo
 const formatFileSize = (bytes) => {
@@ -77,9 +158,6 @@ export function FolderView({
   onGenerateFolderShare,
   token,
 }) {
-  const normalizedFolders = Array.isArray(folders) ? folders : [];
-  const normalizedVideos = Array.isArray(videos) ? videos : [];
-  const normalizedFiles = Array.isArray(files) ? files : [];
   const [expandedFolders, setExpandedFolders] = useState(new Set());
   const [renamingFolder, setRenamingFolder] = useState(null);
   const [newFolderName, setNewFolderName] = useState("");
@@ -101,7 +179,7 @@ export function FolderView({
     onConfirm: null,
   });
 
-  const openConfirmDialog = ({
+  const openConfirmDialog = useCallback(({
     title,
     message,
     confirmText = "Confirmar",
@@ -118,44 +196,55 @@ export function FolderView({
       variant,
       onConfirm,
     });
-  };
+  }, []);
 
   const closeConfirmDialog = () => {
     setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
   };
 
   // Filtra pastas do nível atual
-  const currentLevelFolders = normalizedFolders.filter(
-    (f) =>
-      f.parent_folder_id === currentFolderId || (!currentFolderId && f.parent_folder_id === null)
-  );
+  const currentLevelFolders = useMemo(() => {
+    const norms = Array.isArray(folders) ? folders : [];
+    return norms.filter(
+      (f) =>
+        f.parent_folder_id === currentFolderId || (!currentFolderId && f.parent_folder_id === null)
+    );
+  }, [folders, currentFolderId]);
 
   // Filtra vídeos do nível atual
-  const currentLevelVideos = normalizedVideos.filter(
-    (v) => v.folder_id === currentFolderId || (!currentFolderId && v.folder_id === null)
-  );
+  const currentLevelVideos = useMemo(() => {
+    const norms = Array.isArray(videos) ? videos : [];
+    return norms.filter(
+      (v) => v.folder_id === currentFolderId || (!currentFolderId && v.folder_id === null)
+    );
+  }, [videos, currentFolderId]);
 
   // Filtra arquivos do nível atual
-  const currentLevelFiles = normalizedFiles.filter(
-    (f) => f.folder_id === currentFolderId || (!currentFolderId && f.folder_id === null)
-  );
+  const currentLevelFiles = useMemo(() => {
+    const norms = Array.isArray(files) ? files : [];
+    return norms.filter(
+      (f) => f.folder_id === currentFolderId || (!currentFolderId && f.folder_id === null)
+    );
+  }, [files, currentFolderId]);
 
-  const toggleFolder = (folderId) => {
-    const newExpanded = new Set(expandedFolders);
-    if (newExpanded.has(folderId)) {
-      newExpanded.delete(folderId);
-    } else {
-      newExpanded.add(folderId);
-    }
-    setExpandedFolders(newExpanded);
-  };
+  const toggleFolder = useCallback((folderId) => {
+    setExpandedFolders((prev) => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(folderId)) {
+        newExpanded.delete(folderId);
+      } else {
+        newExpanded.add(folderId);
+      }
+      return newExpanded;
+    });
+  }, []);
 
-  const handleRenameStart = (folder) => {
+  const handleRenameStart = useCallback((folder) => {
     setRenamingFolder(folder.id);
     setNewFolderName(folder.name);
-  };
+  }, []);
 
-  const handleRenameSubmit = async (folderId) => {
+  const handleRenameSubmit = useCallback(async (folderId) => {
     if (!newFolderName.trim()) return;
 
     try {
@@ -176,9 +265,9 @@ export function FolderView({
     } catch (error) {
       console.error("Erro ao renomear pasta:", error);
     }
-  };
+  }, [newFolderName, token, onRenameFolder]);
 
-  const performDeleteFolder = async (folderId) => {
+  const performDeleteFolder = useCallback(async (folderId) => {
     try {
       const response = await fetch(`/api/folders/${folderId}`, {
         method: "DELETE",
@@ -196,9 +285,9 @@ export function FolderView({
       console.error("Erro ao excluir pasta:", error);
       toast.error("Erro ao excluir pasta");
     }
-  };
+  }, [token, onDeleteFolder]);
 
-  const handleDeleteFolder = (folderId) => {
+  const handleDeleteFolder = useCallback((folderId) => {
     openConfirmDialog({
       title: "Excluir pasta",
       message:
@@ -208,9 +297,9 @@ export function FolderView({
       variant: "danger",
       onConfirm: () => performDeleteFolder(folderId),
     });
-  };
+  }, [openConfirmDialog, performDeleteFolder]);
 
-  const performDeleteFile = async (fileId) => {
+  const performDeleteFile = useCallback(async (fileId) => {
     try {
       const response = await fetch(`/api/files/${fileId}`, {
         method: "DELETE",
@@ -228,9 +317,9 @@ export function FolderView({
       console.error("Erro ao excluir arquivo:", error);
       toast.error("Erro ao excluir arquivo");
     }
-  };
+  }, [token, onFileDelete]);
 
-  const handleDeleteFile = (fileId) => {
+  const handleDeleteFile = useCallback((fileId) => {
     openConfirmDialog({
       title: "Excluir arquivo",
       message: "Tem certeza que deseja excluir este arquivo?",
@@ -239,23 +328,25 @@ export function FolderView({
       variant: "danger",
       onConfirm: () => performDeleteFile(fileId),
     });
-  };
+  }, [openConfirmDialog, performDeleteFile]);
 
-  const handleCreateFolder = (parentFolderId = null) => {
+
+
+  const handleCreateFolder = useCallback((parentFolderId = null) => {
     setCreateFolderDialog({
       isOpen: true,
       parentFolderId,
       title: parentFolderId ? "Nova Subpasta" : "Nova Pasta",
     });
-  };
+  }, []);
 
-  const handleCreateConfirm = async (name) => {
+  const handleCreateConfirm = useCallback(async (name) => {
     await onCreateFolder(name, createFolderDialog.parentFolderId);
     setCreatingFolder(false);
     setNewSubfolderParent(null);
-  };
+  }, [onCreateFolder, createFolderDialog.parentFolderId]);
 
-  const handleFolderDragOver = (e, folderId) => {
+  const handleFolderDragOver = useCallback((e, folderId) => {
     e.preventDefault();
     e.stopPropagation();
     const hasVideoData = Array.from(e.dataTransfer.types).some(
@@ -265,17 +356,17 @@ export function FolderView({
       setDragOverFolder(folderId);
       e.dataTransfer.dropEffect = "move";
     }
-  };
+  }, []);
 
-  const handleFolderDragLeave = (e, folderId) => {
+  const handleFolderDragLeave = useCallback((e, folderId) => {
     e.preventDefault();
     e.stopPropagation();
     if (dragOverFolder === folderId) {
       setDragOverFolder(null);
     }
-  };
+  }, [dragOverFolder]);
 
-  const handleFolderDrop = async (e, folderId) => {
+  const handleFolderDrop = useCallback(async (e, folderId) => {
     e.preventDefault();
     e.stopPropagation();
     setDragOverFolder(null);
@@ -295,7 +386,7 @@ export function FolderView({
     } catch (error) {
       console.error("Erro ao processar drop na pasta:", error);
     }
-  };
+  }, [onMoveVideo]);
 
   const renderFileItem = (file, depth = 0) => {
     const FileIcon = getFileIcon(file.file_type);
@@ -343,6 +434,9 @@ export function FolderView({
   };
 
   const renderFolder = (folder, depth = 0) => {
+    const normalizedFolders = Array.isArray(folders) ? folders : [];
+    const normalizedVideos = Array.isArray(videos) ? videos : [];
+    const normalizedFiles = Array.isArray(files) ? files : [];
     const isExpanded = expandedFolders.has(folder.id);
     const subfolders = normalizedFolders.filter((f) => f.parent_folder_id === folder.id);
     const folderVideos = normalizedVideos.filter((v) => v.folder_id === folder.id);
@@ -352,11 +446,10 @@ export function FolderView({
     return (
       <div key={folder.id} style={{ marginLeft: `${depth * 20}px` }}>
         <div
-          className={`group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 transition-all ${
-            isDragOver
-              ? "border-l-blue-500 bg-blue-900/20"
-              : "border-l-transparent hover:border-l-red-600"
-          }`}
+          className={`group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 transition-all ${isDragOver
+            ? "border-l-blue-500 bg-blue-900/20"
+            : "border-l-transparent hover:border-l-red-600"
+            }`}
           onDragOver={(e) => handleFolderDragOver(e, folder.id)}
           onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
           onDrop={(e) => handleFolderDrop(e, folder.id)}
@@ -492,28 +585,15 @@ export function FolderView({
             <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-3">
               Vídeos sem pasta
             </div>
-            {currentLevelVideos.map((video) => (
-              <div
-                key={video.id}
-                draggable
-                onDragStart={(e) => {
-                  e.stopPropagation();
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("video", JSON.stringify(video));
-                  e.dataTransfer.setData("application/x-brick-video-id", String(video.id));
-                }}
-                className="group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 border-l-transparent hover:border-l-blue-600 transition-all cursor-pointer"
-                onClick={() => onVideoClick(video)}
-              >
-                <File className="w-4 h-4 text-blue-400" />
-                <span className="flex-1 text-sm text-zinc-400 hover:text-white uppercase tracking-tight">
-                  {video.title}
-                </span>
-                <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-                  {formatVideoDuration(video.duration)}
-                </span>
-              </div>
-            ))}
+            <div className="max-h-[400px] overflow-y-auto w-full">
+              {currentLevelVideos.map((video) => (
+                <VideoItem
+                  key={video.id}
+                  video={video}
+                  onVideoClick={onVideoClick}
+                />
+              ))}
+            </div>
           </div>
         )}
 
@@ -523,7 +603,16 @@ export function FolderView({
             <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 px-3">
               Arquivos sem pasta
             </div>
-            {currentLevelFiles.map((file) => renderFileItem(file))}
+            <div className="max-h-[400px] overflow-y-auto w-full">
+              {currentLevelFiles.map((file) => (
+                <FileItem
+                  key={file.id}
+                  file={file}
+                  getFileColor={getFileColor}
+                  handleDeleteFile={handleDeleteFile}
+                />
+              ))}
+            </div>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, createContext, useContext, useEffect, useCallback } from "react";
 
 const AuthContext = createContext(null);
 
@@ -14,9 +14,15 @@ export const AuthProvider = ({ children }) => {
     } else {
       setLoading(false);
     }
-  }, []); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyToken]);
 
-  const verifyToken = async (authToken) => {
+  const logout = useCallback(() => {
+    localStorage.removeItem("brickreview_token");
+    setToken(null);
+    setUser(null);
+  }, []);
+
+  const verifyToken = useCallback(async (authToken) => {
     try {
       const response = await fetch("/api/auth/verify", {
         headers: {
@@ -35,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [logout]);
 
   const login = async (username, password) => {
     try {
@@ -65,12 +71,6 @@ export const AuthProvider = ({ children }) => {
       console.error("Erro na requisição de login:", error);
       return { success: false, error: "Erro de conexão com o servidor" };
     }
-  };
-
-  const logout = () => {
-    localStorage.removeItem("brickreview_token");
-    setToken(null);
-    setUser(null);
   };
 
   return (

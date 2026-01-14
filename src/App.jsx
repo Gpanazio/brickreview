@@ -173,9 +173,8 @@ function Sidebar({ collapsed, setCollapsed }) {
     <>
       <MobileNav navItems={navItems} user={user} logout={logout} />
       <aside
-        className={`hidden md:flex glass-panel border-r border-zinc-800/50 flex-col transition-all duration-300 relative z-20 ${
-          collapsed ? "w-20" : "w-64"
-        }`}
+        className={`hidden md:flex glass-panel border-r border-zinc-800/50 flex-col transition-all duration-300 relative z-20 ${collapsed ? "w-20" : "w-64"
+          }`}
       >
         {/* Logo */}
         <div className="p-8 border-b border-zinc-900/50 flex items-center justify-between bg-zinc-950/20">
@@ -215,11 +214,10 @@ function Sidebar({ collapsed, setCollapsed }) {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-4 px-4 py-3 border-l-2 transition-all group ${
-                isActive(item.path)
-                  ? "bg-red-600/10 border-red-600 text-white shadow-[inset_10px_0_20px_rgba(220,38,38,0.05)]"
-                  : "border-transparent text-zinc-500 hover:text-white hover:bg-zinc-900/50"
-              } ${collapsed ? "justify-center" : ""}`}
+              className={`flex items-center gap-4 px-4 py-3 border-l-2 transition-all group ${isActive(item.path)
+                ? "bg-red-600/10 border-red-600 text-white shadow-[inset_10px_0_20px_rgba(220,38,38,0.05)]"
+                : "border-transparent text-zinc-500 hover:text-white hover:bg-zinc-900/50"
+                } ${collapsed ? "justify-center" : ""}`}
               title={collapsed ? item.label : ""}
             >
               <item.icon
@@ -300,7 +298,8 @@ function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects();
-  }, []); // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
@@ -455,7 +454,7 @@ function ProjectsPage() {
                     <img
                       src={coverUrl}
                       alt={project.name}
-                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110"
+                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
                     />
                   ) : (
                     <ProjectCoverPlaceholder projectName={project.name} />
@@ -513,22 +512,20 @@ function ProjectsPage() {
         <div className="flex items-center p-1 bg-zinc-900/80 border border-zinc-800 rounded-lg">
           <button
             onClick={() => setViewMode("grid")}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === "grid"
-                ? "bg-zinc-800 text-white shadow-sm"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
+            className={`p-1.5 rounded-md transition-all ${viewMode === "grid"
+              ? "bg-zinc-800 text-white shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
+              }`}
             title="Grid View"
           >
             <Grid className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode("list")}
-            className={`p-1.5 rounded-md transition-all ${
-              viewMode === "list"
-                ? "bg-zinc-800 text-white shadow-sm"
-                : "text-zinc-500 hover:text-zinc-300"
-            }`}
+            className={`p-1.5 rounded-md transition-all ${viewMode === "list"
+              ? "bg-zinc-800 text-white shadow-sm"
+              : "text-zinc-500 hover:text-zinc-300"
+              }`}
             title="List View"
           >
             <List className="w-4 h-4" />
@@ -699,14 +696,20 @@ function ProjectCard({ project, onProjectUpdate }) {
 
   return (
     <>
-      <div className="group glass-card p-4 border-l-2 border-l-transparent hover:border-l-red-600 transition-all duration-500 relative flex flex-col h-full">
+      <div
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setShowSettings(true);
+        }}
+        className="group glass-card p-4 border-l-2 border-l-transparent hover:border-l-red-600 hover:shadow-[0_0_30px_rgba(220,38,38,0.1)] transition-all duration-500 relative flex flex-col h-full selector-card"
+      >
         <Link to={`/project/${project.id}`} className="flex-1 flex flex-col cursor-pointer">
           <div className="relative aspect-[4/3] overflow-hidden mb-5 bg-zinc-900 border border-zinc-800/30">
             {hasValidCover && !imageError ? (
               <img
                 src={coverUrl}
                 alt={project.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out grayscale group-hover:grayscale-0"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
                 onError={() => setImageError(true)}
               />
             ) : (
@@ -736,29 +739,15 @@ function ProjectCard({ project, onProjectUpdate }) {
           </div>
         </Link>
 
-        <div className="flex items-center justify-between pt-4 border-t border-zinc-900/50 relative z-20">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-              <span className="brick-tech text-[8px] text-zinc-500">v1</span>
-            </div>
-            <span className="brick-tech text-[9px] text-zinc-600 uppercase">
-              {project.updated_at
-                ? new Date(project.updated_at).toLocaleDateString()
-                : project.updatedAt}
-            </span>
+        <div className="flex items-center gap-2 pt-4 border-t border-zinc-900/50">
+          <div className="w-6 h-6 bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+            <span className="brick-tech text-[8px] text-zinc-500">v1</span>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 hover:bg-zinc-900 rounded-none transition-colors pointer-events-auto"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowSettings(true);
-            }}
-          >
-            <Settings className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 transition-colors" />
-          </Button>
+          <span className="brick-tech text-[9px] text-zinc-600 uppercase">
+            {project.updated_at
+              ? new Date(project.updated_at).toLocaleDateString()
+              : project.updatedAt}
+          </span>
         </div>
       </div>
 
@@ -809,9 +798,8 @@ function MobileNav({ navItems, user, logout }) {
         <Link
           key={item.path}
           to={item.path}
-          className={`flex flex-col items-center gap-1 transition-colors ${
-            isActive(item.path) ? "text-red-500" : "text-zinc-500"
-          }`}
+          className={`flex flex-col items-center gap-1 transition-colors ${isActive(item.path) ? "text-red-500" : "text-zinc-500"
+            }`}
         >
           <item.icon className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-tighter">

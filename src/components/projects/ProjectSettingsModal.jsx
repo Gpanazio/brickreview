@@ -54,7 +54,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
 
   useEffect(() => {
     fetchProjectDetails();
-  }, [project.id]);
+  }, [project.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchProjectDetails = async () => {
     try {
@@ -273,7 +273,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!searchQuery.trim()) return;
     setWebOffset(0);
     searchWebImages({ append: false });
-  }, [viewMode]); // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
 
   // --- Lógica do Editor (Zoom/Pan) ---
   const handleMouseDown = (e) => {
@@ -899,9 +900,8 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       onClick={onClose}
     >
       <div
-        className={`glass-panel p-6 w-full mx-4 rounded-none border border-zinc-800 flex flex-col overflow-hidden transition-all duration-300 ${
-          viewMode === "cover-browser" ? "max-w-4xl h-[80vh]" : "max-w-md h-auto max-h-[85vh]"
-        }`}
+        className={`glass-panel p-6 w-full mx-4 rounded-none border border-zinc-800 flex flex-col overflow-hidden transition-all duration-300 ${viewMode === "cover-browser" ? "max-w-4xl h-[80vh]" : "max-w-md h-auto max-h-[85vh]"
+          }`}
         onClick={(e) => e.stopPropagation()}
       >
         {viewMode === "main" && renderMainView()}

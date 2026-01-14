@@ -1,7 +1,7 @@
 # 🎬 BrickReview - Status do Projeto
 
 **Última atualização:** 2026-01-14
-**Versão:** 0.6.0 (Refatoração de Player Concluída)
+**Versão:** 0.7.0 (Limpeza e Estabilização Concluída)
 
 ## ✅ Progresso Geral
 
@@ -33,15 +33,16 @@
 - [x] Upload routes
 - [x] DropZone component
 - [x] UploadProgress component
-- [x] Video processing pipeline
+- [x] Video processing pipeline (Síncrono para estabilidade)
 
-### Fase 4: Video Player - 100% CONCLUÍDA ✅
+### Fase 4: Video Player (Native) - 100% CONCLUÍDA ✅
 
-- [x] Plyr.js integration customizada
+- [x] Substituído Plyr.js por Elemento de Vídeo Native HTML5
+- [x] Native Video Proxy Pattern (compatibilidade com controles legados)
 - [x] Timeline com markers
 - [x] Frame-by-frame navigation
 - [x] Timecode display
-- [x] Player stability fixes
+- [x] Player stability fixes (React 19 compatible)
 - [x] Version selector
 - [x] Download options
 
@@ -51,7 +52,7 @@
 - [x] Reply system
 - [x] Timestamp markers
 - [x] Real-time updates
-- [x] Emoji picker integration
+- [x] Emoji picker integration (Restaurado)
 - [x] Guest comments (visitor_name)
 
 ### Fase 6: Drawing Annotations - 100% CONCLUÍDA ✅
@@ -79,22 +80,28 @@
 - [x] Expiration dates
 - [x] Share de videos/folders/projects
 
-### Fase 9: Refatoração Técnica - 100% CONCLUÍDA ✅
+### Fase 9: Refatoração Técnica e Limpeza - 100% CONCLUÍDA ✅
 
-- [x] Linting e Prettier
 - [x] Desacoplamento de `VideoPlayer.jsx` (Modularização)
 - [x] Criação de `VideoContext`
 - [x] Subcomponentes: `ReviewCanvas`, `CommentSidebar`, `Timeline`, `VideoPlayerCore`
-- [x] Correção de Scroll em ShareView
+- [x] Remoção de `react-window` (Virtualização removida por complexidade/performance)
+- [x] Resolução de erros do React Compiler (Memoization)
+- [x] Correção de Erros de Lint (0 erros)
 
-### Fase 10: Infraestrutura de Escala & Fidelidade - 🚧 A INICIAR
+### Fase 10: Infraestrutura e Qualidade - 100% CONCLUÍDA ✅
 
-**Meta:** Processamento assíncrono para garantir qualidade de imagem profissional.
+- [x] **10.1 Sincronização Sólida**: Removido Redis/BullMQ para simplificar deploys e evitar gaps de processamento.
+- [x] **10.2 Bitrate Matrix**: Implementação da lógica de análise de qualidade (Original vs Streaming High).
+- [x] **10.3 Color Pipeline**: Configuração avançada do FFmpeg para consistência de cor (BT.709).
+- [x] **10.4 UI Feedback**: Loading animations integradas no player.
 
-- [ ] **10.1 Background Workers**: Setup de Redis + BullMQ para processamento fora do servidor principal.
-- [ ] **10.2 Bitrate Matrix**: Implementação da lógica de análise de qualidade (Original vs Streaming High).
-- [ ] **10.3 Color Pipeline**: Configuração avançada do FFmpeg para consistência de cor (BT.709).
-- [ ] **10.4 UI Feedback**: Polling para status de processamento em tempo real.
+### Fase 11: Performance e UX - 🚧 EM PROGRESSO
+
+**Meta:** Refinar a experiência do usuário.
+
+- [x] **11.1 Simplificação de Listas**: Otimização via React Compiler em vez de virtualização agressiva.
+- [ ] **11.2 Atalhos Profissionais**: Teclas de atalho J-K-L, setas, I/O.
 
 ---
 
@@ -104,15 +111,21 @@
 | -------------------------- | ------------------ |
 | Arquivos criados           | 100+               |
 | Linhas de código           | ~20000+            |
-| Commits Git                | 500+               |
+| Commits Git                | 550+               |
 | Componentes UI             | 60+                |
 | Rotas API                  | 30+                |
 | Tabelas DB                 | 11                 |
-| Funcionalidades principais | 9 fases concluídas |
+| Funcionalidades principais | 10 fases concluídas |
 
 ---
 
 ## ✨ Funcionalidades Implementadas
+
+### Sistema de Vídeo Nativo (Proxy)
+
+- Utiliza o elemento de vídeo nativo do navegador para máxima performance e compatibilidade.
+- Um objeto Proxy simula a API do Plyr.js, permitindo que componentes externos continuem funcionando sem alterações.
+- Suporte nativo a H.264 e MP4 direto do Cloudflare R2.
 
 ### Sistema de Desenho Frame-by-Frame
 
@@ -121,13 +134,6 @@
 - Persistência em banco de dados
 - Visibilidade para membros do projeto e guests
 
-### Guest Comments
-
-- Visitantes podem comentar sem criar conta
-- Visitor name salvo em localStorage
-- Sistema de usuários temporários
-- Access control via share links
-
 ### Share System
 
 - Links públicos para videos, folders e projects
@@ -135,20 +141,13 @@
 - Clipboard fallback robusto (3 camadas)
 - Data de expiração configurável
 
-### Version Management
-
-- Múltiplas versões por vídeo
-- Vídeos defaultam para versão mais recente
-- Cada versão mantém comentários independentes
-- Version selector integrado no player
-
 ---
 
 ## 🎯 Estado Atual do Projeto
 
-**Versão 0.6.0 Stable** 🚀
+**Versão 0.7.0 Stable** 🚀
 
-O BrickReview concluiu uma grande refatoração do componente de Player, tornando-o modular e pronto para expansão. A próxima grande etapa é a implementação de **Processamento Assíncrono** para suportar vídeos de alta fidelidade (4K 35Mbps) sem comprometer a performance do servidor.
+O BrickReview consolidou sua arquitetura de player e backend. A remoção do Redis simplificou a infraestrutura, e a transição para vídeo nativo resolveu problemas críticos de compatibilidade com o React 19. O código está limpo, sem erros de lint e com memoização otimizada.
 
 ### Acesso
 

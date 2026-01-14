@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, memo } from "react";
+import { useState, useEffect, useMemo, memo, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { VideoPlayer } from "../player/VideoPlayer";
@@ -110,28 +110,9 @@ export function ProjectDetailPage() {
     return path;
   }, [currentFolderId, folders]);
 
-  useEffect(() => {
-    fetchProjectDetails();
-    fetchFolders();
-    fetchFiles();
-  }, [id]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
-  // Polling para atualizar status de vídeos em processamento
-  useEffect(() => {
-    const hasProcessing = project?.videos?.some(
-      (v) => v.status === "pending" || v.status === "processing"
-    );
 
-    if (hasProcessing) {
-      const interval = setInterval(() => {
-        fetchProjectDetails();
-        // Opcional: fetchFolders() se contagem de itens depender disso, mas videos estão em project
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [project]);
-
-  const fetchProjectDetails = async () => {
+  const fetchProjectDetails = useCallback(async () => {
     try {
       const response = await fetch(`/api/projects/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -154,9 +135,9 @@ export function ProjectDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, token]);
 
-  const fetchFolders = async () => {
+  const fetchFolders = useCallback(async () => {
     try {
       const response = await fetch(`/api/folders/project/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -177,9 +158,9 @@ export function ProjectDetailPage() {
       toast.error("Erro ao buscar pastas");
       setFolders([]);
     }
-  };
+  }, [id, token]);
 
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       const response = await fetch(`/api/files/project/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -200,7 +181,27 @@ export function ProjectDetailPage() {
       toast.error("Erro ao buscar arquivos");
       setFiles([]);
     }
-  };
+  }, [id, token]);
+
+  useEffect(() => {
+    fetchProjectDetails();
+    fetchFolders();
+    fetchFiles();
+  }, [fetchProjectDetails, fetchFolders, fetchFiles]);
+
+  // Polling para atualizar status de vídeos em processamento
+  useEffect(() => {
+    const hasProcessing = project?.videos?.some(
+      (v) => v.status === "pending" || v.status === "processing"
+    );
+
+    if (hasProcessing) {
+      const interval = setInterval(() => {
+        fetchProjectDetails();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [project, fetchProjectDetails]);
 
   const handleCreateFolder = async (name, parentFolderId = null) => {
     try {
@@ -723,21 +724,19 @@ export function ProjectDetailPage() {
             <div className="flex bg-zinc-950/50 p-1 border border-zinc-800/50">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${
-                  viewMode === "grid"
-                    ? "bg-red-600 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "grid"
+                  ? "bg-red-600 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("folders")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${
-                  viewMode === "folders"
-                    ? "bg-red-600 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "folders"
+                  ? "bg-red-600 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
               >
                 <FolderTree className="w-4 h-4" />
               </button>
@@ -848,10 +847,10 @@ export function ProjectDetailPage() {
                   exit={{ opacity: 0 }}
                 >
                   {currentLevelFolders.length === 0 &&
-                  currentLevelVideos.length === 0 &&
-                  currentLevelFiles.length === 0 &&
-                  uploadQueue.length === 0 &&
-                  !currentFolderId ? (
+                    currentLevelVideos.length === 0 &&
+                    currentLevelFiles.length === 0 &&
+                    uploadQueue.length === 0 &&
+                    !currentFolderId ? (
                     <div className="flex flex-col items-center justify-center h-80 border border-dashed border-zinc-800 bg-zinc-950/10">
                       <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
                         <FileVideo className="w-8 h-8 text-zinc-700" />
@@ -1247,9 +1246,8 @@ const FolderCard = memo(
               ) : (
                 <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px] bg-zinc-950">
                   <div
-                    className={`relative bg-zinc-900 overflow-hidden ${
-                      previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
-                    }`}
+                    className={`relative bg-zinc-900 overflow-hidden ${previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
+                      }`}
                   >
                     <img
                       src={previews[0]}
@@ -1601,11 +1599,9 @@ const VideoCard = memo(
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
-                isDragging ? "opacity-50 scale-95" : ""
-              } ${
-                isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
-              }`}
+              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragging ? "opacity-50 scale-95" : ""
+                } ${isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
+                }`}
               style={{ zIndex: 1 }}
             >
               {/* Indicador de Drop para criar versão */}

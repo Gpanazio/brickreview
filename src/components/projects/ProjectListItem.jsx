@@ -27,7 +27,13 @@ export function ProjectListItem({ project, onProjectUpdate }) {
 
   return (
     <>
-      <div className="group flex items-center px-4 md:px-6 py-4 hover:bg-zinc-900/50 transition-colors border-l-2 border-transparent hover:border-l-red-600 relative">
+      <div
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setShowSettings(true);
+        }}
+        className="group flex items-center px-4 md:px-6 py-4 hover:bg-zinc-900/50 hover:shadow-[inset_0_0_20px_rgba(220,38,38,0.05)] transition-all border-l-2 border-transparent hover:border-l-red-600 relative cursor-pointer"
+      >
         <Link
           to={`/project/${project.id}`}
           className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center min-w-0"
@@ -67,19 +73,9 @@ export function ProjectListItem({ project, onProjectUpdate }) {
           </div>
         </Link>
 
-        <div className="absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 hover:bg-zinc-800 rounded-none transition-colors"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowSettings(true);
-            }}
-          >
-            <Settings className="w-4 h-4 text-zinc-500 hover:text-white" />
-          </Button>
+        {/* Status indicator style simplified for list */}
+        <div className="absolute right-4 flex items-center gap-2">
+          <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest hidden md:block">Settings via Right-click</span>
         </div>
       </div>
 

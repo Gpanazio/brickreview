@@ -10,7 +10,7 @@ import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
-import { addVideoJob } from "../queue/index.js";
+// Queue removed - Redis not configured
 
 const router = express.Router();
 
@@ -38,7 +38,7 @@ const upload = multer({
 
 /**
  * @route POST /api/videos/upload
- * @desc Async Upload: Uploads original to R2 and queues processing
+ * @desc Upload: Uploads original to R2 and marks as ready (no queue processing)
  */
 router.post("/upload", authenticateToken, upload.single("video"), async (req, res) => {
   // Increase timeout for large file upload to R2
@@ -94,7 +94,7 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
     );
     const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
 
-    // 2. Create Initial DB Record
+    // 2. Create DB Record with status 'ready' (no queue processing)
     const result = await query(
       `
       INSERT INTO brickreview_videos (
@@ -103,7 +103,7 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
         file_size, mime_type, uploaded_by, 
         status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready')
       RETURNING *
     `,
       [
@@ -121,17 +121,10 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
 
     const video = result.rows[0];
 
-    // 3. Add to Processing Queue
-    console.log(`📥 Adding job to queue for video ${video.id}`);
-    await addVideoJob(video.id, {
-      videoId: video.id,
-      r2Key: fileKey,
-      projectId: projectId,
-    });
-
-    // 4. Return Accepted
-    res.status(202).json({
-      message: "Upload recebido. O vídeo está sendo processado.",
+    // 3. Return Success (no queue - video is ready immediately)
+    console.log(`✅ Video ${video.id} uploaded and ready`);
+    res.status(201).json({
+      message: "Upload concluído com sucesso.",
       video: video,
     });
   } catch (error) {
@@ -182,6 +175,14 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       streaming_high_url,
       mime_type,
     } = videoResult.rows[0];
+
+    // DEBUG: Log video data
+    console.log(`🎬 Stream request for video ${req.params.id}:`, {
+      r2_url,
+      proxy_url,
+      streaming_high_url,
+      quality,
+    });
 
     // Se quality for 'original', tenta usar Streaming High se existir, senão Original.
     // Senão (ou se original falhar), tenta o proxy.

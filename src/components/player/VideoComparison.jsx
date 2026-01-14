@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { ChevronsLeftRight } from "lucide-react";
 
 const DRIFT_THRESHOLD = 0.05;
@@ -27,14 +27,14 @@ export function VideoComparison({
     compareRef.current.currentTime = masterRef.current.currentTime;
   };
 
-  const syncLoop = () => {
+  const syncLoop = useCallback(() => {
     if (!masterRef.current || !compareRef.current) return;
     const drift = Math.abs(masterRef.current.currentTime - compareRef.current.currentTime);
     if (drift > DRIFT_THRESHOLD) {
       compareRef.current.currentTime = masterRef.current.currentTime;
     }
     rafRef.current = requestAnimationFrame(syncLoop);
-  };
+  }, []);
 
   useEffect(() => {
     if (!masterRef.current || !compareRef.current) return;
@@ -43,7 +43,7 @@ export function VideoComparison({
     const compare = compareRef.current;
 
     const handlePlay = () => {
-      compare.play().catch(() => {});
+      compare.play().catch(() => { });
       onPlayStateChange?.(true);
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(syncLoop);
@@ -103,7 +103,7 @@ export function VideoComparison({
       master.removeEventListener("loadedmetadata", handleLoadedMetadata);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [onDurationChange, onPlayStateChange, onRateChange, onTimeUpdate, onVolumeChange]);
+  }, [onDurationChange, onPlayStateChange, onRateChange, onTimeUpdate, onVolumeChange, syncLoop]);
 
   useEffect(() => {
     if (!masterRef.current || !compareRef.current) return;
@@ -124,16 +124,16 @@ export function VideoComparison({
       togglePlay() {
         if (!masterRef.current || !compareRef.current) return;
         if (masterRef.current.paused) {
-          masterRef.current.play().catch(() => {});
-          compareRef.current.play().catch(() => {});
+          masterRef.current.play().catch(() => { });
+          compareRef.current.play().catch(() => { });
         } else {
           masterRef.current.pause();
           compareRef.current.pause();
         }
       },
       play() {
-        masterRef.current?.play().catch(() => {});
-        compareRef.current?.play().catch(() => {});
+        masterRef.current?.play().catch(() => { });
+        compareRef.current?.play().catch(() => { });
       },
       pause() {
         masterRef.current?.pause();
@@ -181,7 +181,7 @@ export function VideoComparison({
     return () => {
       onControllerReady?.(null);
     };
-  }, [onControllerReady, masterSrc, compareSrc]); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onControllerReady, masterSrc, compareSrc]);
 
   useEffect(() => {
     if (!isDragging) return;

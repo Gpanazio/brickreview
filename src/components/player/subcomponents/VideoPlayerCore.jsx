@@ -1,97 +1,104 @@
-import { useEffect, useRef, useMemo } from "react";
-import Plyr from "plyr";
-import "plyr/dist/plyr.css";
-// import "../../VideoPlayer.css"; // Assuming style is needed, verify path
+import { useEffect, useRef, useState } from "react";
 import { useVideo } from "../../../context/VideoContext";
-
-const PLYR_OPTIONS = {
-  controls: ["play-large"],
-  keyboard: { focused: true, global: true },
-  tooltips: { controls: true, seek: true },
-  ratio: null,
-  debug: false,
-  blankVideo: "",
-  fullscreen: {
-    enabled: true,
-    fallback: true,
-    iosNative: true,
-  },
-  playsinline: true,
-};
+import { Play, Pause } from "lucide-react";
 
 export function VideoPlayerCore() {
   const {
     playerRef,
-    currentVideo,
     videoUrl,
+    isPlaying,
     setCurrentTime,
     setDuration,
     setIsPlaying,
     setVolume,
     setIsMuted,
     setPlaybackRate,
-    isComparing,
   } = useVideo();
 
   const elementRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const prevVideoUrl = useRef(null);
 
-  const videoSource = useMemo(() => {
-    if (!videoUrl) return null;
-    return {
-      type: "video",
-      preload: "auto",
-      sources: [
-        {
-          src: videoUrl,
-          type: currentVideo.mime_type || "video/mp4",
-        },
-      ],
-    };
-  }, [videoUrl, currentVideo.mime_type]);
+  // Detect URL change for loading animation
+  useEffect(() => {
+    if (videoUrl && prevVideoUrl.current && videoUrl !== prevVideoUrl.current) {
+      setIsLoading(true);
+    }
+    prevVideoUrl.current = videoUrl;
+  }, [videoUrl]);
 
   useEffect(() => {
     if (!videoUrl || !elementRef.current) return;
 
-    // Initialize Plyr
-    const player = new Plyr(elementRef.current, {
-      ...PLYR_OPTIONS,
-      previewThumbnails: currentVideo?.sprite_vtt_url
-        ? { enabled: true, src: currentVideo.sprite_vtt_url }
-        : { enabled: false },
-      autoplay: false,
-    });
+    const video = elementRef.current;
+    video.src = videoUrl;
 
-    // Set source
-    if (videoSource) {
-      player.source = videoSource;
-    }
+    // Event Listeners on native video element
+    const handlePlay = () => {
+      setIsPlaying(true);
+    };
+    const handlePause = () => {
+      setIsPlaying(false);
+    };
+    const handleTimeUpdate = () => setCurrentTime(video.currentTime);
+    const handleDurationChange = () => setDuration(video.duration);
+    const handleVolumeChange = () => {
+      setVolume(video.volume);
+      setIsMuted(video.muted);
+    };
+    const handleRateChange = () => setPlaybackRate(video.playbackRate);
+    const handleLoadedData = () => setIsLoading(false);
+    const handleWaiting = () => setIsLoading(true);
+    const handleCanPlay = () => setIsLoading(false);
 
-    // Event Listeners
-    player.on("play", () => setIsPlaying(true));
-    player.on("pause", () => setIsPlaying(false));
-    player.on("timeupdate", () => setCurrentTime(player.currentTime));
-    player.on("durationchange", () => setDuration(player.duration));
-    player.on("volumechange", () => {
-      setVolume(player.volume);
-      setIsMuted(player.muted);
-    });
-    player.on("ratechange", () => setPlaybackRate(player.speed));
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("durationchange", handleDurationChange);
+    video.addEventListener("volumechange", handleVolumeChange);
+    video.addEventListener("ratechange", handleRateChange);
+    video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("waiting", handleWaiting);
+    video.addEventListener("canplay", handleCanPlay);
 
-    // Expose player instance to Context
-    playerRef.current = { plyr: player };
+    // Expose video element to Context (compatible with existing playerRef usage)
+    playerRef.current = {
+      plyr: {
+        // Proxy methods to native video element
+        play: () => video.play(),
+        pause: () => video.pause(),
+        togglePlay: () => (video.paused ? video.play() : video.pause()),
+        get currentTime() { return video.currentTime; },
+        set currentTime(val) { video.currentTime = val; },
+        get duration() { return video.duration; },
+        get volume() { return video.volume; },
+        set volume(val) { video.volume = val; },
+        get muted() { return video.muted; },
+        set muted(val) { video.muted = val; },
+        get speed() { return video.playbackRate; },
+        set speed(val) { video.playbackRate = val; },
+        fullscreen: {
+          enter: () => video.requestFullscreen?.(),
+          exit: () => document.exitFullscreen?.(),
+        },
+      },
+    };
 
     // Cleanup
     return () => {
-      if (player) {
-        player.destroy();
-      }
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("durationchange", handleDurationChange);
+      video.removeEventListener("volumechange", handleVolumeChange);
+      video.removeEventListener("ratechange", handleRateChange);
+      video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("waiting", handleWaiting);
+      video.removeEventListener("canplay", handleCanPlay);
       playerRef.current = null;
     };
   }, [
     videoUrl,
-    videoSource,
-    currentVideo,
-    isComparing,
     setIsPlaying,
     setCurrentTime,
     setDuration,
@@ -100,6 +107,16 @@ export function VideoPlayerCore() {
     setPlaybackRate,
     playerRef,
   ]);
+
+  const handleTogglePlay = () => {
+    if (elementRef.current) {
+      if (elementRef.current.paused) {
+        elementRef.current.play();
+      } else {
+        elementRef.current.pause();
+      }
+    }
+  };
 
   if (!videoUrl) {
     return (
@@ -111,8 +128,43 @@ export function VideoPlayerCore() {
   }
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center bg-black">
-      <video ref={elementRef} className="plyr-react plyr" crossOrigin="anonymous" playsInline />
+    <div className="relative w-full h-full flex items-center justify-center bg-black group/player">
+      <video
+        ref={elementRef}
+        className="w-full h-full object-contain cursor-pointer"
+        playsInline
+        preload="auto"
+        onClick={handleTogglePlay}
+      />
+
+      {/* Loading overlay when switching quality */}
+      {isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 pointer-events-none">
+          <div className="h-12 w-12 animate-spin rounded-full border-3 border-red-500 border-t-transparent" />
+          <span className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">
+            A carregar...
+          </span>
+        </div>
+      )}
+
+      {/* Big play/pause button in center */}
+      {!isLoading && (
+        <button
+          onClick={handleTogglePlay}
+          className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer bg-transparent transition-opacity duration-200 ${isPlaying ? "opacity-0 group-hover/player:opacity-100" : "opacity-100"
+            }`}
+          aria-label={isPlaying ? "Pause" : "Play"}
+        >
+          <div className="w-20 h-20 rounded-full bg-black/60 flex items-center justify-center transition-all duration-300 hover:bg-black/80 hover:scale-110 shadow-2xl backdrop-blur-sm">
+            {isPlaying ? (
+              <Pause className="w-8 h-8 text-white fill-white" />
+            ) : (
+              <Play className="w-8 h-8 text-white fill-white ml-1" />
+            )}
+          </div>
+        </button>
+      )}
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   Film,
@@ -34,7 +34,7 @@ export function ShareViewPage() {
   const [selectedVideo, setSelectedVideo] = useState(null); // Video being viewed in folder/project
   const [videos, setVideos] = useState([]); // Videos in the shared folder or project
 
-  const fetchShare = async (pass = null) => {
+  const fetchShare = useCallback(async (pass = null) => {
     try {
       setLoading(true);
       setError(null);
@@ -66,9 +66,9 @@ export function ShareViewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchFolderVideos, fetchProjectVideos, token]);
 
-  const fetchFolderVideos = async () => {
+  const fetchFolderVideos = useCallback(async () => {
     try {
       const headers = password ? { "x-share-password": password } : {};
       const response = await fetch(`/api/shares/${token}/folder-videos`, { headers });
@@ -79,9 +79,9 @@ export function ShareViewPage() {
     } catch (_err) {
       console.error("Erro ao buscar vídeos da pasta:", _err);
     }
-  };
+  }, [password, token]);
 
-  const fetchProjectVideos = async () => {
+  const fetchProjectVideos = useCallback(async () => {
     try {
       const headers = password ? { "x-share-password": password } : {};
       const response = await fetch(`/api/shares/${token}/project-videos`, { headers });
@@ -92,11 +92,11 @@ export function ShareViewPage() {
     } catch (_err) {
       console.error("Erro ao buscar vídeos do projeto:", _err);
     }
-  };
+  }, [password, token]);
 
   useEffect(() => {
     fetchShare();
-  }, [token]); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, fetchShare]);
 
   const handleDownloadVideo = async (videoId, type) => {
     const loadingToast = toast.loading("Gerando link de download...");

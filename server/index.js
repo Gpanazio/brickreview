@@ -38,6 +38,24 @@ app.use((req, res, next) => {
 });
 const allowAnyOrigin = !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*'
 
+// Headers de Segurança e Performance
+app.use((req, res, next) => {
+  // Segurança
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data: https:; worker-src 'self' blob:; connect-src 'self' https: ws: wss:; frame-ancestors 'self';");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.removeHeader('X-Frame-Options'); // Substituído por frame-ancestors
+
+  // Cache Control para API (dinâmico) vs Estáticos
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  } else if (req.path.match(/\.(css|js|jpg|png|svg|ico)$/)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+
+  next();
+});
+
 app.use(
   cors({
     origin: allowAnyOrigin

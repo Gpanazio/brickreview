@@ -221,7 +221,7 @@ function VideoPlayerContent({
     }
   };
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       const response = await fetch(`/api/reviews/${currentVideoId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -231,11 +231,11 @@ function VideoPlayerContent({
     } catch (error) {
       console.error("Erro ao buscar histórico:", error);
     }
-  };
+  }, [currentVideoId, token]);
 
   useEffect(() => {
     if (showHistory) fetchHistory();
-  }, [showHistory]); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHistory, fetchHistory]);
 
   const handleVersionChange = (versionId) => {
     if (versionId === currentVideoId) return;
@@ -491,9 +491,76 @@ function VideoPlayerContent({
     }
   }, [compareVideoUrl, currentTime, isComparing, videoUrl]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeElement = document.activeElement;
+      const isInputFocused =
+        activeElement?.tagName === "INPUT" || activeElement?.tagName === "TEXTAREA";
+      if (isInputFocused) return;
+
+      const player = playerRef.current?.plyr;
+      if (!player) return;
+
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          isPlaying ? player.pause() : player.play();
+          break;
+        case "f":
+        case "F":
+          if (player.fullscreen) {
+            player.fullscreen.exit();
+          } else {
+            player.fullscreen.enter();
+          }
+          break;
+        case "j":
+        case "J":
+          e.preventDefault();
+          if (isPlaying) {
+            player.pause();
+          }
+          player.currentTime = Math.max(0, currentTime - 0.1);
+          break;
+        case "k":
+        case "K":
+          e.preventDefault();
+          player.pause();
+          break;
+        case "l":
+        case "L":
+          e.preventDefault();
+          if (!isPlaying) {
+            player.play();
+          }
+          player.currentTime = Math.min(duration || 0, currentTime + 0.1);
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          if (e.shiftKey) {
+            player.currentTime = Math.max(0, currentTime - 1);
+          } else {
+            player.currentTime = Math.max(0, currentTime - frameTime);
+          }
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (e.shiftKey) {
+            player.currentTime = Math.min(duration || 0, currentTime + 1);
+          } else {
+            player.currentTime = Math.min(duration || 0, currentTime + frameTime);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying, currentTime, duration, frameTime, playerRef]);
+
   return (
     <>
-      <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden">
+      <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden min-h-0">
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
             <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors">
@@ -510,11 +577,10 @@ function VideoPlayerContent({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
-                        approvalStatus === "approved"
-                          ? "border-green-500/50 text-green-500 bg-green-500/10"
-                          : "border-zinc-700 text-zinc-400 bg-zinc-900"
-                      }`}
+                      className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${approvalStatus === "approved"
+                        ? "border-green-500/50 text-green-500 bg-green-500/10"
+                        : "border-zinc-700 text-zinc-400 bg-zinc-900"
+                        }`}
                     >
                       {approvalStatus === "approved" ? (
                         <CheckCircle className="w-3 h-3 mr-2" />
@@ -598,11 +664,10 @@ function VideoPlayerContent({
                     variant="ghost"
                     size="sm"
                     onClick={handleToggleCompare}
-                    className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
-                      isComparing
-                        ? "border-red-600 text-white bg-red-600"
-                        : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
-                    }`}
+                    className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${isComparing
+                      ? "border-red-600 text-white bg-red-600"
+                      : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
+                      }`}
                   >
                     <Columns2 className="w-3 h-3 mr-2" />
                     Comparar
@@ -626,11 +691,10 @@ function VideoPlayerContent({
                           <DropdownMenuItem
                             key={v.id}
                             onClick={() => handleCompareVersionChange(v.id)}
-                            className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
-                              v.id === compareVersionId
-                                ? "text-red-500 bg-red-500/10"
-                                : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                            }`}
+                            className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${v.id === compareVersionId
+                              ? "text-red-500 bg-red-500/10"
+                              : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                              }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <span>Versão {v.version_number}</span>
@@ -660,11 +724,10 @@ function VideoPlayerContent({
                       <DropdownMenuItem
                         key={v.id}
                         onClick={() => handleVersionChange(v.id)}
-                        className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
-                          v.id === currentVideoId
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                        }`}
+                        className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${v.id === currentVideoId
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                          }`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <span>Versão {v.version_number}</span>
@@ -739,8 +802,15 @@ function VideoPlayerContent({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => playerRef.current?.plyr?.togglePlay()}
-                  className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                  onClick={() => {
+                    if (!videoUrl) {
+                      toast.error("Aguarde o vídeo carregar...");
+                      return;
+                    }
+                    playerRef.current?.plyr?.togglePlay();
+                  }}
+                  disabled={!videoUrl}
+                  className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8 disabled:opacity-50"
                 >
                   {isPlaying ? (
                     <Pause className="w-4 h-4 fill-current" />
@@ -771,11 +841,10 @@ function VideoPlayerContent({
                             playerRef.current.plyr.speed = speed;
                           }
                         }}
-                        className={`text-[10px] justify-center cursor-pointer font-bold ${
-                          playbackSpeed === speed
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-500 focus:text-white focus:bg-zinc-800"
-                        }`}
+                        className={`text-[10px] justify-center cursor-pointer font-bold ${playbackSpeed === speed
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-500 focus:text-white focus:bg-zinc-800"
+                          }`}
                       >
                         {speed}x
                       </DropdownMenuItem>
@@ -790,9 +859,8 @@ function VideoPlayerContent({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`text-[10px] font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
-                        quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
-                      }`}
+                      className={`text-[10px] font-bold uppercase tracking-widest h-8 px-2 rounded-none ${quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
+                        }`}
                     >
                       {quality === "original" ? "Original" : "720p"}
                     </Button>
@@ -803,21 +871,19 @@ function VideoPlayerContent({
                   >
                     <DropdownMenuItem
                       onClick={() => setQuality("proxy")}
-                      className={`text-[10px] cursor-pointer font-bold ${
-                        quality === "proxy"
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                      }`}
+                      className={`text-[10px] cursor-pointer font-bold ${quality === "proxy"
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                     >
                       Auto (720p)
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setQuality("original")}
-                      className={`text-[10px] cursor-pointer font-bold ${
-                        quality === "original"
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                      }`}
+                      className={`text-[10px] cursor-pointer font-bold ${quality === "original"
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                     >
                       Original (Máx)
                     </DropdownMenuItem>
