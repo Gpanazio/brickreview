@@ -181,6 +181,7 @@ CREATE TABLE IF NOT EXISTS brickreview_comments (
   visitor_name VARCHAR(255), -- Nome do visitante quando user_id é NULL
   content TEXT NOT NULL,
   timestamp DECIMAL(10, 3), -- Timestamp do vídeo em segundos com milissegundos
+  timestamp_end DECIMAL(10, 3), -- Opcional: fim do range do comentário
   status VARCHAR(50) DEFAULT 'open', -- open, in_progress, resolved
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

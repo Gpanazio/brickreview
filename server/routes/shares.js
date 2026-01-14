@@ -193,10 +193,10 @@ router.post('/:token/comments', async (req, res) => {
 
     // Insere comentário como convidado (user_id = NULL)
     const commentResult = await query(
-      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, visitor_name, content, timestamp)
-       VALUES ($1, $2, NULL, $3, $4, $5)
+      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, visitor_name, content, timestamp, timestamp_end)
+       VALUES ($1, $2, NULL, $3, $4, $5, $6)
        RETURNING *`,
-      [video_id, parent_comment_id, visitorName, content, timestamp]
+      [video_id, parent_comment_id, visitorName, content, timestamp, req.body.timestamp_end]
     )
 
     // Busca detalhes do comentário com dados do usuário
@@ -310,7 +310,7 @@ router.get('/:token/video/:videoId/stream', async (req, res) => {
     }
 
     const videoData = resStream.rows[0]
-    
+
     let url, isOriginal;
     if (quality === 'original') {
       url = videoData.r2_url;
@@ -462,7 +462,7 @@ router.get('/:token', async (req, res) => {
 router.get('/:token/video/:videoId/download', async (req, res) => {
   try {
     const { token, videoId } = req.params;
-    const { type } = req.query; 
+    const { type } = req.query;
 
     const share = await loadShare(req, res, token);
     if (!share) return;

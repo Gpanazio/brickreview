@@ -47,7 +47,7 @@ router.get('/video/:videoId', authenticateToken, async (req, res) => {
  * @desc Add a comment to a video
  */
 router.post('/', authenticateToken, async (req, res) => {
-  const { video_id, parent_comment_id, content, timestamp } = req.body;
+  const { video_id, parent_comment_id, content, timestamp, timestamp_end } = req.body;
 
   if (!video_id || !content) {
     return res.status(400).json({ error: 'Vídeo ID e conteúdo são obrigatórios' });
@@ -66,10 +66,10 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     const result = await query(
-      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp, timestamp_end)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [videoId, parent_comment_id, req.user.id, content, timestamp]
+      [videoId, parent_comment_id, req.user.id, content, timestamp, timestamp_end]
     )
 
     // Busca detalhes do comentário recém criado com dados do usuário
@@ -116,10 +116,12 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       `UPDATE brickreview_comments
        SET content = COALESCE($1, content),
            status = COALESCE($2, status),
+           timestamp = COALESCE($6, timestamp),
+           timestamp_end = COALESCE($7, timestamp_end),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $3 AND (user_id = $4 OR $5 = 'admin')
        RETURNING *`,
-      [content, status, commentId, req.user.id, req.user.role]
+      [content, status, commentId, req.user.id, req.user.role, req.body.timestamp, req.body.timestamp_end]
     )
 
     if (result.rows.length === 0) {

@@ -109,6 +109,8 @@ export function VideoPlayer({
   const [drawings, setDrawings] = useState([]); // Desenhos salvos por timestamp
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
   const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
+  const [rangeEndTime, setRangeEndTime] = useState(null); // Fim do range (opcional)
+  const [isRangeMode, setIsRangeMode] = useState(false); // Modo de seleção de range
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controla exibição do emoji picker
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
@@ -178,6 +180,14 @@ export function VideoPlayer({
       playerRef.current.plyr.pause();
     }
   }, [drawingMode]);
+
+  // Reset range mode when timestamp is toggled off
+  useEffect(() => {
+    if (!hasTimestamp) {
+      setIsRangeMode(false);
+      setRangeEndTime(null);
+    }
+  }, [hasTimestamp]);
 
   // Constrói lista completa de versões (vídeo original + versões)
   // Ordena da versão mais recente para a mais antiga
@@ -304,7 +314,9 @@ export function VideoPlayer({
       const body = {
         video_id: currentVideoId,
         content: newComment,
-        timestamp: hasTimestamp ? currentTime : null
+        content: newComment,
+        timestamp: hasTimestamp ? currentTime : null,
+        timestamp_end: (hasTimestamp && isRangeMode && rangeEndTime !== null) ? rangeEndTime : null
       };
 
       if (isGuest) {
@@ -326,6 +338,8 @@ export function VideoPlayer({
         setNewComment('');
         setAttachedFile(null);
         setDrawingMode(false);
+        setIsRangeMode(false);
+        setRangeEndTime(null);
         toast.success('Comentário adicionado com sucesso!');
       } else {
         const errorData = await response.json();
@@ -576,6 +590,13 @@ export function VideoPlayer({
     const frames = totalFrames % fpsInt;
 
     return `${mins}:${secs.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
+  };
+
+  const getCommentRange = (comment) => {
+    const start = parseTimestampSeconds(comment.timestamp);
+    const end = parseTimestampSeconds(comment.timestamp_end);
+    if (start === null) return null;
+    return { start, end };
   };
 
   const handleComparisonControllerReady = useCallback((controller) => {
@@ -1093,7 +1114,7 @@ export function VideoPlayer({
                       variant="ghost"
                       size="sm"
                       className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${approvalStatus === 'approved' ? 'border-green-500/50 text-green-500 bg-green-500/10' :
-                          'border-zinc-700 text-zinc-400 bg-zinc-900'
+                        'border-zinc-700 text-zinc-400 bg-zinc-900'
                         }`}
                     >
                       {approvalStatus === 'approved' ? (
@@ -1183,8 +1204,8 @@ export function VideoPlayer({
                     size="sm"
                     onClick={handleToggleCompare}
                     className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${isComparing
-                        ? 'border-red-600 text-white bg-red-600'
-                        : 'border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800'
+                      ? 'border-red-600 text-white bg-red-600'
+                      : 'border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800'
                       }`}
                   >
                     <Columns2 className="w-3 h-3 mr-2" />
@@ -1209,8 +1230,8 @@ export function VideoPlayer({
                             key={v.id}
                             onClick={() => handleCompareVersionChange(v.id)}
                             className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${v.id === compareVersionId
-                                ? 'text-red-500 bg-red-500/10'
-                                : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                              ? 'text-red-500 bg-red-500/10'
+                              : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
                               }`}
                           >
                             <div className="flex items-center justify-between w-full">
@@ -1244,8 +1265,8 @@ export function VideoPlayer({
                         key={v.id}
                         onClick={() => handleVersionChange(v.id)}
                         className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${v.id === currentVideoId
-                            ? 'text-red-500 bg-red-500/10'
-                            : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                          ? 'text-red-500 bg-red-500/10'
+                          : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
                           }`}
                       >
                         <div className="flex items-center justify-between w-full">
@@ -1375,6 +1396,35 @@ export function VideoPlayer({
                   />
                 );
               })}
+
+              {/* Range Markers (rendered behind simple markers to avoid overlapping issues, or on top with different style) */}
+              {comments.map((comment) => {
+                const range = getCommentRange(comment);
+                if (!range || range.end === null || duration === 0) return null;
+
+                const startPct = Math.min(100, Math.max(0, (range.start / duration) * 100));
+                const endPct = Math.min(100, Math.max(0, (range.end / duration) * 100));
+                const width = Math.max(0.5, endPct - startPct); // Mínimo visual
+
+                return (
+                  <div
+                    key={`range-${comment.id}`}
+                    className="absolute top-0 h-full bg-red-600/40 border-l border-r border-white/60 z-0 pointer-events-none"
+                    style={{ left: `${startPct}%`, width: `${width}%` }}
+                  />
+                )
+              })}
+
+              {/* Current Range Selection Preview */}
+              {isRangeMode && hasTimestamp && rangeEndTime !== null && duration > 0 && (
+                <div
+                  className="absolute top-0 h-full bg-white/30 border-l border-r border-white/80 z-20 pointer-events-none"
+                  style={{
+                    left: `${Math.min((currentTime / duration) * 100, (rangeEndTime / duration) * 100)}%`,
+                    width: `${Math.abs((rangeEndTime - currentTime) / duration * 100)}%`
+                  }}
+                />
+              )}
 
               {/* Scrubber Handle on Hover */}
               <div
@@ -1543,7 +1593,7 @@ export function VideoPlayer({
         </div>
 
         {/* Barra Lateral de Comentários / Histórico */}
-        <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none">
+        <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none overflow-hidden">
           <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
             <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
               {showHistory ? (
@@ -1602,13 +1652,22 @@ export function VideoPlayer({
                         if (target?.closest?.('button, a, input, textarea, form, label')) return;
 
                         const ts = parseTimestampSeconds(comment.timestamp);
-                        if (ts !== null) seekTo(ts);
+                        const endTs = parseTimestampSeconds(comment.timestamp_end);
+
+                        if (ts !== null) {
+                          seekTo(ts);
+                          // Opcional: se tiver range, poderia tocar o range ou dar highlight
+                        }
                       }}
                     >
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
-                            {parseTimestampSeconds(comment.timestamp) !== null ? formatTime(parseTimestampSeconds(comment.timestamp)) : '—'}
+                            {parseTimestampSeconds(comment.timestamp) !== null
+                              ? (comment.timestamp_end
+                                ? `${formatTime(parseTimestampSeconds(comment.timestamp))} - ${formatTime(parseTimestampSeconds(comment.timestamp_end))}`
+                                : formatTime(parseTimestampSeconds(comment.timestamp)))
+                              : '—'}
                           </span>
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
@@ -1880,6 +1939,21 @@ export function VideoPlayer({
                     <div className="flex items-center gap-2 text-zinc-500">
                       <Clock className="w-3 h-3" />
                       <span className="text-red-500">{formatTimecode(currentTime)}</span>
+                      {isRangeMode && (
+                        <>
+                          <span className="text-zinc-600 mx-1">à</span>
+                          <span className={`cursor-pointer hover:text-white ${rangeEndTime !== null ? 'text-red-500' : 'text-zinc-500'}`}
+                            onClick={() => {
+                              // Ao clicar, define o tempo atual como fim (se for maior que inicio)
+                              if (currentTime > currentTime) {
+                                // Lógica simplificada: user deve scrubbar e clicar
+                              }
+                            }}
+                          >
+                            {rangeEndTime !== null ? formatTimecode(rangeEndTime) : '--:--:--'}
+                          </span>
+                        </>
+                      )}
                     </div>
                   ) : (
                     <div className="text-zinc-500">
@@ -1933,14 +2007,57 @@ export function VideoPlayer({
                       <button
                         type="button"
                         className={`p-2 rounded-sm transition-colors ${hasTimestamp
-                            ? 'text-red-500 bg-red-500/10'
-                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                          ? 'text-red-500 bg-red-500/10'
+                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
                           }`}
                         onClick={() => setHasTimestamp(!hasTimestamp)}
                         title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
                       >
                         {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
                       </button>
+
+                      {/* Range Toggle */}
+                      {hasTimestamp && (
+                        <button
+                          type="button"
+                          className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode
+                            ? 'text-red-500 bg-red-500/10'
+                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                            }`}
+                          onClick={() => {
+                            const newMode = !isRangeMode;
+                            setIsRangeMode(newMode);
+                            if (newMode) {
+                              // Inicializa com +2 segundos por padrão ou null para forçar user a setar
+                              // Vamos definir como null para o usuário escolher, ou timestamp atual + 2s?
+                              // Frame.io user experience: toggle ON -> permite selecionar OUT e IN.
+                              // Vamos simplificar: Toggle ON -> usa CurrentTime como IN, e adiciona botão "Set OUT" 
+                              // ou permite digitar.
+                              // Melhor: Ao ativar, se não tiver end, define end = currentTime + 5s (sugestão)
+                              if (rangeEndTime === null) {
+                                setRangeEndTime(currentTime + 4);
+                              }
+                            }
+                          }}
+                          title={isRangeMode ? "Remover range" : "Adicionar range (duração)"}
+                        >
+                          <span className="text-[10px] font-black tracking-wider uppercase border border-current px-1 rounded-[2px] h-4 flex items-center">
+                            Range
+                          </span>
+                        </button>
+                      )}
+
+                      {/* Set Range End Button (only visible in range mode) */}
+                      {isRangeMode && hasTimestamp && (
+                        <button
+                          type="button"
+                          className="p-2 rounded-sm text-zinc-500 hover:text-white hover:bg-zinc-800 ml-1"
+                          onClick={() => setRangeEndTime(currentTime)}
+                          title="Definir tempo atual como final do range"
+                        >
+                          <CornerDownRight className="w-4 h-4 text-red-500" />
+                        </button>
+                      )}
 
                       {/* Attachment */}
                       <input
@@ -1953,8 +2070,8 @@ export function VideoPlayer({
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         className={`p-2 rounded-sm transition-colors ${attachedFile
-                            ? 'text-red-500 bg-red-500/10'
-                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                          ? 'text-red-500 bg-red-500/10'
+                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
                           }`}
                         title="Anexar arquivo"
                       >
@@ -1966,8 +2083,8 @@ export function VideoPlayer({
                         <button
                           type="button"
                           className={`p-2 rounded-sm transition-colors ${showEmojiPicker
-                              ? 'text-yellow-500 bg-yellow-500/10'
-                              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                            ? 'text-yellow-500 bg-yellow-500/10'
+                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
                             }`}
                           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                           title="Adicionar emoji"
@@ -1994,8 +2111,8 @@ export function VideoPlayer({
                       <button
                         type="button"
                         className={`p-2 rounded-sm transition-colors ${drawingMode
-                            ? 'text-red-500 bg-red-500/10'
-                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                          ? 'text-red-500 bg-red-500/10'
+                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
                           } ${isComparing ? 'opacity-40 cursor-not-allowed' : ''}`}
                         onClick={() => {
                           if (!isComparing) setDrawingMode(!drawingMode);
