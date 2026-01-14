@@ -34,6 +34,32 @@ export function ShareViewPage() {
   const [selectedVideo, setSelectedVideo] = useState(null); // Video being viewed in folder/project
   const [videos, setVideos] = useState([]); // Videos in the shared folder or project
 
+  const fetchFolderVideos = useCallback(async () => {
+    try {
+      const headers = password ? { "x-share-password": password } : {};
+      const response = await fetch(`/api/shares/${token}/folder-videos`, { headers });
+      const data = await response.json();
+      if (response.ok) {
+        setVideos(data);
+      }
+    } catch (_err) {
+      console.error("Erro ao buscar vídeos da pasta:", _err);
+    }
+  }, [password, token]);
+
+  const fetchProjectVideos = useCallback(async () => {
+    try {
+      const headers = password ? { "x-share-password": password } : {};
+      const response = await fetch(`/api/shares/${token}/project-videos`, { headers });
+      const data = await response.json();
+      if (response.ok) {
+        setVideos(data);
+      }
+    } catch (_err) {
+      console.error("Erro ao buscar vídeos do projeto:", _err);
+    }
+  }, [password, token]);
+
   const fetchShare = useCallback(async (pass = null) => {
     try {
       setLoading(true);
@@ -68,31 +94,7 @@ export function ShareViewPage() {
     }
   }, [fetchFolderVideos, fetchProjectVideos, token]);
 
-  const fetchFolderVideos = useCallback(async () => {
-    try {
-      const headers = password ? { "x-share-password": password } : {};
-      const response = await fetch(`/api/shares/${token}/folder-videos`, { headers });
-      const data = await response.json();
-      if (response.ok) {
-        setVideos(data);
-      }
-    } catch (_err) {
-      console.error("Erro ao buscar vídeos da pasta:", _err);
-    }
-  }, [password, token]);
 
-  const fetchProjectVideos = useCallback(async () => {
-    try {
-      const headers = password ? { "x-share-password": password } : {};
-      const response = await fetch(`/api/shares/${token}/project-videos`, { headers });
-      const data = await response.json();
-      if (response.ok) {
-        setVideos(data);
-      }
-    } catch (_err) {
-      console.error("Erro ao buscar vídeos do projeto:", _err);
-    }
-  }, [password, token]);
 
   useEffect(() => {
     fetchShare();
