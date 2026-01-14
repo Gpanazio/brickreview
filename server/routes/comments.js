@@ -46,7 +46,7 @@ router.get("/video/:videoId", authenticateToken, async (req, res) => {
  * @route POST /api/comments
  * @desc Add a comment to a video
  */
-router.post("/", authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   const { video_id, parent_comment_id, content, timestamp, timestamp_end } = req.body;
 
   if (!video_id || !content) {
@@ -70,7 +70,7 @@ router.post("/", authenticateToken, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
       [videoId, parent_comment_id, req.user.id, content, timestamp, timestamp_end]
-    );
+    )
 
     // Busca detalhes do comentário recém criado com dados do usuário
     const commentResult = await query(
@@ -121,16 +121,8 @@ router.patch("/:id", authenticateToken, async (req, res) => {
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $3 AND (user_id = $4 OR $5 = 'admin')
        RETURNING *`,
-      [
-        content,
-        status,
-        commentId,
-        req.user.id,
-        req.user.role,
-        req.body.timestamp,
-        req.body.timestamp_end,
-      ]
-    );
+      [content, status, commentId, req.user.id, req.user.role, req.body.timestamp, req.body.timestamp_end]
+    )
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Comentário não encontrado ou sem permissão" });

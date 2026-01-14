@@ -363,8 +363,8 @@ router.get("/:token/project-videos", async (req, res) => {
        LEFT JOIN brickreview_folders f ON f.id = v.folder_id
        LEFT JOIN (
          SELECT video_id,
-                COUNT(*) as comments_count,
-                COUNT(CASE WHEN status = 'open' THEN 1 END) as open_comments_count
+         COUNT(*) as comments_count,
+         COUNT(CASE WHEN status = 'open' THEN 1 END) as open_comments_count
          FROM brickreview_comments
          GROUP BY video_id
        ) c ON c.video_id = v.id
@@ -400,8 +400,8 @@ router.get("/:token/folder-videos", async (req, res) => {
        FROM brickreview_videos v
        LEFT JOIN (
          SELECT video_id,
-                COUNT(*) as comments_count,
-                COUNT(CASE WHEN status = 'open' THEN 1 END) as open_comments_count
+         COUNT(*) as comments_count,
+         COUNT(CASE WHEN status = 'open' THEN 1 END) as open_comments_count
          FROM brickreview_comments
          GROUP BY video_id
        ) c ON c.video_id = v.id

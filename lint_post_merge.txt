@@ -1,0 +1,22 @@
+﻿
+> brickreview@0.1.0 lint
+> eslint .
+
+
+C:\brickweb\brickreview\server\database.js
+  107:1  error  Parsing error: Unexpected token ===
+
+C:\brickweb\brickreview\server\routes\comments.js
+  49:1  error  Parsing error: Unexpected token <<
+
+C:\brickweb\brickreview\server\routes\shares.js
+  211:1  error  Parsing error: Unexpected token <<
+
+C:\brickweb\brickreview\src\components\player\VideoPlayer.jsx
+  44:2  error  Parsing error: Unexpected token <<
+
+C:\brickweb\brickreview\src\components\projects\ShareViewPage.jsx
+  122:2  error  Parsing error: Unexpected token <<
+
+Ô£û 5 problems (5 errors, 0 warnings)
+

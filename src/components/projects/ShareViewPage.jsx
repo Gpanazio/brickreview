@@ -232,12 +232,8 @@ export function ShareViewPage() {
             <Film className="w-4 h-4 text-white" />
           </div>
           <div className="hidden sm:block">
-            <h1 className="brick-title text-sm tracking-tighter uppercase">
-              BRICK <span className="text-red-500">SHARE</span>
-            </h1>
-            <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-none">
-              Review Mode
-            </p>
+            <h1 className="brick-title text-sm tracking-tighter uppercase">BRICK <span className="text-red-500">SHARE</span></h1>
+            <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-none">Review Mode v1.1.1</p>
           </div>
         </div>
 
@@ -279,7 +275,7 @@ export function ShareViewPage() {
               </div>
             )}
 
-            <div className="flex-1 relative">
+            <div className="flex-1 relative min-h-0">
               <VideoPlayer
                 video={currentVideo}
                 versions={currentVersions}
@@ -290,7 +286,7 @@ export function ShareViewPage() {
               />
             </div>
           </div>
-        ) : resource.type === "folder" || resource.type === "project" ? (
+        ) : (resource.type === "folder" || resource.type === "project") ? (
           <div className="h-full overflow-y-auto p-4 md:p-8 custom-scrollbar">
             <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
               <div className="space-y-2 border-l-2 border-red-600 pl-4 md:pl-6 py-2">
@@ -299,14 +295,8 @@ export function ShareViewPage() {
                   <ChevronRight className="w-3 h-3 text-red-600" />
                   <span className="text-zinc-300">{resource.type}</span>
                 </div>
-                <h2 className="brick-title text-2xl md:text-4xl tracking-tighter text-white uppercase">
-                  {resource.content.name || resource.content.title}
-                </h2>
-                {resource.content.description && (
-                  <p className="text-zinc-500 text-sm max-w-2xl leading-relaxed italic">
-                    {resource.content.description}
-                  </p>
-                )}
+                <h2 className="brick-title text-2xl md:text-4xl tracking-tighter text-white uppercase">{resource.content.name || resource.content.title}</h2>
+                {resource.content.description && <p className="text-zinc-500 text-sm max-w-2xl leading-relaxed italic">{resource.content.description}</p>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -346,9 +336,7 @@ export function ShareViewPage() {
                             </div>
                           </div>
                           <div className="p-4 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all">
-                            <h3 className="brick-title text-xs tracking-tighter text-white truncate uppercase">
-                              {video.title}
-                            </h3>
+                            <h3 className="brick-title text-xs tracking-tighter text-white truncate uppercase">{video.title}</h3>
                             <div className="flex items-center gap-3 mt-2 text-[8px] text-zinc-500 uppercase font-black tracking-widest">
                               <span className="flex items-center gap-1">
                                 <MessageSquare className="w-3 h-3 text-red-600" />
@@ -357,8 +345,7 @@ export function ShareViewPage() {
                               {video.duration && (
                                 <span className="flex items-center gap-1">
                                   <Play className="w-3 h-3" />
-                                  {Math.floor(video.duration / 60)}:
-                                  {String(Math.floor(video.duration % 60)).padStart(2, "0")}
+                                  {Math.floor(video.duration / 60)}:{String(Math.floor(video.duration % 60)).padStart(2, "0")}
                                 </span>
                               )}
                             </div>

@@ -40,6 +40,10 @@ import {
 import { Label } from "@/components/ui/label";
 import "./App.css";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+
+const APP_VERSION = "1.1.1-flex-fix";
+console.log("BRICK Review Version:", APP_VERSION);
+
 import { LoginPage } from "./components/LoginPage";
 import { ProjectDetailPage } from "./components/projects/ProjectDetailPage";
 import { ProjectSettingsModal } from "./components/projects/ProjectSettingsModal";
