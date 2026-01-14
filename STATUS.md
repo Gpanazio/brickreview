@@ -1,7 +1,7 @@
 # 🎬 BrickReview - Status do Projeto
 
 **Última atualização:** 2026-01-14
-**Versão:** 0.7.0 (Limpeza e Estabilização Concluída)
+**Versão:** 0.7.1 (Critical Bug Fixes)
 
 ## ✅ Progresso Geral
 
@@ -145,9 +145,15 @@
 
 ## 🎯 Estado Atual do Projeto
 
-**Versão 0.7.0 Stable** 🚀
+**Versão 0.7.1 Stable** 🚀
 
-O BrickReview consolidou sua arquitetura de player e backend. A remoção do Redis simplificou a infraestrutura, e a transição para vídeo nativo resolveu problemas críticos de compatibilidade com o React 19. O código está limpo, sem erros de lint e com memoização otimizada.
+O BrickReview está estável em produção após correções críticas na inicialização de hooks React (TDZ) e configuração de CSP para mídia externa. A arquitetura de player nativo foi consolidada e o código está limpo, sem erros de lint.
+
+### Correções Recentes (2026-01-14)
+- ✅ Crash de inicialização resolvido (TDZ em `useAuth.jsx` e `ShareViewPage.jsx`)
+- ✅ Vídeos do R2 carregando corretamente (CSP `media-src` adicionado)
+- ✅ Conflitos de merge resolvidos (`database.sql`)
+- ✅ Dependência `react-window` removida
 
 ### Acesso
 

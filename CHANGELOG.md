@@ -9,26 +9,27 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
-### 🧹 Code Cleanup v0.6.0
+### 🔧 Critical Fixes v0.7.1 (2026-01-14)
+
+#### Bug Fixes
+- **FIXED**: `ReferenceError: Cannot access 'h' before initialization` - Crash ao iniciar aplicação
+  - Causa: Temporal Dead Zone (TDZ) em hooks React
+  - Solução: Reordenação de `useCallback` e `useEffect` em `useAuth.jsx` e `ShareViewPage.jsx`
+- **FIXED**: CSP bloqueando vídeos do R2 CDN
+  - Adicionado `media-src 'self' https: blob:` ao Content-Security-Policy
+  - Adicionado `style-src https:` para fontes externas
+- **FIXED**: Conflito de merge em `server/database.sql` (coluna `timestamp_end`)
+
+#### Reverts
+- `VideoPlayer.jsx` revertido para estado estável anterior
+  - Mantida funcionalidade completa de player, comentários e desenhos
 
 #### Dependencies
-- **REMOVED**: `plyr-react@5.3.0` (usando Plyr diretamente)
-- **REMOVED**: `react-aptor@2.0.0` (não utilizado)
-- **ADDED**: `prettier` (devDependency)
+- **REMOVED**: `react-window` (removido por complexidade e incompatibilidade com React 19)
 
 #### Linting
-- ✅ Corrigidos 13 erros ESLint
-- ✅ Corrigidos 11 warnings ESLint
-- ✅ Configurado Prettier com padrão de projeto
-
-#### Refactoring
-- ✅ Extraído constantes de desenho para `src/constants/drawing.js`
-- ✅ Movido `diagnose-ffmpeg.js` → `scripts/`
-- ✅ Removidos console logs de debug em `src/`
-
-#### Fixes
-- ✅ Corrigido loop de renderização em `CreateFolderDialog.jsx`
-- ✅ Removida variável `savedTime` não usada em `VideoPlayer.jsx`
+- ✅ Corrigidos todos os erros ESLint restantes
+- ✅ Corrigidos warnings de `react-hooks/exhaustive-deps`
 
 ---
 

@@ -6,23 +6,28 @@ Este documento detalha todas as funcionalidades implementadas no BrickReview.
 
 ## 🔌 Limitações Técnicas Atuais
 
-> **Importante:** Esta seção descreve as limitações conhecidas da versão atual (v0.5.0) que serão resolvidas na refatoração v0.6.0.
+> **Nota:** Versão 0.7.1 - Principais problemas de estabilidade foram resolvidos.
 
 ### Processamento de Vídeo
 - **Arquitetura:** Síncrona (bloqueante)
 - **Timeout:** 600 segundos (10 minutos)
 - **Impacto:** Vídeos > 15-20 minutos podem falhar
-- **Solução Planejada:** v0.6.0 - Fila de processamento em background (BullMQ + Redis)
+- **Status:** Funcional para maioria dos casos de uso
 
 ### VideoPlayer
-- **Monolítico:** 2115 linhas em único componente
-- **Impacto:** Dificuldade de manutenção, prop drilling excessivo
-- **Solução Planejada:** v0.6.0 - Desacoplamento em sub-componentes
+- **Status:** ✅ Estável
+- **Arquitetura:** Plyr.js com controles customizados
+- **Compatibilidade:** React 19 completa
 
 ### Listas Longas
-- **Sem Virtualização:** FolderView e CommentSidebar renderizam todos os itens
-- **Impacto:** Trava em UI com 100+ itens
-- **Solução Planejada:** v0.6.0 - Implementação de `react-window`/`virtua`
+- **Status:** ✅ Resolvido
+- **Solução:** Renderização nativa otimizada (react-window removido por incompatibilidade)
+- **Performance:** Adequada para volumes normais de uso
+
+### Segurança (CSP)
+- **Status:** ✅ Configurado
+- **media-src:** Permite vídeos do R2 CDN
+- **style-src:** Permite fontes externas (Google Fonts)
 
 ---
 
