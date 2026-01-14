@@ -106,11 +106,11 @@ export function ShareViewPage() {
     try {
       const headers = password ? { 'x-share-password': password } : {};
       const endpoint = `/api/shares/${token}/video/${videoId}/download?type=${type}`;
-      
+
       const response = await fetch(endpoint, { headers });
       if (response.ok) {
         const data = await response.json();
-        
+
         // Força download
         const videoResponse = await fetch(data.url);
         const blob = await videoResponse.blob();
@@ -121,9 +121,9 @@ export function ShareViewPage() {
         link.download = data.filename;
         document.body.appendChild(link);
         link.click();
-        
+
         toast.success('Download iniciado', { id: loadingToast });
-        
+
         setTimeout(() => {
           document.body.removeChild(link);
           window.URL.revokeObjectURL(blobUrl);
@@ -145,10 +145,10 @@ export function ShareViewPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0d0d0e] flex items-center justify-center text-white font-sans">
-        <motion.div 
+        <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-10 h-10 border-2 border-red-600 border-t-transparent" 
+          className="w-10 h-10 border-2 border-red-600 border-t-transparent"
         />
       </div>
     );
@@ -233,14 +233,14 @@ export function ShareViewPage() {
           </div>
           <div className="hidden sm:block">
             <h1 className="brick-title text-sm tracking-tighter uppercase">BRICK <span className="text-red-500">SHARE</span></h1>
-            <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-none">Review Mode</p>
+            <p className="text-[8px] text-zinc-500 uppercase tracking-widest leading-none">Review Mode v1.1.0</p>
           </div>
         </div>
 
         <div className="flex-1 px-4 md:px-8 overflow-hidden">
-            <h2 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-zinc-400 truncate text-center md:text-left">
-                {resource.content.name || resource.content.title}
-            </h2>
+          <h2 className="text-[10px] md:text-xs font-black uppercase tracking-widest text-zinc-400 truncate text-center md:text-left">
+            {resource.content.name || resource.content.title}
+          </h2>
         </div>
 
         <div className="flex items-center gap-4">
@@ -254,134 +254,134 @@ export function ShareViewPage() {
       {/* Content Area */}
       <main className="flex-1 relative overflow-hidden min-h-0">
         {currentVideo ? (
-            <div className="w-full h-full flex flex-col min-h-0">
-                {/* Action Bar */}
-                {(resource.type === 'folder' || resource.type === 'project') && selectedVideo && (
-                    <div className="bg-zinc-950 border-b border-zinc-900 px-4 py-2 flex items-center">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedVideo(null)}
-                            className="text-zinc-400 hover:text-white text-[10px] font-black uppercase tracking-widest h-7 rounded-none"
-                        >
-                            <ChevronRight className="w-3 h-3 rotate-180 mr-2" />
-                            Voltar para lista
-                        </Button>
-                    </div>
-                )}
-                
-                <div className="flex-1 relative">
-                    <VideoPlayer
-                        video={currentVideo}
-                        versions={currentVersions}
-                        isPublic={true}
-                        shareToken={token}
-                        sharePassword={password || null}
-                        accessType={shareData.access_type}
-                    />
-                </div>
+          <div className="w-full h-full flex flex-col min-h-0">
+            {/* Action Bar */}
+            {(resource.type === 'folder' || resource.type === 'project') && selectedVideo && (
+              <div className="bg-zinc-950 border-b border-zinc-900 px-4 py-2 flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedVideo(null)}
+                  className="text-zinc-400 hover:text-white text-[10px] font-black uppercase tracking-widest h-7 rounded-none"
+                >
+                  <ChevronRight className="w-3 h-3 rotate-180 mr-2" />
+                  Voltar para lista
+                </Button>
+              </div>
+            )}
+
+            <div className="flex-1 relative">
+              <VideoPlayer
+                video={currentVideo}
+                versions={currentVersions}
+                isPublic={true}
+                shareToken={token}
+                sharePassword={password || null}
+                accessType={shareData.access_type}
+              />
             </div>
+          </div>
         ) : (resource.type === 'folder' || resource.type === 'project') ? (
-            <div className="h-full overflow-y-auto p-4 md:p-8 custom-scrollbar">
-                <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-                    <div className="space-y-2 border-l-2 border-red-600 pl-4 md:pl-6 py-2">
-                        <div className="flex items-center gap-2 text-[9px] md:text-[10px] uppercase tracking-widest text-zinc-500 font-black">
-                            <span>Compartilhamento</span>
-                            <ChevronRight className="w-3 h-3 text-red-600" />
-                            <span className="text-zinc-300">{resource.type}</span>
-                        </div>
-                        <h2 className="brick-title text-2xl md:text-4xl tracking-tighter text-white uppercase">{resource.content.name || resource.content.title}</h2>
-                        {resource.content.description && <p className="text-zinc-500 text-sm max-w-2xl leading-relaxed italic">{resource.content.description}</p>}
-                    </div>
+          <div className="h-full overflow-y-auto p-4 md:p-8 custom-scrollbar">
+            <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+              <div className="space-y-2 border-l-2 border-red-600 pl-4 md:pl-6 py-2">
+                <div className="flex items-center gap-2 text-[9px] md:text-[10px] uppercase tracking-widest text-zinc-500 font-black">
+                  <span>Compartilhamento</span>
+                  <ChevronRight className="w-3 h-3 text-red-600" />
+                  <span className="text-zinc-300">{resource.type}</span>
+                </div>
+                <h2 className="brick-title text-2xl md:text-4xl tracking-tighter text-white uppercase">{resource.content.name || resource.content.title}</h2>
+                {resource.content.description && <p className="text-zinc-500 text-sm max-w-2xl leading-relaxed italic">{resource.content.description}</p>}
+              </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {videos.length === 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {videos.length === 0 ? (
 
-                            <div className="col-span-full bg-zinc-900/20 border border-zinc-800 p-12 text-center">
-                                <Folder className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
-                                <p className="text-zinc-500 text-sm italic">
-                                    {resource.type === 'folder' ? 'Esta pasta não contém vídeos.' : 'Este projeto não contém vídeos.'}
-                                </p>
+                  <div className="col-span-full bg-zinc-900/20 border border-zinc-800 p-12 text-center">
+                    <Folder className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
+                    <p className="text-zinc-500 text-sm italic">
+                      {resource.type === 'folder' ? 'Esta pasta não contém vídeos.' : 'Este projeto não contém vídeos.'}
+                    </p>
+                  </div>
+                ) : (
+                  videos.map((video) => (
+                    <ContextMenu key={video.id}>
+                      <ContextMenuTrigger>
+                        <Card
+                          onClick={() => setSelectedVideo(video)}
+                          className="glass-panel border-zinc-800 rounded-none overflow-hidden hover:border-red-600/50 transition-all cursor-pointer group bg-zinc-900/20 h-full"
+                        >
+                          <div className="aspect-video bg-zinc-950 relative overflow-hidden">
+                            {video.thumbnail_url ? (
+                              <img
+                                src={video.thumbnail_url}
+                                alt={video.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Play className="w-12 h-12 text-zinc-800" />
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <div className="w-12 h-12 bg-red-600 flex items-center justify-center">
+                                <Play className="w-6 h-6 text-white fill-current" />
+                              </div>
                             </div>
-                        ) : (
-                            videos.map((video) => (
-                                <ContextMenu key={video.id}>
-                                    <ContextMenuTrigger>
-                                        <Card
-                                            onClick={() => setSelectedVideo(video)}
-                                            className="glass-panel border-zinc-800 rounded-none overflow-hidden hover:border-red-600/50 transition-all cursor-pointer group bg-zinc-900/20 h-full"
-                                        >
-                                            <div className="aspect-video bg-zinc-950 relative overflow-hidden">
-                                                {video.thumbnail_url ? (
-                                                    <img
-                                                        src={video.thumbnail_url}
-                                                        alt={video.title}
-                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <Play className="w-12 h-12 text-zinc-800" />
-                                                    </div>
-                                                )}
-                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                    <div className="w-12 h-12 bg-red-600 flex items-center justify-center">
-                                                        <Play className="w-6 h-6 text-white fill-current" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="p-4 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all">
-                                                <h3 className="brick-title text-xs tracking-tighter text-white truncate uppercase">{video.title}</h3>
-                                                <div className="flex items-center gap-3 mt-2 text-[8px] text-zinc-500 uppercase font-black tracking-widest">
-                                                    <span className="flex items-center gap-1">
-                                                        <MessageSquare className="w-3 h-3 text-red-600" />
-                                                        {video.comments_count || 0}
-                                                    </span>
-                                                    {video.duration && (
-                                                        <span className="flex items-center gap-1">
-                                                            <Play className="w-3 h-3" />
-                                                            {Math.floor(video.duration / 60)}:{String(Math.floor(video.duration % 60)).padStart(2, '0')}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </Card>
-                                    </ContextMenuTrigger>
-                                    <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
-                                        <ContextMenuItem
-                                            onClick={() => setSelectedVideo(video)}
-                                            className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                                        >
-                                            <Play className="w-3 h-3 mr-2" />
-                                            Abrir Vídeo
-                                        </ContextMenuItem>
-                                        <ContextMenuItem
-                                            onClick={() => handleDownloadVideo(video.id, 'original')}
-                                            className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                                        >
-                                            <Download className="w-3 h-3 mr-2" />
-                                            Baixar Original
-                                        </ContextMenuItem>
-                                        <ContextMenuItem
-                                            onClick={() => handleDownloadVideo(video.id, 'proxy')}
-                                            className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                                        >
-                                            <Download className="w-3 h-3 mr-2" />
-                                            Baixar Proxy (720p)
-                                        </ContextMenuItem>
-                                    </ContextMenuContent>
-                                </ContextMenu>
-                            ))
-                        )}
-                    </div>
-                </div>
+                          </div>
+                          <div className="p-4 border-l-2 border-l-transparent group-hover:border-l-red-600 transition-all">
+                            <h3 className="brick-title text-xs tracking-tighter text-white truncate uppercase">{video.title}</h3>
+                            <div className="flex items-center gap-3 mt-2 text-[8px] text-zinc-500 uppercase font-black tracking-widest">
+                              <span className="flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3 text-red-600" />
+                                {video.comments_count || 0}
+                              </span>
+                              {video.duration && (
+                                <span className="flex items-center gap-1">
+                                  <Play className="w-3 h-3" />
+                                  {Math.floor(video.duration / 60)}:{String(Math.floor(video.duration % 60)).padStart(2, '0')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+                        <ContextMenuItem
+                          onClick={() => setSelectedVideo(video)}
+                          className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                        >
+                          <Play className="w-3 h-3 mr-2" />
+                          Abrir Vídeo
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onClick={() => handleDownloadVideo(video.id, 'original')}
+                          className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                        >
+                          <Download className="w-3 h-3 mr-2" />
+                          Baixar Original
+                        </ContextMenuItem>
+                        <ContextMenuItem
+                          onClick={() => handleDownloadVideo(video.id, 'proxy')}
+                          className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                        >
+                          <Download className="w-3 h-3 mr-2" />
+                          Baixar Proxy (720p)
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  ))
+                )}
+              </div>
             </div>
+          </div>
         ) : (
-            <div className="h-full flex items-center justify-center">
-                <div className="text-center">
-                    <Play className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
-                    <p className="text-zinc-500 text-sm italic">O conteúdo deste compartilhamento está pronto para revisão.</p>
-                </div>
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center">
+              <Play className="w-12 h-12 text-red-600 mx-auto mb-4 opacity-50" />
+              <p className="text-zinc-500 text-sm italic">O conteúdo deste compartilhamento está pronto para revisão.</p>
             </div>
+          </div>
         )}
       </main>
     </div>

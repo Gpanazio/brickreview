@@ -314,7 +314,6 @@ export function VideoPlayer({
       const body = {
         video_id: currentVideoId,
         content: newComment,
-        content: newComment,
         timestamp: hasTimestamp ? currentTime : null,
         timestamp_end: (hasTimestamp && isRangeMode && rangeEndTime !== null) ? rangeEndTime : null
       };
