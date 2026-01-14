@@ -46,9 +46,9 @@ const PLYR_OPTIONS = {
   debug: false, // Disable debug logs
   blankVideo: '', // Prevent blank video loading issues
   // Configurações críticas para Mobile Fullscreen:
-  fullscreen: { 
-    enabled: true, 
-    fallback: true, 
+  fullscreen: {
+    enabled: true,
+    fallback: true,
     iosNative: true // Permite que o iOS use seu player nativo no Fullscreen (essencial para iPhone)
   },
   playsinline: true, // Permite tocar "inline" no mobile sem forçar fullscreen automaticamente no play
@@ -637,7 +637,7 @@ export function VideoPlayer({
     if (selectedVersion) {
       setCurrentVideo(selectedVersion);
       setApprovalStatus(selectedVersion.latest_approval_status || 'pending');
-      
+
       // Ajusta qualidade padrão para a nova versão
       const mime = selectedVersion.mime_type || '';
       setQuality((mime.includes('mp4') || mime.includes('h264')) ? 'original' : 'proxy');
@@ -718,7 +718,7 @@ export function VideoPlayer({
   // Função para fazer download do vídeo (proxy ou original)
   const handleDownload = async (type) => {
     try {
-      const headers = isGuest 
+      const headers = isGuest
         ? (sharePassword ? { 'x-share-password': sharePassword } : {})
         : { 'Authorization': `Bearer ${token}` };
 
@@ -790,7 +790,7 @@ export function VideoPlayer({
 
       // Copia para clipboard usando o helper robusto
       const copied = await copyToClipboard(fullUrl);
-      
+
       if (copied) {
         toast.success('Link copiado!', {
           id: shareToast,
@@ -828,7 +828,7 @@ export function VideoPlayer({
             // Se mudou o vídeo ou qualidade, salvamos o tempo atual
             const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
             setVideoUrl(data.url);
-            
+
             // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
           }
         }
@@ -941,7 +941,7 @@ export function VideoPlayer({
   }, [currentVideo?.sprite_vtt_url, isComparing, videoSource]);
 
   // Polling para atualizar currentTime removido em favor de eventos nativos
-  
+
   // Canvas drawing handlers
   const startDrawing = (e) => {
     if (!drawingMode) return;
@@ -1076,1029 +1076,1014 @@ export function VideoPlayer({
   return (
     <>
       <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden">
-      {/* Área do Player */}
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
-        <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
-          <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <h2 className="brick-title text-lg tracking-tighter uppercase truncate">{video.title}</h2>
-          
-          <div className="flex items-center gap-2 ml-auto">
-            {/* Approval Button - Only for authenticated users */}
-            {canApprove && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
-                      approvalStatus === 'approved' ? 'border-green-500/50 text-green-500 bg-green-500/10' :
-                      'border-zinc-700 text-zinc-400 bg-zinc-900'
-                    }`}
-                  >
-                    {approvalStatus === 'approved' ? (
-                      <CheckCircle className="w-3 h-3 mr-2" />
-                    ) : (
-                      <Clock className="w-3 h-3 mr-2" />
-                    )}
-                    {approvalStatus === 'approved' ? 'Aprovado' : 'Em aprovação'}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-48">
-                  <DropdownMenuItem
-                    onClick={() => handleApproval('approved')}
-                    className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                  >
-                    <CheckCircle className="w-3 h-3 mr-2" /> Marcar como Aprovado
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleApproval('pending')}
-                    className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                  >
-                    <Clock className="w-3 h-3 mr-2" /> Voltar para Em aprovação
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+        {/* Área do Player */}
+        <div className="flex-1 flex flex-col min-w-0 relative z-10">
+          <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
+            <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h2 className="brick-title text-lg tracking-tighter uppercase truncate">{video.title}</h2>
 
-            {/* History Button - Available for all users */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowHistory(!showHistory)}
-              className={`h-8 w-8 rounded-none border border-zinc-800 ${showHistory ? 'bg-red-600 text-white border-red-600' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'}`}
-            >
-              <History className="w-4 h-4" />
-            </Button>
-
-            {/* Share Button - Only for authenticated users */}
-            {canShare && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleGenerateShare}
-                disabled={isGeneratingShare}
-                className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
-              >
-                <Share2 className="w-4 h-4" />
-              </Button>
-            )}
-
-            {/* Download Menu - Only for authenticated users */}
-            {canDownload && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800"
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
-                  <DropdownMenuItem
-                    onClick={() => handleDownload('proxy')}
-                    className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                  >
-                    <Download className="w-3 h-3 mr-2" />
-                    Baixar Proxy (720p)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleDownload('original')}
-                    className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                  >
-                    <Download className="w-3 h-3 mr-2" />
-                    Baixar Original
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-            {/* Compare Button */}
-            {allVersions.length > 1 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleToggleCompare}
-                  className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
-                    isComparing
-                      ? 'border-red-600 text-white bg-red-600'
-                      : 'border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800'
-                  }`}
-                >
-                  <Columns2 className="w-3 h-3 mr-2" />
-                  Comparar
-                </Button>
-
-                {isComparing && compareOptions.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
-                      >
-                        <History className="w-3 h-3" />
-                        v{compareOptions.find((v) => v.id === compareVersionId)?.version_number ?? '--'}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
-                      {compareOptions.map((v) => (
-                        <DropdownMenuItem
-                          key={v.id}
-                          onClick={() => handleCompareVersionChange(v.id)}
-                          className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
-                            v.id === compareVersionId
-                              ? 'text-red-500 bg-red-500/10'
-                              : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span>Versão {v.version_number}</span>
-                            {v.id === compareVersionId && <CheckCircle className="w-3 h-3" />}
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            )}
-
-            {/* Version Selector */}
-            {allVersions.length > 1 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
-                  >
-                    <History className="w-3 h-3" />
-                    v{currentVideo.version_number}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
-                  {allVersions.map((v) => (
+            <div className="flex items-center gap-2 ml-auto">
+              {/* Approval Button - Only for authenticated users */}
+              {canApprove && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${approvalStatus === 'approved' ? 'border-green-500/50 text-green-500 bg-green-500/10' :
+                          'border-zinc-700 text-zinc-400 bg-zinc-900'
+                        }`}
+                    >
+                      {approvalStatus === 'approved' ? (
+                        <CheckCircle className="w-3 h-3 mr-2" />
+                      ) : (
+                        <Clock className="w-3 h-3 mr-2" />
+                      )}
+                      {approvalStatus === 'approved' ? 'Aprovado' : 'Em aprovação'}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-48">
                     <DropdownMenuItem
-                      key={v.id}
-                      onClick={() => handleVersionChange(v.id)}
-                      className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
-                        v.id === currentVideoId
-                          ? 'text-red-500 bg-red-500/10'
-                          : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
-                      }`}
+                      onClick={() => handleApproval('approved')}
+                      className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                     >
-                      <div className="flex items-center justify-between w-full">
-                        <span>Versão {v.version_number}</span>
-                        {v.id === currentVideoId && <CheckCircle className="w-3 h-3" />}
-                      </div>
+                      <CheckCircle className="w-3 h-3 mr-2" /> Marcar como Aprovado
                     </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-            {/* Version badge when only one version */}
-            {allVersions.length === 1 && (
-              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-2 py-1.5 h-8 flex items-center">
-                v{currentVideo.version_number}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden">
-          <div
-            ref={videoContainerRef}
-            className={`relative w-full h-full flex items-center justify-center bg-black ${drawingMode ? 'is-drawing' : ''}`}
-          >
-            {isComparing ? (
-              videoUrl && compareVideoUrl ? (
-                <VideoComparison
-                  masterSrc={videoUrl}
-                  compareSrc={compareVideoUrl}
-                  onControllerReady={handleComparisonControllerReady}
-                  onTimeUpdate={setCurrentTime}
-                  onDurationChange={setDuration}
-                  onPlayStateChange={setIsPlaying}
-                  onVolumeChange={(nextVolume, nextMuted) => {
-                    setVolume(nextVolume);
-                    setIsMuted(nextMuted);
-                  }}
-                  onRateChange={setPlaybackSpeed}
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-3 text-zinc-400">
-                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                  <span className="text-xs font-bold uppercase tracking-[0.2em]">A carregar comparação...</span>
-                </div>
-              )
-            ) : videoSource ? (
-              <div key={`player-${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
-                <ContextMenu>
-                  <ContextMenuTrigger className="w-full h-full">
-                    <video
-                      ref={videoRef}
-                      className="plyr-react plyr"
-                      crossOrigin="anonymous"
-                      playsInline
-                    />
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
-                    <ContextMenuItem
-                      onClick={() => handleDownload('original')}
-                      className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                    >
-                      <Download className="w-3 h-3 mr-2" />
-                      Baixar Original
-                    </ContextMenuItem>
-                    <ContextMenuItem
-                      onClick={() => handleDownload('proxy')}
-                      className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
-                    >
-                      <Download className="w-3 h-3 mr-2" />
-                      Baixar Proxy (720p)
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-                {/* Canvas overlay for drawing */}
-                <canvas
-                  ref={canvasRef}
-                  className={`absolute top-0 left-0 w-full h-full pointer-events-none ${drawingMode ? 'pointer-events-auto cursor-crosshair' : ''}`}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  style={{ zIndex: drawingMode ? 10 : 1 }}
-                />
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-zinc-400">
-                <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                <span className="text-xs font-bold uppercase tracking-[0.2em]">A carregar stream...</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Barra de Controles Unificada (Frame.io style) */}
-        <div className="bg-[#0a0a0a] border-t border-zinc-800/50 flex flex-col relative z-30">
-          {/* Progress Scrubber */}
-          <div 
-            className="w-full h-2 bg-zinc-900 cursor-pointer relative group"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const pos = (e.clientX - rect.left) / rect.width;
-              if (playerRef.current?.plyr) {
-                playerRef.current.plyr.currentTime = pos * (playerRef.current.plyr.duration || duration);
-              }
-            }}
-          >
-            {/* Buffered progress (opcional, se quiser implementar) */}
-            <div 
-              className="absolute top-0 left-0 h-full bg-red-600"
-              style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
-            />
-
-            {/* Comment Markers */}
-            {comments.map((comment) => {
-              const ts = parseTimestampSeconds(comment.timestamp);
-              if (ts === null || duration === 0) return null;
-              // Only markers for top-level comments or unique timestamps to avoid too many marks
-              const left = Math.min(100, (ts / duration) * 100);
-              
-              return (
-                <div
-                  key={`marker-${comment.id}`}
-                  className="absolute top-0 w-[2px] h-full bg-white/40 group-hover:bg-white/60 z-10 transition-colors"
-                  style={{ left: `${left}%` }}
-                />
-              );
-            })}
-
-            {/* Scrubber Handle on Hover */}
-            <div 
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-              style={{ left: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
-            />
-          </div>
-
-          {/* Controls Row */}
-          <div className="flex items-center justify-between px-4 py-2 h-12">
-            
-            {/* Left Controls: Play & Speed */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => playerRef.current?.plyr?.togglePlay()}
-                className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
-              >
-                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-              </Button>
-
-              {/* Speed Selector */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest w-12 h-8 rounded-none"
-                  >
-                    {playbackSpeed}x
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" className="bg-zinc-950 border-zinc-800 rounded-none min-w-[60px]">
-                  {[0.5, 1, 1.5, 2].map((speed) => (
                     <DropdownMenuItem
-                      key={speed}
-                      onClick={() => {
-                        if (playerRef.current?.plyr) {
-                          playerRef.current.plyr.speed = speed;
-                        }
-                      }}
-                      className={`text-[10px] justify-center cursor-pointer font-bold ${
-                        playbackSpeed === speed ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
-                      }`}
+                      onClick={() => handleApproval('pending')}
+                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                     >
-                      {speed}x
+                      <Clock className="w-3 h-3 mr-2" /> Voltar para Em aprovação
                     </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
-              <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
-
-              {/* Quality Selector */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`text-[10px] font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
-                      quality === 'original' ? 'text-red-500' : 'text-zinc-500 hover:text-white'
-                    }`}
-                  >
-                    {quality === 'original' ? 'Original' : '720p'}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" className="bg-zinc-950 border-zinc-800 rounded-none min-w-[100px]">
-                  <DropdownMenuItem
-                    onClick={() => setQuality('proxy')}
-                    className={`text-[10px] cursor-pointer font-bold ${
-                      quality === 'proxy' ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
-                    }`}
-                  >
-                    Auto (720p)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setQuality('original')}
-                    className={`text-[10px] cursor-pointer font-bold ${
-                      quality === 'original' ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
-                    }`}
-                  >
-                    Original (Máx)
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Center Controls: Frame & Timecode */}
-            <div className="flex items-center gap-4 lg:absolute lg:left-1/2 lg:-translate-x-1/2">
+              {/* History Button - Available for all users */}
               <Button
                 variant="ghost"
                 size="icon"
-                className="hidden lg:flex h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
-                onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime }}
+                onClick={() => setShowHistory(!showHistory)}
+                className={`h-8 w-8 rounded-none border border-zinc-800 ${showHistory ? 'bg-red-600 text-white border-red-600' : 'text-zinc-500 hover:text-white hover:bg-zinc-800'}`}
               >
-                <ChevronLeft className="w-4 h-4" />
+                <History className="w-4 h-4" />
               </Button>
 
-              <div className="flex flex-col items-center min-w-[80px] lg:min-w-[100px]">
-                <div className="brick-tech text-white font-bold text-sm lg:text-lg tabular-nums tracking-tight leading-none">
-                  {formatTimecode(currentTime)}
-                </div>
-                <div className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest mt-0.5">
-                  {formatTimecode(duration)}
-                </div>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden lg:flex h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
-                onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime }}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-
-
-
-
-
-
-            {/* Right Controls: Volume & Fullscreen */}
-            <div className="flex items-center gap-2">
-              <div className="flex items-center group relative">
+              {/* Share Button - Only for authenticated users */}
+              {canShare && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => {
-                    if (playerRef.current?.plyr) {
-                      playerRef.current.plyr.muted = !isMuted;
-                    }
-                  }}
-                  className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                  onClick={handleGenerateShare}
+                  disabled={isGeneratingShare}
+                  className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
                 >
-                  {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  <Share2 className="w-4 h-4" />
                 </Button>
-                {/* Volume Slider on Hover (Simple implementation) */}
-                <div className="w-0 overflow-hidden group-hover:w-20 transition-all duration-300 ease-out flex items-center">
-                   <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={volume}
-                    onChange={(e) => {
-                      if (playerRef.current?.plyr) {
-                        playerRef.current.plyr.volume = parseFloat(e.target.value);
-                      }
+              )}
+
+              {/* Download Menu - Only for authenticated users */}
+              {canDownload && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
+                    <DropdownMenuItem
+                      onClick={() => handleDownload('proxy')}
+                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                    >
+                      <Download className="w-3 h-3 mr-2" />
+                      Baixar Proxy (720p)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDownload('original')}
+                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                    >
+                      <Download className="w-3 h-3 mr-2" />
+                      Baixar Original
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {/* Compare Button */}
+              {allVersions.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleCompare}
+                    className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${isComparing
+                        ? 'border-red-600 text-white bg-red-600'
+                        : 'border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800'
+                      }`}
+                  >
+                    <Columns2 className="w-3 h-3 mr-2" />
+                    Comparar
+                  </Button>
+
+                  {isComparing && compareOptions.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
+                        >
+                          <History className="w-3 h-3" />
+                          v{compareOptions.find((v) => v.id === compareVersionId)?.version_number ?? '--'}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
+                        {compareOptions.map((v) => (
+                          <DropdownMenuItem
+                            key={v.id}
+                            onClick={() => handleCompareVersionChange(v.id)}
+                            className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${v.id === compareVersionId
+                                ? 'text-red-500 bg-red-500/10'
+                                : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span>Versão {v.version_number}</span>
+                              {v.id === compareVersionId && <CheckCircle className="w-3 h-3" />}
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              )}
+
+              {/* Version Selector */}
+              {allVersions.length > 1 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
+                    >
+                      <History className="w-3 h-3" />
+                      v{currentVideo.version_number}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
+                    {allVersions.map((v) => (
+                      <DropdownMenuItem
+                        key={v.id}
+                        onClick={() => handleVersionChange(v.id)}
+                        className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${v.id === currentVideoId
+                            ? 'text-red-500 bg-red-500/10'
+                            : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <span>Versão {v.version_number}</span>
+                          {v.id === currentVideoId && <CheckCircle className="w-3 h-3" />}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              {/* Version badge when only one version */}
+              {allVersions.length === 1 && (
+                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-2 py-1.5 h-8 flex items-center">
+                  v{currentVideo.version_number}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden">
+            <div
+              ref={videoContainerRef}
+              className={`relative w-full h-full flex items-center justify-center bg-black ${drawingMode ? 'is-drawing' : ''}`}
+            >
+              {isComparing ? (
+                videoUrl && compareVideoUrl ? (
+                  <VideoComparison
+                    masterSrc={videoUrl}
+                    compareSrc={compareVideoUrl}
+                    onControllerReady={handleComparisonControllerReady}
+                    onTimeUpdate={setCurrentTime}
+                    onDurationChange={setDuration}
+                    onPlayStateChange={setIsPlaying}
+                    onVolumeChange={(nextVolume, nextMuted) => {
+                      setVolume(nextVolume);
+                      setIsMuted(nextMuted);
                     }}
-                    className="w-16 h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer ml-2 accent-red-600"
+                    onRateChange={setPlaybackSpeed}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-3 text-zinc-400">
+                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                    <span className="text-xs font-bold uppercase tracking-[0.2em]">A carregar comparação...</span>
+                  </div>
+                )
+              ) : videoSource ? (
+                <div key={`player-${currentVideoId}-${videoUrl}`} className="relative w-full h-full">
+                  <ContextMenu>
+                    <ContextMenuTrigger className="w-full h-full">
+                      <video
+                        ref={videoRef}
+                        className="plyr-react plyr"
+                        crossOrigin="anonymous"
+                        playsInline
+                      />
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+                      <ContextMenuItem
+                        onClick={() => handleDownload('original')}
+                        className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                      >
+                        <Download className="w-3 h-3 mr-2" />
+                        Baixar Original
+                      </ContextMenuItem>
+                      <ContextMenuItem
+                        onClick={() => handleDownload('proxy')}
+                        className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-[10px] uppercase tracking-widest"
+                      >
+                        <Download className="w-3 h-3 mr-2" />
+                        Baixar Proxy (720p)
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
+                  {/* Canvas overlay for drawing */}
+                  <canvas
+                    ref={canvasRef}
+                    className={`absolute top-0 left-0 w-full h-full pointer-events-none ${drawingMode ? 'pointer-events-auto cursor-crosshair' : ''}`}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    style={{ zIndex: drawingMode ? 10 : 1 }}
                   />
                 </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-zinc-400">
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                  <span className="text-xs font-bold uppercase tracking-[0.2em]">A carregar stream...</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Barra de Controles Unificada (Frame.io style) */}
+          <div className="bg-[#0a0a0a] border-t border-zinc-800/50 flex flex-col relative z-30">
+            {/* Progress Scrubber */}
+            <div
+              className="w-full h-2 bg-zinc-900 cursor-pointer relative group"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                if (playerRef.current?.plyr) {
+                  playerRef.current.plyr.currentTime = pos * (playerRef.current.plyr.duration || duration);
+                }
+              }}
+            >
+              {/* Buffered progress (opcional, se quiser implementar) */}
+              <div
+                className="absolute top-0 left-0 h-full bg-red-600"
+                style={{ width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
+              />
+
+              {/* Comment Markers */}
+              {comments.map((comment) => {
+                const ts = parseTimestampSeconds(comment.timestamp);
+                if (ts === null || duration === 0) return null;
+                // Only markers for top-level comments or unique timestamps to avoid too many marks
+                const left = Math.min(100, (ts / duration) * 100);
+
+                return (
+                  <div
+                    key={`marker-${comment.id}`}
+                    className="absolute top-0 w-[2px] h-full bg-white/40 group-hover:bg-white/60 z-10 transition-colors"
+                    style={{ left: `${left}%` }}
+                  />
+                );
+              })}
+
+              {/* Scrubber Handle on Hover */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                style={{ left: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%` }}
+              />
+            </div>
+
+            {/* Controls Row */}
+            <div className="flex items-center justify-between px-4 py-2 h-12">
+
+              {/* Left Controls: Play & Speed */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => playerRef.current?.plyr?.togglePlay()}
+                  className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                >
+                  {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                </Button>
+
+                {/* Speed Selector */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest w-12 h-8 rounded-none"
+                    >
+                      {playbackSpeed}x
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" className="bg-zinc-950 border-zinc-800 rounded-none min-w-[60px]">
+                    {[0.5, 1, 1.5, 2].map((speed) => (
+                      <DropdownMenuItem
+                        key={speed}
+                        onClick={() => {
+                          if (playerRef.current?.plyr) {
+                            playerRef.current.plyr.speed = speed;
+                          }
+                        }}
+                        className={`text-[10px] justify-center cursor-pointer font-bold ${playbackSpeed === speed ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                          }`}
+                      >
+                        {speed}x
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
+
+                {/* Quality Selector */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`text-[10px] font-bold uppercase tracking-widest h-8 px-2 rounded-none ${quality === 'original' ? 'text-red-500' : 'text-zinc-500 hover:text-white'
+                        }`}
+                    >
+                      {quality === 'original' ? 'Original' : '720p'}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" className="bg-zinc-950 border-zinc-800 rounded-none min-w-[100px]">
+                    <DropdownMenuItem
+                      onClick={() => setQuality('proxy')}
+                      className={`text-[10px] cursor-pointer font-bold ${quality === 'proxy' ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                        }`}
+                    >
+                      Auto (720p)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setQuality('original')}
+                      className={`text-[10px] cursor-pointer font-bold ${quality === 'original' ? 'text-red-500 bg-red-500/10' : 'text-zinc-400 focus:text-white focus:bg-zinc-800'
+                        }`}
+                    >
+                      Original (Máx)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
-              <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
+              {/* Center Controls: Frame & Timecode */}
+              <div className="flex items-center gap-4 lg:absolute lg:left-1/2 lg:-translate-x-1/2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden lg:flex h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
+                  onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime }}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => playerRef.current?.plyr?.fullscreen.toggle()}
-                className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
-              >
-                <Maximize className="w-4 h-4" />
-              </Button>
+                <div className="flex flex-col items-center min-w-[80px] lg:min-w-[100px]">
+                  <div className="brick-tech text-white font-bold text-sm lg:text-lg tabular-nums tracking-tight leading-none">
+                    {formatTimecode(currentTime)}
+                  </div>
+                  <div className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest mt-0.5">
+                    {formatTimecode(duration)}
+                  </div>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden lg:flex h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
+                  onClick={() => { if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime }}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+
+
+
+
+
+
+              {/* Right Controls: Volume & Fullscreen */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center group relative">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (playerRef.current?.plyr) {
+                        playerRef.current.plyr.muted = !isMuted;
+                      }
+                    }}
+                    className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                  >
+                    {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </Button>
+                  {/* Volume Slider on Hover (Simple implementation) */}
+                  <div className="w-0 overflow-hidden group-hover:w-20 transition-all duration-300 ease-out flex items-center">
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={volume}
+                      onChange={(e) => {
+                        if (playerRef.current?.plyr) {
+                          playerRef.current.plyr.volume = parseFloat(e.target.value);
+                        }
+                      }}
+                      className="w-16 h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer ml-2 accent-red-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => playerRef.current?.plyr?.fullscreen.toggle()}
+                  className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                >
+                  <Maximize className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Barra Lateral de Comentários / Histórico */}
-      <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:min-h-0 flex-1 lg:flex-none">
-        <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
-          <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
+        {/* Barra Lateral de Comentários / Histórico */}
+        <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none">
+          <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
+            <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
+              {showHistory ? (
+                <><History className="w-4 h-4 text-red-600" /> Histórico</>
+              ) : (
+                <><MessageSquare className="w-4 h-4 text-red-600" /> Comentários ({comments.length})</>
+              )}
+            </h3>
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-[10px] font-black uppercase tracking-tighter text-zinc-500 hover:text-white transition-colors"
+            >
+              {showHistory ? 'Ver Comentários' : 'Ver Histórico'}
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
             {showHistory ? (
-              <><History className="w-4 h-4 text-red-600" /> Histórico</>
-            ) : (
-              <><MessageSquare className="w-4 h-4 text-red-600" /> Comentários ({comments.length})</>
-            )}
-          </h3>
-          <button 
-            onClick={() => setShowHistory(!showHistory)}
-            className="text-[10px] font-black uppercase tracking-tighter text-zinc-500 hover:text-white transition-colors"
-          >
-            {showHistory ? 'Ver Comentários' : 'Ver Histórico'}
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-          {showHistory ? (
-            history.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
-                Nenhum histórico registrado ainda.
-              </div>
-            ) : (
-              history.map((item) => (
-                <div key={item.id} className="glass-card p-4 border-l-2 border-l-zinc-800">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      item.status === 'approved' ? 'bg-green-500' : 'bg-zinc-500'
-                    }`} />
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${
-                      item.status === 'approved' ? 'text-green-500' : 'text-zinc-400'
-                    }`}>
-                      {item.status === 'approved' ? 'Aprovado' : 'Em aprovação'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-white font-medium mb-1">{item.notes}</p>
-                  <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-bold tracking-widest">
-                    <span>{item.username}</span>
-                    <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                  </div>
+              history.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
+                  Nenhum histórico registrado ainda.
                 </div>
-              ))
-            )
-          ) : (
-            comments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
-                Nenhum comentário ainda. Vá para um frame específico e comece a discussão.
-              </div>
+              ) : (
+                history.map((item) => (
+                  <div key={item.id} className="glass-card p-4 border-l-2 border-l-zinc-800">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-2 h-2 rounded-full ${item.status === 'approved' ? 'bg-green-500' : 'bg-zinc-500'
+                        }`} />
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${item.status === 'approved' ? 'text-green-500' : 'text-zinc-400'
+                        }`}>
+                        {item.status === 'approved' ? 'Aprovado' : 'Em aprovação'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-white font-medium mb-1">{item.notes}</p>
+                    <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-bold tracking-widest">
+                      <span>{item.username}</span>
+                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))
+              )
             ) : (
-              organizeComments().map((comment) => (
-                <div key={comment.id} className="space-y-2">
-                  {/* Comentário Principal */}
-                  <div
-                    className="group glass-card p-3 border-l-2 border-l-transparent hover:border-l-red-600 transition-all cursor-pointer"
-                    onClick={(e) => {
-                      const target = e.target;
-                      if (target?.closest?.('[data-comment-actions]')) return;
-                      if (target?.closest?.('button, a, input, textarea, form, label')) return;
+              comments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
+                  Nenhum comentário ainda. Vá para um frame específico e comece a discussão.
+                </div>
+              ) : (
+                organizeComments().map((comment) => (
+                  <div key={comment.id} className="space-y-2">
+                    {/* Comentário Principal */}
+                    <div
+                      className="group glass-card p-3 border-l-2 border-l-transparent hover:border-l-red-600 transition-all cursor-pointer"
+                      onClick={(e) => {
+                        const target = e.target;
+                        if (target?.closest?.('[data-comment-actions]')) return;
+                        if (target?.closest?.('button, a, input, textarea, form, label')) return;
 
-                      const ts = parseTimestampSeconds(comment.timestamp);
-                      if (ts !== null) seekTo(ts);
-                    }}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
-                          {parseTimestampSeconds(comment.timestamp) !== null ? formatTime(parseTimestampSeconds(comment.timestamp)) : '—'}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                            {comment.username}
+                        const ts = parseTimestampSeconds(comment.timestamp);
+                        if (ts !== null) seekTo(ts);
+                      }}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
+                            {parseTimestampSeconds(comment.timestamp) !== null ? formatTime(parseTimestampSeconds(comment.timestamp)) : '—'}
                           </span>
-                          {(canEditComment(comment) || canDeleteComment(comment)) && (
-                            <div className="flex items-center gap-1">
-                              {canEditComment(comment) && (
-                                <button
-                                  type="button"
-                                  data-comment-actions
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingComment(editingComment === comment.id ? null : comment.id);
-                                  }}
-                                  className="text-zinc-600 hover:text-blue-500 transition-colors"
-                                  title="Editar comentário"
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </button>
-                              )}
-                              {canDeleteComment(comment) && (
-                                <button
-                                  type="button"
-                                  data-comment-actions
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteComment(comment.id);
-                                  }}
-                                  className="text-zinc-600 hover:text-red-500 transition-colors"
-                                  title="Excluir comentário"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                              {comment.username}
+                            </span>
+                            {(canEditComment(comment) || canDeleteComment(comment)) && (
+                              <div className="flex items-center gap-1">
+                                {canEditComment(comment) && (
+                                  <button
+                                    type="button"
+                                    data-comment-actions
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingComment(editingComment === comment.id ? null : comment.id);
+                                    }}
+                                    className="text-zinc-600 hover:text-blue-500 transition-colors"
+                                    title="Editar comentário"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                )}
+                                {canDeleteComment(comment) && (
+                                  <button
+                                    type="button"
+                                    data-comment-actions
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteComment(comment.id);
+                                    }}
+                                    className="text-zinc-600 hover:text-red-500 transition-colors"
+                                    title="Excluir comentário"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {editingComment === comment.id ? (
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const editContent = e.target.elements.editContent.value;
+                              if (editContent.trim()) {
+                                handleEditComment(comment.id, editContent.trim());
+                              }
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-2"
+                          >
+                            <textarea
+                              name="editContent"
+                              defaultValue={comment.content}
+                              autoFocus
+                              rows={3}
+                              className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-blue-600 transition-colors resize-none"
+                            />
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                type="submit"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                              >
+                                Salvar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingComment(null);
+                                }}
+                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                              >
+                                Cancelar
+                              </button>
                             </div>
+                          </form>
+                        ) : (
+                          <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
+                        )}
+                      </div>
+
+                      {/* Botão de Responder - disponível para todos */}
+                      {canComment && (
+                        <div data-comment-actions onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                            }}
+                            className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
+                          >
+                            <Reply className="w-3 h-3" />
+                            {replyingTo === comment.id ? 'Cancelar' : 'Responder'}
+                          </button>
+
+                          {replyingTo === comment.id && (
+                            <form
+                              onSubmit={addReply}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-3 space-y-2"
+                            >
+                              {/* Guest name input for replies */}
+                              {isGuest && canComment && (
+                                <input
+                                  type="text"
+                                  value={visitorName}
+                                  onChange={(e) => setVisitorName(e.target.value)}
+                                  placeholder="Seu nome"
+                                  className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
+                                  required={isGuest}
+                                />
+                              )}
+                              <textarea
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                onFocus={() => {
+                                  if (drawingMode) setDrawingMode(false);
+                                }}
+                                placeholder="Escreva sua resposta..."
+                                className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
+                                autoFocus
+                              />
+                              <button
+                                type="submit"
+                                disabled={!replyText.trim()}
+                                className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                              >
+                                Enviar Resposta
+                              </button>
+                            </form>
                           )}
                         </div>
-                      </div>
-                      {editingComment === comment.id ? (
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const editContent = e.target.elements.editContent.value;
-                            if (editContent.trim()) {
-                              handleEditComment(comment.id, editContent.trim());
-                            }
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="mt-2"
-                        >
-                          <textarea
-                            name="editContent"
-                            defaultValue={comment.content}
-                            autoFocus
-                            rows={3}
-                            className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-blue-600 transition-colors resize-none"
-                          />
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              type="submit"
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
-                            >
-                              Salvar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingComment(null);
-                              }}
-                              className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-                        </form>
-                      ) : (
-                        <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
                       )}
                     </div>
 
-                    {/* Botão de Responder - disponível para todos */}
-                    {canComment && (
-                      <div data-comment-actions onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setReplyingTo(replyingTo === comment.id ? null : comment.id);
-                          }}
-                          className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
-                        >
-                          <Reply className="w-3 h-3" />
-                          {replyingTo === comment.id ? 'Cancelar' : 'Responder'}
-                        </button>
-
-                        {replyingTo === comment.id && (
-                          <form
-                            onSubmit={addReply}
+                    {/* Respostas */}
+                    {comment.replies && comment.replies.length > 0 && (
+                      <div className="ml-4 space-y-2 border-l-2 border-zinc-800/50 pl-3">
+                        {comment.replies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            className="glass-card p-3 bg-zinc-900/30"
                             onClick={(e) => e.stopPropagation()}
-                            className="mt-3 space-y-2"
                           >
-                            {/* Guest name input for replies */}
-                            {isGuest && canComment && (
-                              <input
-                                type="text"
-                                value={visitorName}
-                                onChange={(e) => setVisitorName(e.target.value)}
-                                placeholder="Seu nome"
-                                className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
-                                required={isGuest}
-                              />
+                            <div className="flex items-center gap-2 mb-2">
+                              <CornerDownRight className="w-3 h-3 text-zinc-600" />
+                              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                                {reply.username}
+                              </span>
+
+                              <div className="ml-auto flex items-center gap-2">
+                                <span className="text-[9px] text-zinc-600">
+                                  {new Date(reply.created_at).toLocaleString('pt-BR', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                                {(canEditComment(reply) || canDeleteComment(reply)) && (
+                                  <div className="flex items-center gap-1">
+                                    {canEditComment(reply) && (
+                                      <button
+                                        type="button"
+                                        data-comment-actions
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingComment(editingComment === reply.id ? null : reply.id);
+                                        }}
+                                        className="text-zinc-600 hover:text-blue-500 transition-colors"
+                                        title="Editar comentário"
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                    {canDeleteComment(reply) && (
+                                      <button
+                                        type="button"
+                                        data-comment-actions
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteComment(reply.id);
+                                        }}
+                                        className="text-zinc-600 hover:text-red-500 transition-colors"
+                                        title="Excluir comentário"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {editingComment === reply.id ? (
+                              <form
+                                onSubmit={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const editContent = e.target.elements.editContent.value;
+                                  if (editContent.trim()) {
+                                    handleEditComment(reply.id, editContent.trim());
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-2"
+                              >
+                                <textarea
+                                  name="editContent"
+                                  defaultValue={reply.content}
+                                  autoFocus
+                                  rows={2}
+                                  className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-blue-600 transition-colors resize-none"
+                                />
+                                <div className="flex gap-2 mt-2">
+                                  <button
+                                    type="submit"
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                                  >
+                                    Salvar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingComment(null);
+                                    }}
+                                    className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </form>
+                            ) : (
+                              <p className="text-sm text-zinc-400 leading-relaxed">{reply.content}</p>
                             )}
-                            <textarea
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              onFocus={() => {
-                                if (drawingMode) setDrawingMode(false);
-                              }}
-                              placeholder="Escreva sua resposta..."
-                              className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
-                              autoFocus
-                            />
-                            <button
-                              type="submit"
-                              disabled={!replyText.trim()}
-                              className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
-                            >
-                              Enviar Resposta
-                            </button>
-                          </form>
-                        )}
+
+                            {/* Botão de responder também nas respostas */}
+                            {canComment && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReplyingTo(replyingTo === comment.id ? null : comment.id);
+                                  setReplyText(`@${reply.username} `);
+                                }}
+                                className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-600 hover:text-red-500 transition-colors"
+                              >
+                                <Reply className="w-3 h-3" />
+                                Responder
+                              </button>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
+                ))
+              )
+            )}
+          </div>
 
-                  {/* Respostas */}
-                  {comment.replies && comment.replies.length > 0 && (
-                    <div className="ml-4 space-y-2 border-l-2 border-zinc-800/50 pl-3">
-                      {comment.replies.map((reply) => (
-                        <div
-                          key={reply.id}
-                          className="glass-card p-3 bg-zinc-900/30"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center gap-2 mb-2">
-                            <CornerDownRight className="w-3 h-3 text-zinc-600" />
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                              {reply.username}
-                            </span>
-
-                            <div className="ml-auto flex items-center gap-2">
-                              <span className="text-[9px] text-zinc-600">
-                                {new Date(reply.created_at).toLocaleString('pt-BR', {
-                                  day: '2-digit',
-                                  month: 'short',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
-                              {(canEditComment(reply) || canDeleteComment(reply)) && (
-                                <div className="flex items-center gap-1">
-                                  {canEditComment(reply) && (
-                                    <button
-                                      type="button"
-                                      data-comment-actions
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingComment(editingComment === reply.id ? null : reply.id);
-                                      }}
-                                      className="text-zinc-600 hover:text-blue-500 transition-colors"
-                                      title="Editar comentário"
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                  {canDeleteComment(reply) && (
-                                    <button
-                                      type="button"
-                                      data-comment-actions
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteComment(reply.id);
-                                      }}
-                                      className="text-zinc-600 hover:text-red-500 transition-colors"
-                                      title="Excluir comentário"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {editingComment === reply.id ? (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const editContent = e.target.elements.editContent.value;
-                                if (editContent.trim()) {
-                                  handleEditComment(reply.id, editContent.trim());
-                                }
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-2"
-                            >
-                              <textarea
-                                name="editContent"
-                                defaultValue={reply.content}
-                                autoFocus
-                                rows={2}
-                                className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-blue-600 transition-colors resize-none"
-                              />
-                              <div className="flex gap-2 mt-2">
-                                <button
-                                  type="submit"
-                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
-                                >
-                                  Salvar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingComment(null);
-                                  }}
-                                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            </form>
-                          ) : (
-                            <p className="text-sm text-zinc-400 leading-relaxed">{reply.content}</p>
-                          )}
-
-                          {/* Botão de responder também nas respostas */}
-                          {canComment && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setReplyingTo(replyingTo === comment.id ? null : comment.id);
-                                setReplyText(`@${reply.username} `);
-                              }}
-                              className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-600 hover:text-red-500 transition-colors"
-                            >
-                              <Reply className="w-3 h-3" />
-                              Responder
-                            </button>
-                          )}
-                        </div>
-                      ))}
+          {/* Input de Novo Comentário */}
+          {!showHistory && (
+            <div className="p-4 border-t border-zinc-800/50 bg-white/5">
+              <form onSubmit={addComment} className="flex flex-col gap-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-between">
+                  {hasTimestamp ? (
+                    <div className="flex items-center gap-2 text-zinc-500">
+                      <Clock className="w-3 h-3" />
+                      <span className="text-red-500">{formatTimecode(currentTime)}</span>
+                    </div>
+                  ) : (
+                    <div className="text-zinc-500">
+                      Comentário geral (sem timestamp)
                     </div>
                   )}
+                  <span className="text-zinc-600">Deixe seu comentário...</span>
                 </div>
-              ))
-            )
+
+                {/* Guest name input - discreto e inline */}
+                {isGuest && canComment && (
+                  <input
+                    type="text"
+                    value={visitorName}
+                    onChange={(e) => setVisitorName(e.target.value)}
+                    placeholder="Seu nome"
+                    className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
+                    required={isGuest}
+                  />
+                )}
+
+                <div className="relative">
+                  {attachedFile && (
+                    <div className="absolute bottom-full left-0 mb-2 flex items-center gap-2 bg-red-600/10 border border-red-600/20 px-2 py-1">
+                      <Paperclip className="w-3 h-3 text-red-500" />
+                      <span className="text-[10px] text-zinc-300 truncate max-w-[150px]">{attachedFile.name}</span>
+                      <button
+                        onClick={() => setAttachedFile(null)}
+                        className="text-zinc-500 hover:text-white"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onFocus={() => {
+                      // Fecha o modo desenho ao focar no campo de texto para limpar a UI
+                      if (drawingMode) setDrawingMode(false);
+                    }}
+                    placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
+                    className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 pb-12 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
+                    disabled={isGuest && !canComment}
+                  />
+
+                  {/* Toolbar de ações */}
+                  <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      {/* Timestamp toggle */}
+                      <button
+                        type="button"
+                        className={`p-2 rounded-sm transition-colors ${hasTimestamp
+                            ? 'text-red-500 bg-red-500/10'
+                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                          }`}
+                        onClick={() => setHasTimestamp(!hasTimestamp)}
+                        title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
+                      >
+                        {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                      </button>
+
+                      {/* Attachment */}
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={(e) => setAttachedFile(e.target.files[0])}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`p-2 rounded-sm transition-colors ${attachedFile
+                            ? 'text-red-500 bg-red-500/10'
+                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                          }`}
+                        title="Anexar arquivo"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </button>
+
+                      {/* Emoji picker */}
+                      <div className="relative">
+                        <button
+                          type="button"
+                          className={`p-2 rounded-sm transition-colors ${showEmojiPicker
+                              ? 'text-yellow-500 bg-yellow-500/10'
+                              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                            }`}
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          title="Adicionar emoji"
+                        >
+                          <Smile className="w-4 h-4" />
+                        </button>
+
+                        {showEmojiPicker && (
+                          <div className="absolute bottom-full left-0 mb-2 z-50">
+                            <EmojiPicker
+                              onEmojiClick={(emojiData) => {
+                                setNewComment(newComment + emojiData.emoji);
+                                setShowEmojiPicker(false);
+                              }}
+                              theme="dark"
+                              width={300}
+                              height={400}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Drawing tool */}
+                      <button
+                        type="button"
+                        className={`p-2 rounded-sm transition-colors ${drawingMode
+                            ? 'text-red-500 bg-red-500/10'
+                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                          } ${isComparing ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        onClick={() => {
+                          if (!isComparing) setDrawingMode(!drawingMode);
+                        }}
+                        title="Desenhar no frame"
+                        disabled={isComparing}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
+                      {/* Color picker - only when drawing mode is active */}
+                      {drawingMode && (
+                        <>
+                          {['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#FFFFFF'].map(color => (
+                            <button
+                              key={color}
+                              type="button"
+                              className={`w-6 h-6 rounded-sm border transition-all ${drawColor === color ? 'border-white scale-110' : 'border-zinc-700 hover:border-zinc-500'
+                                }`}
+                              style={{ backgroundColor: color }}
+                              onClick={() => setDrawColor(color)}
+                              title={`Cor: ${color}`}
+                            />
+                          ))}
+
+                          <button
+                            type="button"
+                            className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1"
+                            onClick={clearDrawing}
+                            title="Limpar desenho"
+                          >
+                            <Eraser className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Send button */}
+                    <button
+                      type="submit"
+                      disabled={!newComment.trim() || (isGuest && !canComment)}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors"
+                    >
+                      Enviar
+                    </button>
+                  </div>
+                </div>
+
+                {isGuest && !canComment && (
+                  <p className="text-xs text-zinc-600 italic">Este compartilhamento é somente visualização.</p>
+                )}
+              </form>
+            </div>
           )}
         </div>
 
-        {/* Input de Novo Comentário */}
-        {!showHistory && (
-          <div className="p-4 border-t border-zinc-800/50 bg-white/5">
-            <form onSubmit={addComment} className="flex flex-col gap-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-between">
-                {hasTimestamp ? (
-                  <div className="flex items-center gap-2 text-zinc-500">
-                    <Clock className="w-3 h-3" />
-                    <span className="text-red-500">{formatTimecode(currentTime)}</span>
-                  </div>
-                ) : (
-                  <div className="text-zinc-500">
-                    Comentário geral (sem timestamp)
-                  </div>
-                )}
-                <span className="text-zinc-600">Deixe seu comentário...</span>
-              </div>
-
-              {/* Guest name input - discreto e inline */}
-              {isGuest && canComment && (
-                <input
-                  type="text"
-                  value={visitorName}
-                  onChange={(e) => setVisitorName(e.target.value)}
-                  placeholder="Seu nome"
-                  className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
-                  required={isGuest}
+        {/* Share Link Dialog Fallback */}
+        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+          <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="brick-title text-xl uppercase tracking-tighter text-white">Link de Revisão</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-4">
+              <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
+                Link de revisão criado, copie o link abaixo:
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={shareLink}
+                  className="bg-zinc-900 border-zinc-800 rounded-none text-xs text-zinc-300 focus:ring-red-600 h-10"
+                  onClick={(e) => e.target.select()}
                 />
-              )}
-
-              <div className="relative">
-                {attachedFile && (
-                  <div className="absolute bottom-full left-0 mb-2 flex items-center gap-2 bg-red-600/10 border border-red-600/20 px-2 py-1">
-                    <Paperclip className="w-3 h-3 text-red-500" />
-                    <span className="text-[10px] text-zinc-300 truncate max-w-[150px]">{attachedFile.name}</span>
-                    <button 
-                      onClick={() => setAttachedFile(null)}
-                      className="text-zinc-500 hover:text-white"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
-                <textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onFocus={() => {
-                    // Fecha o modo desenho ao focar no campo de texto para limpar a UI
-                    if (drawingMode) setDrawingMode(false);
+                <Button
+                  variant="ghost"
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-none h-10 px-4 text-[10px] font-black uppercase tracking-widest"
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareLink);
+                    toast.success("Copiado!");
                   }}
-                  placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
-                  className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 pb-12 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
-                  disabled={isGuest && !canComment}
-                />
-
-                {/* Toolbar de ações */}
-                <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    {/* Timestamp toggle */}
-                    <button
-                      type="button"
-                      className={`p-2 rounded-sm transition-colors ${
-                        hasTimestamp
-                          ? 'text-red-500 bg-red-500/10'
-                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-                      }`}
-                      onClick={() => setHasTimestamp(!hasTimestamp)}
-                      title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
-                    >
-                      {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                    </button>
-
-                    {/* Attachment */}
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      onChange={(e) => setAttachedFile(e.target.files[0])}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`p-2 rounded-sm transition-colors ${
-                        attachedFile
-                          ? 'text-red-500 bg-red-500/10'
-                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-                      }`}
-                      title="Anexar arquivo"
-                    >
-                      <Paperclip className="w-4 h-4" />
-                    </button>
-
-                    {/* Emoji picker */}
-                    <div className="relative">
-                      <button
-                        type="button"
-                        className={`p-2 rounded-sm transition-colors ${
-                          showEmojiPicker
-                            ? 'text-yellow-500 bg-yellow-500/10'
-                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-                      }`}
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        title="Adicionar emoji"
-                      >
-                        <Smile className="w-4 h-4" />
-                      </button>
-
-                      {showEmojiPicker && (
-                        <div className="absolute bottom-full left-0 mb-2 z-50">
-                          <EmojiPicker
-                            onEmojiClick={(emojiData) => {
-                              setNewComment(newComment + emojiData.emoji);
-                              setShowEmojiPicker(false);
-                            }}
-                            theme="dark"
-                            width={300}
-                            height={400}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Drawing tool */}
-                    <button
-                      type="button"
-                      className={`p-2 rounded-sm transition-colors ${
-                        drawingMode
-                          ? 'text-red-500 bg-red-500/10'
-                          : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-                      } ${isComparing ? 'opacity-40 cursor-not-allowed' : ''}`}
-                      onClick={() => {
-                        if (!isComparing) setDrawingMode(!drawingMode);
-                      }}
-                      title="Desenhar no frame"
-                      disabled={isComparing}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-
-                    {/* Color picker - only when drawing mode is active */}
-                    {drawingMode && (
-                      <>
-                        {['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#FFFFFF'].map(color => (
-                          <button
-                            key={color}
-                            type="button"
-                            className={`w-6 h-6 rounded-sm border transition-all ${
-                              drawColor === color ? 'border-white scale-110' : 'border-zinc-700 hover:border-zinc-500'
-                            }`}
-                            style={{ backgroundColor: color }}
-                            onClick={() => setDrawColor(color)}
-                            title={`Cor: ${color}`}
-                          />
-                        ))}
-
-                        <button
-                          type="button"
-                          className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1"
-                          onClick={clearDrawing}
-                          title="Limpar desenho"
-                        >
-                          <Eraser className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Send button */}
-                  <button
-                    type="submit"
-                    disabled={!newComment.trim() || (isGuest && !canComment)}
-                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors"
-                  >
-                    Enviar
-                  </button>
-                </div>
+                >
+                  Copiar
+                </Button>
               </div>
-
-              {isGuest && !canComment && (
-                <p className="text-xs text-zinc-600 italic">Este compartilhamento é somente visualização.</p>
-              )}
-            </form>
-          </div>
-        )}
-      </div>
-
-      {/* Share Link Dialog Fallback */}
-      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="brick-title text-xl uppercase tracking-tighter text-white">Link de Revisão</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-4">
-            <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
-              Link de revisão criado, copie o link abaixo:
-            </p>
-            <div className="flex items-center gap-2">
-              <Input
-                readOnly
-                value={shareLink}
-                className="bg-zinc-900 border-zinc-800 rounded-none text-xs text-zinc-300 focus:ring-red-600 h-10"
-                onClick={(e) => e.target.select()}
-              />
-              <Button
-                variant="ghost"
-                className="bg-red-600 hover:bg-red-700 text-white rounded-none h-10 px-4 text-[10px] font-black uppercase tracking-widest"
-                onClick={() => {
-                  navigator.clipboard.writeText(shareLink);
-                  toast.success("Copiado!");
-                }}
-              >
-                Copiar
-              </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}

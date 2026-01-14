@@ -252,9 +252,9 @@ export function ShareViewPage() {
       </header>
 
       {/* Content Area */}
-      <main className="flex-1 relative overflow-hidden">
+      <main className="flex-1 relative overflow-hidden min-h-0">
         {currentVideo ? (
-            <div className="w-full h-full flex flex-col">
+            <div className="w-full h-full flex flex-col min-h-0">
                 {/* Action Bar */}
                 {(resource.type === 'folder' || resource.type === 'project') && selectedVideo && (
                     <div className="bg-zinc-950 border-b border-zinc-900 px-4 py-2 flex items-center">
