@@ -96,7 +96,11 @@ export async function initDatabase() {
               FROM information_schema.columns
               WHERE table_name = 'brickreview_folders_with_stats' AND column_name = 'deleted_at'
             )
-          ) as "foldersViewHasDeletedAt"
+          ) as "foldersViewHasDeletedAt",
+          (SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'brickreview_comments' AND column_name = 'timestamp_end'
+          )) as "commentsHaveTimestampEnd"
       `, [requiredViews])
 
       const {
@@ -108,6 +112,7 @@ export async function initDatabase() {
         filesHaveDeletedAt,
         projectsViewHasDeletedAt,
         foldersViewHasDeletedAt,
+        commentsHaveTimestampEnd,
       } = schemaCheck.rows[0]
 
       const existingViews = new Set(existingViewNames || [])
@@ -120,7 +125,7 @@ export async function initDatabase() {
         projectsViewHasDeletedAt &&
         foldersViewHasDeletedAt
 
-      if (shareTableExists && missingViews.length === 0 && softDeleteReady) {
+      if (shareTableExists && missingViews.length === 0 && softDeleteReady && commentsHaveTimestampEnd) {
         console.log('✅ Database schema already initialized. Skipping setup.')
         return
       }
@@ -135,6 +140,10 @@ export async function initDatabase() {
 
       if (!softDeleteReady) {
         missingItems.push('soft delete columns/views')
+      }
+
+      if (!commentsHaveTimestampEnd) {
+        missingItems.push('"timestamp_end" column in comments')
       }
 
       console.log(`📦 Main tables exist but ${missingItems.join(' and ')} are missing. Updating schema...`)
@@ -182,6 +191,21 @@ export async function initDatabase() {
 
     // Execute setup
     await query(sql)
+
+    // Ensure timestamp_end exists (migration for existing tables)
+    try {
+      await query(`
+        DO $$ 
+        BEGIN 
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brickreview_comments' AND column_name='timestamp_end') THEN
+            ALTER TABLE brickreview_comments ADD COLUMN timestamp_end DECIMAL(10, 3);
+          END IF;
+        END $$;
+      `)
+    } catch (migError) {
+      console.log('⚠️  Could not add timestamp_end column:', migError.message)
+    }
+
     console.log('✅ Database schema initialized successfully')
 
     // Log table statistics
