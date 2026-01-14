@@ -1428,7 +1428,7 @@ export function VideoPlayer({
                       seekTo(ts);
                       setHighlightedCommentId(comment.id);
                     }}
-                    className="absolute top-0 w-1 h-full bg-red-500/80 hover:bg-red-600 hover:w-1.5 z-20 transition-all cursor-pointer group/marker"
+                    className="absolute top-0 w-1 h-full bg-white hover:bg-zinc-200 hover:w-1.5 z-30 transition-all cursor-pointer group/marker shadow-[0_0_2px_rgba(0,0,0,0.5)]"
                     style={{ left: `${left}%`, transform: 'translateX(-50%)' }}
                   >
                     <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-black border border-red-600 px-2 py-1 text-[10px] uppercase font-bold text-white opacity-0 group-hover/marker:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
@@ -1707,10 +1707,10 @@ export function VideoPlayer({
                         <div
                           ref={el => commentRefs.current[comment.id] = el}
                           className={`group glass-card p-3 border-l-2 transition-all cursor-pointer duration-300 ${highlightedCommentId === comment.id
-                              ? 'border-l-red-600 bg-red-600/10 shadow-[inset_0_0_20px_rgba(220,38,38,0.1)]'
-                              : isGeneral
-                                ? 'border-l-red-600 bg-red-600/5 shadow-[inset_0_0_20px_rgba(220,38,38,0.05)]'
-                                : 'border-l-transparent hover:border-l-red-600'
+                            ? 'border-l-red-600 bg-red-600/10 shadow-[inset_0_0_20px_rgba(220,38,38,0.1)]'
+                            : isGeneral
+                              ? 'border-l-red-600 bg-red-600/5 shadow-[inset_0_0_20px_rgba(220,38,38,0.05)]'
+                              : 'border-l-transparent hover:border-l-red-600'
                             }`}
                           onClick={(e) => {
                             const target = e.target;
