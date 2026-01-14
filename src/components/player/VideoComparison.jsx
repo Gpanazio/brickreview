@@ -181,7 +181,7 @@ export function VideoComparison({
     return () => {
       onControllerReady?.(null);
     };
-  }, [onControllerReady, masterSrc, compareSrc]);
+  }, [onControllerReady, masterSrc, compareSrc]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isDragging) return;

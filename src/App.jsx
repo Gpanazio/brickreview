@@ -300,7 +300,7 @@ function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, []); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const handleCreateProject = async (e) => {
     e.preventDefault();

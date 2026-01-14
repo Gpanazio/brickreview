@@ -273,8 +273,7 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     if (!searchQuery.trim()) return;
     setWebOffset(0);
     searchWebImages({ append: false });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode]);
+  }, [viewMode]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // --- Lógica do Editor (Zoom/Pan) ---
   const handleMouseDown = (e) => {

@@ -655,7 +655,7 @@ export function VideoPlayer({
 
   useEffect(() => {
     if (showHistory) fetchHistory();
-  }, [showHistory]);
+  }, [showHistory]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Função para trocar de versão
   const handleVersionChange = (versionId) => {
@@ -748,7 +748,7 @@ export function VideoPlayer({
     };
 
     fetchDrawings();
-  }, [currentVideoId, token, isGuest, shareToken]);
+  }, [currentVideoId, token, isGuest, shareToken]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   // Função para fazer download do vídeo (proxy ou original)
   const handleDownload = async (type) => {
