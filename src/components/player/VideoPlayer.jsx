@@ -2072,7 +2072,7 @@ export function VideoPlayer({
                     {/* Toolbar de ações */}
                     <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between">
                       <div className="flex items-center gap-1">
-                        {/* Timestamp toggle */}
+                        {/* Timestamp Toggle */}
                         <button
                           type="button"
                           className={`p-2 rounded-sm transition-colors ${hasTimestamp
@@ -2080,53 +2080,61 @@ export function VideoPlayer({
                             : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
                             }`}
                           onClick={() => setHasTimestamp(!hasTimestamp)}
-                          title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
+                          title={hasTimestamp ? "Remover timestamp" : "Vincular ao tempo atual"}
                         >
-                          {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                          <Clock className="w-4 h-4" />
                         </button>
 
-                        {/* Range Toggle */}
+                        {/* Range/Duration Controls */}
                         {hasTimestamp && (
-                          <button
-                            type="button"
-                            className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode
-                              ? 'text-red-500 bg-red-500/10'
-                              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-                              }`}
-                            onClick={() => {
-                              const newMode = !isRangeMode;
-                              setIsRangeMode(newMode);
-                              if (newMode) {
-                                // Inicializa com +2 segundos por padrão ou null para forçar user a setar
-                                // Vamos definir como null para o usuário escolher, ou timestamp atual + 2s?
-                                // Frame.io user experience: toggle ON -> permite selecionar OUT e IN.
-                                // Vamos simplificar: Toggle ON -> usa CurrentTime como IN, e adiciona botão "Set OUT" 
-                                // ou permite digitar.
-                                // Melhor: Ao ativar, se não tiver end, define end = currentTime + 5s (sugestão)
-                                if (rangeEndTime === null) {
-                                  setRangeEndTime(currentTime + 4);
-                                }
-                              }
-                            }}
-                            title={isRangeMode ? "Remover range" : "Adicionar range (duração)"}
-                          >
-                            <span className="text-[10px] font-black tracking-wider uppercase border border-current px-1 rounded-[2px] h-4 flex items-center">
-                              Range
-                            </span>
-                          </button>
+                          <div className="flex items-center h-8 bg-zinc-900 rounded-sm border border-zinc-800 overflow-hidden mr-2">
+                            {/* Start Time (IN) */}
+                            <div className="px-2 text-[10px] font-mono font-bold text-zinc-400 border-r border-zinc-800 flex items-center h-full bg-black/20 cursor-default" title="Tempo de início (IN)">
+                              {formatTimecode(currentTime)}
+                            </div>
+
+                            {/* Range Actions */}
+                            {!isRangeMode ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsRangeMode(true);
+                                  setRangeEndTime(currentTime + 5); // Default 5s duration
+                                }}
+                                className="px-3 h-full text-[10px] font-bold uppercase hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors flex items-center group"
+                                title="Adicionar duração (Range)"
+                              >
+                                <span className="group-hover:text-red-500 transition-colors">+ Duração</span>
+                              </button>
+                            ) : (
+                              <>
+                                {/* End Time (OUT) */}
+                                <button
+                                  type="button"
+                                  onClick={() => setRangeEndTime(currentTime)}
+                                  className="px-2 h-full text-[10px] font-mono font-bold text-red-500 hover:bg-red-500/10 transition-colors flex items-center border-r border-zinc-800 min-w-[60px] justify-center"
+                                  title="Clique para definir o final do range na posição atual do vídeo"
+                                >
+                                  {rangeEndTime !== null && rangeEndTime > currentTime ? formatTimecode(rangeEndTime) : 'DEFINIR SAÍDA'}
+                                </button>
+                                {/* Clear Range */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsRangeMode(false);
+                                    setRangeEndTime(null);
+                                  }}
+                                  className="px-2 h-full text-zinc-500 hover:text-white hover:bg-red-600 transition-colors flex items-center"
+                                  title="Remover duração"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         )}
 
-                        {/* Set Range End Button (only visible in range mode) */}
-                        {isRangeMode && hasTimestamp && (
-                          <button
-                            type="button"
-                            className="p-2 rounded-sm text-zinc-500 hover:text-white hover:bg-zinc-800 ml-1"
-                            onClick={() => setRangeEndTime(currentTime)}
-                            title="Definir tempo atual como final do range"
-                          >
-                            <CornerDownRight className="w-4 h-4 text-red-500" />
-                          </button>
-                        )}
+                        <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
 
                         {/* Attachment */}
                         <input

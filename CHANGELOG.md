@@ -25,6 +25,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - **NEW**: Overlay de Pause com identidade visual do projeto
 - **NEW**: Marcadores de timeline interativos (clique para focar comentário)
 - **NEW**: Highlight visual no comentário ao clicar no marcador da timeline
+- **NEW**: Controle intuitivo de duração de comentários (Range IN/OUT)
 
 #### Reverts
 - `VideoPlayer.jsx` revertido para estado estável anterior
