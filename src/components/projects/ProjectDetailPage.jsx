@@ -158,7 +158,7 @@ export function ProjectDetailPage() {
 
       setFolders(Array.isArray(data) ? data : []);
     } catch (_error) {
-      console.error("Erro ao buscar pastas:", error);
+      console.error("Error", _error);
       toast.error("Erro ao buscar pastas");
       setFolders([]);
     }
@@ -181,7 +181,7 @@ export function ProjectDetailPage() {
 
       setFiles(Array.isArray(data) ? data : []);
     } catch (_error) {
-      console.error("Erro ao buscar arquivos:", error);
+      console.error("Error", _error);
       toast.error("Erro ao buscar arquivos");
       setFiles([]);
     }
@@ -206,7 +206,7 @@ export function ProjectDetailPage() {
         fetchFolders();
       }
     } catch (_error) {
-      console.error("Erro ao criar pasta:", error);
+      console.error("Error", _error);
     }
   };
 
@@ -273,7 +273,7 @@ export function ProjectDetailPage() {
         toast.error(errorData.error || "Erro ao gerar link", { id: loadingToast });
       }
     } catch (_error) {
-      console.error("Erro ao gerar link:", error);
+      console.error("Error", _error);
       toast.error("Erro ao gerar link de compartilhamento", { id: loadingToast });
     }
   };
@@ -341,7 +341,7 @@ export function ProjectDetailPage() {
         toast.error(errorData.error || "Erro ao gerar link", { id: loadingToast });
       }
     } catch (_error) {
-      console.error("Erro ao gerar link:", error);
+      console.error("Error", _error);
       toast.error("Erro ao gerar link de compartilhamento", { id: loadingToast });
     }
   };
@@ -366,7 +366,7 @@ export function ProjectDetailPage() {
         toast.error(errorData.error || "Erro ao excluir vídeo", { id: loadingToast });
       }
     } catch (_error) {
-      console.error("Erro ao excluir vídeo:", error);
+      console.error("Error", _error);
       toast.error("Erro ao excluir vídeo", { id: loadingToast });
     }
   };
@@ -390,7 +390,7 @@ export function ProjectDetailPage() {
       // Por ora, apenas mostra mensagem
       toast.info("Funcionalidade de arquivamento em breve!", { id: loadingToast });
     } catch (_error) {
-      console.error("Erro ao arquivar vídeo:", error);
+      console.error("Error", _error);
       toast.error("Erro ao arquivar vídeo", { id: loadingToast });
     }
   };
@@ -470,7 +470,7 @@ export function ProjectDetailPage() {
           );
         }
       } catch (_error) {
-        console.error("Erro no upload:", error);
+        console.error("Error", _error);
         toast.error("ERRO DE CONEXÃO", {
           description: `Falha ao enviar ${file.name}`,
         });
@@ -536,7 +536,7 @@ export function ProjectDetailPage() {
         toast.error(errorData.error || "Erro ao criar versão", { id: versionToast });
       }
     } catch (_error) {
-      console.error("Erro ao criar versão:", error);
+      console.error("Error", _error);
       toast.error("Erro ao criar versão", { id: versionToast });
     }
   };
@@ -568,15 +568,74 @@ export function ProjectDetailPage() {
     }
   };
 
+  const handleMoveFolder = async (folderId, parentFolderId) => {
+    const moveToast = toast.loading("Movendo pasta...");
+
+    try {
+      const response = await fetch(`/api/folders/${folderId}/move`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ parent_folder_id: parentFolderId }),
+      });
+
+      if (response.ok) {
+        toast.success("Pasta movida com sucesso!", { id: moveToast });
+        fetchFolders();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || "Erro ao mover pasta", { id: moveToast });
+      }
+    } catch (_error) {
+      console.error("Erro ao mover pasta:", _error);
+      toast.error("Erro ao mover pasta", { id: moveToast });
+    }
+  };
+
+  const handleDownloadVideo = async (videoId, type) => {
+    const loadingToast = toast.loading("Gerando link de download...");
+    try {
+      const response = await fetch(`/api/videos/${videoId}/download?type=${type}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const link = document.createElement("a");
+        link.href = data.url;
+        link.download = data.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Download iniciado", { id: loadingToast });
+      } else {
+        toast.error("Erro ao gerar download", { id: loadingToast });
+      }
+    } catch (_error) {
+      console.error("Erro ao fazer download:", _error);
+      toast.error("Falha no download", { id: loadingToast });
+    }
+  };
+
   useEffect(() => {
-    fetchProjectDetails(); // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchProjectDetails();
     fetchFolders();
     fetchFiles();
-  }, [id]); // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  // Helper para formatar tamanho de arquivo
-  const formatFileSize = (bytes) => {
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-[#050505]">
+        <div className="h-10 w-10 animate-spin border-4 border-red-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!project) return <div className="p-8 text-white">Projeto não encontrado</div>;
+
+  if (selectedVideo) {
     const videoVersions =
       project?.videos?.filter((v) => v.parent_video_id === selectedVideo.id) || [];
 
@@ -590,7 +649,7 @@ export function ProjectDetailPage() {
         }}
       />
     );
-  };
+  }
 
   const currentLevelFolders = folders.filter(
     (f) =>
@@ -604,10 +663,6 @@ export function ProjectDetailPage() {
   const currentLevelFiles = files.filter(
     (f) => f.folder_id === currentFolderId || (!currentFolderId && f.folder_id === null)
   );
-
-  const handleRenameFolder = () => {
-    fetchFolders();
-  };
 
   return (
     <div className="flex flex-col h-full bg-[#050505]">
@@ -792,25 +847,16 @@ export function ProjectDetailPage() {
                     </div>
                   ) : (
                     <motion.div
-                      initial="hidden"
-                      animate="show"
-                      variants={{
-                        hidden: { opacity: 0 },
-                        show: {
-                          opacity: 1,
-                          transition: { staggerChildren: 0.08 },
-                        },
-                      }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
                     >
                       {/* Folder Cards */}
                       {currentLevelFolders.map((folder) => (
                         <motion.div
                           key={`folder-card-${folder.id}`}
-                          variants={{
-                            hidden: { opacity: 0, scale: 0.95 },
-                            show: { opacity: 1, scale: 1 },
-                          }}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
                         >
                           <FolderCard
                             folder={folder}
@@ -840,7 +886,7 @@ export function ProjectDetailPage() {
                                       toast.error(errorData.error || "Erro ao excluir pasta");
                                     }
                                   } catch (_error) {
-                                    console.error("Erro ao excluir pasta:", error);
+                                    console.error("Error", _error);
                                     toast.error("Erro ao excluir pasta");
                                   }
                                 },
@@ -880,6 +926,8 @@ export function ProjectDetailPage() {
                         return (
                           <motion.div
                             key={upload.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
                             className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative"
                           >
                             <div className="aspect-video bg-zinc-900/50 flex flex-col items-center justify-center border-b border-zinc-800/50 relative overflow-hidden">
@@ -949,10 +997,8 @@ export function ProjectDetailPage() {
                           return (
                             <motion.div
                               key={video.id}
-                              variants={{
-                                hidden: { opacity: 0, scale: 0.95 },
-                                show: { opacity: 1, scale: 1 },
-                              }}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
                             >
                               <VideoCard
                                 video={video}
@@ -972,10 +1018,8 @@ export function ProjectDetailPage() {
                       {currentLevelFiles.map((file) => (
                         <motion.div
                           key={`file-${file.id}`}
-                          variants={{
-                            hidden: { opacity: 0, scale: 0.95 },
-                            show: { opacity: 1, scale: 1 },
-                          }}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
                         >
                           <FileCard
                             file={file}
@@ -1001,7 +1045,7 @@ export function ProjectDetailPage() {
                                       toast.error(errorData.error || "Erro ao excluir arquivo");
                                     }
                                   } catch (_error) {
-                                    console.error("Erro ao excluir arquivo:", error);
+                                    console.error("Error", _error);
                                     toast.error("Erro ao excluir arquivo");
                                   }
                                 },
@@ -1152,7 +1196,7 @@ const FolderCard = memo(
           }
         }
       } catch (_error) {
-        console.error("Erro ao processar drop na pasta:", error);
+        console.error("Error", _error);
       }
     };
 
@@ -1455,7 +1499,7 @@ const VideoCard = memo(
       e.dataTransfer.setData("video", JSON.stringify(video));
     };
 
-    const handleDragEnd = (e) => {
+    const handleDragEnd = (_e) => {
       setIsDragging(false);
       setIsDropTarget(false);
       setDragCounter(0);
@@ -1510,7 +1554,7 @@ const VideoCard = memo(
           }
         }
       } catch (_error) {
-        console.error("Erro ao processar drop:", error);
+        console.error("Error", _error);
       }
     };
 

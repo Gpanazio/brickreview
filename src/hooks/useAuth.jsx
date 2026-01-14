@@ -38,21 +38,32 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (username, password) => {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
 
-    const data = await response.json();
-
-    if (response.ok) {
-      localStorage.setItem("brickreview_token", data.token);
-      setToken(data.token);
-      setUser(data.user);
-      return { success: true };
-    } else {
-      return { success: false, error: data.error };
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await response.json();
+        if (response.ok) {
+          localStorage.setItem("brickreview_token", data.token);
+          setToken(data.token);
+          setUser(data.user);
+          return { success: true };
+        } else {
+          return { success: false, error: data.error || "Erro no login" };
+        }
+      } else {
+        const text = await response.text();
+        console.error("Resposta não-JSON do servidor:", text);
+        return { success: false, error: `Erro no servidor (${response.status})` };
+      }
+    } catch (error) {
+      console.error("Erro na requisição de login:", error);
+      return { success: false, error: "Erro de conexão com o servidor" };
     }
   };
 
