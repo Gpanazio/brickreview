@@ -1,7 +1,7 @@
-import ffmpeg from 'fluent-ffmpeg';
-import path from 'path';
-import fs from 'fs';
-import { execSync } from 'child_process';
+import ffmpeg from "fluent-ffmpeg";
+import path from "path";
+import fs from "fs";
+import { execSync } from "child_process";
 
 // Configura caminhos do FFmpeg
 // Primeiro tenta usar variáveis de ambiente, depois tenta encontrar automaticamente
@@ -14,7 +14,7 @@ function findExecutable(name, envVar) {
 
   // 2. Tentar which (procura no PATH)
   try {
-    const path = execSync(`which ${name}`, { encoding: 'utf8' }).trim();
+    const path = execSync(`which ${name}`, { encoding: "utf8" }).trim();
     if (path) {
       console.log(`✅ ${name} encontrado via which:`, path);
       return path;
@@ -24,11 +24,7 @@ function findExecutable(name, envVar) {
   }
 
   // 3. Tentar caminhos comuns do sistema
-  const commonPaths = [
-    `/usr/bin/${name}`,
-    `/usr/local/bin/${name}`,
-    `/opt/homebrew/bin/${name}`,
-  ];
+  const commonPaths = [`/usr/bin/${name}`, `/usr/local/bin/${name}`, `/opt/homebrew/bin/${name}`];
 
   for (const path of commonPaths) {
     if (fs.existsSync(path)) {
@@ -40,8 +36,8 @@ function findExecutable(name, envVar) {
   // 4. Tentar procurar no nix store (Railway/Nixpacks)
   try {
     const nixPath = execSync(`find /nix/store -name ${name} -type f 2>/dev/null | head -1`, {
-      encoding: 'utf8',
-      timeout: 5000
+      encoding: "utf8",
+      timeout: 5000,
     }).trim();
     if (nixPath) {
       console.log(`✅ ${name} encontrado no Nix store:`, nixPath);
@@ -55,12 +51,12 @@ function findExecutable(name, envVar) {
   return null;
 }
 
-const ffmpegPath = findExecutable('ffmpeg', 'FFMPEG_PATH');
+const ffmpegPath = findExecutable("ffmpeg", "FFMPEG_PATH");
 if (ffmpegPath) {
   ffmpeg.setFfmpegPath(ffmpegPath);
 }
 
-const ffprobePath = findExecutable('ffprobe', 'FFPROBE_PATH');
+const ffprobePath = findExecutable("ffprobe", "FFPROBE_PATH");
 if (ffprobePath) {
   ffmpeg.setFfprobePath(ffprobePath);
 }
@@ -80,16 +76,16 @@ export const generateThumbnail = (videoPath, outputDir, filename) => {
 
     ffmpeg(videoPath)
       .screenshots({
-        timestamps: ['00:00:01'],
+        timestamps: ["00:00:01"],
         filename: filename,
         folder: outputDir,
-        size: '640x?'
+        size: "640x?",
       })
-      .on('end', () => {
+      .on("end", () => {
         resolve(path.join(outputDir, filename));
       })
-      .on('error', (err) => {
-        console.error('Erro ao gerar thumbnail:', err);
+      .on("error", (err) => {
+        console.error("Erro ao gerar thumbnail:", err);
         reject(err);
       });
   });
@@ -105,14 +101,14 @@ export const getVideoMetadata = (videoPath) => {
     ffmpeg.ffprobe(videoPath, (err, metadata) => {
       if (err) return reject(err);
 
-      const videoStream = metadata.streams.find(s => s.codec_type === 'video');
+      const videoStream = metadata.streams.find((s) => s.codec_type === "video");
 
       // Parse FPS from fraction format (e.g., "30000/1001")
       let fps = 30; // default
       if (videoStream && videoStream.avg_frame_rate) {
         const fpsString = videoStream.avg_frame_rate;
-        if (fpsString.includes('/')) {
-          const [numerator, denominator] = fpsString.split('/').map(Number);
+        if (fpsString.includes("/")) {
+          const [numerator, denominator] = fpsString.split("/").map(Number);
           if (denominator && denominator !== 0) {
             fps = Math.round(numerator / denominator);
           }
@@ -123,7 +119,7 @@ export const getVideoMetadata = (videoPath) => {
           }
         }
       }
-      
+
       // Validação final de FPS para evitar Infinity/NaN no banco
       if (!Number.isFinite(fps) || fps <= 0) {
         fps = 30;
@@ -133,9 +129,85 @@ export const getVideoMetadata = (videoPath) => {
         duration: metadata.format.duration,
         width: videoStream ? videoStream.width : null,
         height: videoStream ? videoStream.height : null,
-        fps: fps
+        fps: fps,
+        bitrate: parseInt(metadata.format.bit_rate || videoStream?.bit_rate || 0, 10),
+        codec_name: videoStream?.codec_name,
+        pix_fmt: videoStream?.pix_fmt,
+        color_space: videoStream?.color_space,
+        color_transfer: videoStream?.color_transfer,
+        color_primaries: videoStream?.color_primaries,
       });
     });
+  });
+};
+
+/**
+ * Analisa o vídeo para decidir a estratégia de encoding
+ * @param {string} videoPath - Caminho do vídeo
+ * @returns {Promise<object>} - Metadados enriquecidos para decisão
+ */
+export const analyzeVideo = async (videoPath) => {
+  return await getVideoMetadata(videoPath);
+};
+
+/**
+ * Gera uma versão de streaming de alta qualidade (Streaming High)
+ * Mantém resolução original, mas normaliza bitrate e cor
+ * @param {string} videoPath - Caminho local do vídeo original
+ * @param {string} outputDir - Diretório de saída
+ * @param {string} filename - Nome do arquivo de saída
+ * @param {number} targetBitrate - Bitrate alvo em kbps (ex: 15000 para 15Mbps)
+ * @returns {Promise<string>} - Caminho local do arquivo gerado
+ */
+export const generateStreamingHigh = (videoPath, outputDir, filename, targetBitrate) => {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    const outputPath = path.join(outputDir, filename);
+
+    ffmpeg(videoPath)
+      .outputOptions([
+        "-c:v libx264", // Codec H.264
+        "-preset slow", // Preset slow para melhor compressão/qualidade
+        "-profile:v high", // High Profile
+        `-b:v ${targetBitrate}k`, // Bitrate alvo
+        `-maxrate ${targetBitrate}k`, // Cap no bitrate máximo
+        `-bufsize ${targetBitrate * 2}k`, // Buffer size 2x bitrate
+        "-pix_fmt yuv420p", // Garante compatibilidade universal e evita subsampling weirdness
+
+        // Flags de Consistência de Cor (BT.709)
+        "-color_primaries 1", // bt709
+        "-color_trc 1", // bt709
+        "-colorspace 1", // bt709
+
+        // Áudio Audiófilo (AAC 320k)
+        "-c:a aac",
+        "-b:a 320k",
+        "-ac 2",
+        "-ar 48000",
+
+        "-movflags +faststart", // Otimização para streaming
+      ])
+      .output(outputPath)
+      .on("start", (commandLine) => {
+        console.log(`🎬 Gerando Streaming High (${targetBitrate}k):`, commandLine);
+      })
+      .on("progress", (progress) => {
+        if (progress.percent) {
+          console.log(`   High Quality Progress: ${Math.round(progress.percent)}%`);
+        }
+      })
+      .on("end", () => {
+        console.log("✅ Streaming High gerado:", outputPath);
+        resolve(outputPath);
+      })
+      .on("error", (err) => {
+        console.error("❌ Erro no Streaming High:", err.message);
+        reject(err);
+      })
+      .run();
   });
 };
 
@@ -156,34 +228,34 @@ export const generateProxy = (videoPath, outputDir, filename) => {
 
     ffmpeg(videoPath)
       .outputOptions([
-        '-c:v libx264',           // Codec H.264
-        '-preset fast',            // Preset de encoding rápido
-        '-crf 23',                 // Qualidade constante (23 é boa qualidade)
-        '-vf scale=-2:720',        // Escala para 720p mantendo aspect ratio
-        '-b:v 5000k',              // Bitrate de vídeo 5000kbps
-        '-maxrate 5000k',          // Taxa máxima
-        '-bufsize 10000k',         // Buffer size
-        '-c:a aac',                // Codec de áudio AAC
-        '-b:a 192k',               // Bitrate de áudio 192kbps
-        '-ac 2',                   // Stereo
-        '-ar 48000',               // Sample rate 48kHz
-        '-movflags +faststart'     // Otimização para streaming
+        "-c:v libx264", // Codec H.264
+        "-preset fast", // Preset de encoding rápido
+        "-crf 23", // Qualidade constante (23 é boa qualidade)
+        "-vf scale=-2:720", // Escala para 720p mantendo aspect ratio
+        "-b:v 5000k", // Bitrate de vídeo 5000kbps
+        "-maxrate 5000k", // Taxa máxima
+        "-bufsize 10000k", // Buffer size
+        "-c:a aac", // Codec de áudio AAC
+        "-b:a 192k", // Bitrate de áudio 192kbps
+        "-ac 2", // Stereo
+        "-ar 48000", // Sample rate 48kHz
+        "-movflags +faststart", // Otimização para streaming
       ])
       .output(outputPath)
-      .on('start', (commandLine) => {
-        console.log('🎬 Gerando proxy 720p:', commandLine);
+      .on("start", (commandLine) => {
+        console.log("🎬 Gerando proxy 720p:", commandLine);
       })
-      .on('progress', (progress) => {
+      .on("progress", (progress) => {
         if (progress.percent) {
           console.log(`   Progresso: ${Math.round(progress.percent)}%`);
         }
       })
-      .on('end', () => {
-        console.log('✅ Proxy gerado com sucesso:', outputPath);
+      .on("end", () => {
+        console.log("✅ Proxy gerado com sucesso:", outputPath);
         resolve(outputPath);
       })
-      .on('error', (err) => {
-        console.error('❌ Erro ao gerar proxy:', err.message);
+      .on("error", (err) => {
+        console.error("❌ Erro ao gerar proxy:", err.message);
         reject(err);
       })
       .run();
@@ -192,13 +264,14 @@ export const generateProxy = (videoPath, outputDir, filename) => {
 
 const formatVttTimestamp = (seconds) => {
   const safeSeconds = Number(seconds);
-  const totalMs = Number.isFinite(safeSeconds) && safeSeconds > 0 ? Math.round(safeSeconds * 1000) : 0;
+  const totalMs =
+    Number.isFinite(safeSeconds) && safeSeconds > 0 ? Math.round(safeSeconds * 1000) : 0;
   const ms = totalMs % 1000;
   const totalSeconds = Math.floor(totalMs / 1000);
   const hrs = Math.floor(totalSeconds / 3600);
   const mins = Math.floor((totalSeconds % 3600) / 60);
   const secs = totalSeconds % 60;
-  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+  return `${String(hrs).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
 };
 
 /**
@@ -210,14 +283,7 @@ const formatVttTimestamp = (seconds) => {
  * @returns {Promise<object>} - Dados da sprite gerada
  */
 export const generateSpriteSheet = async (videoPath, outputDir, filename, options = {}) => {
-  const {
-    intervalSeconds = 5,
-    thumbWidth = 160,
-    columns = 10,
-    duration,
-    width,
-    height
-  } = options;
+  const { intervalSeconds = 5, thumbWidth = 160, columns = 10, duration, width, height } = options;
 
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -228,9 +294,7 @@ export const generateSpriteSheet = async (videoPath, outputDir, filename, option
   const safeColumns = Math.max(1, columns);
   const rows = Math.max(1, Math.ceil(totalFrames / safeColumns));
 
-  const aspectRatio = Number.isFinite(width) && Number.isFinite(height)
-    ? height / width
-    : 9 / 16;
+  const aspectRatio = Number.isFinite(width) && Number.isFinite(height) ? height / width : 9 / 16;
   const thumbHeight = Math.max(1, Math.round(thumbWidth * aspectRatio));
 
   const outputPath = path.join(outputDir, filename);
@@ -238,13 +302,9 @@ export const generateSpriteSheet = async (videoPath, outputDir, filename, option
 
   return new Promise((resolve, reject) => {
     ffmpeg(videoPath)
-      .outputOptions([
-        '-vf', filter,
-        '-frames:v', '1',
-        '-q:v', '2'
-      ])
+      .outputOptions(["-vf", filter, "-frames:v", "1", "-q:v", "2"])
       .output(outputPath)
-      .on('end', () => {
+      .on("end", () => {
         resolve({
           spritePath: outputPath,
           duration: safeDuration,
@@ -253,11 +313,11 @@ export const generateSpriteSheet = async (videoPath, outputDir, filename, option
           rows,
           thumbWidth,
           thumbHeight,
-          totalFrames
+          totalFrames,
         });
       })
-      .on('error', (err) => {
-        console.error('Erro ao gerar sprite sheet:', err);
+      .on("error", (err) => {
+        console.error("Erro ao gerar sprite sheet:", err);
         reject(err);
       })
       .run();
@@ -278,7 +338,7 @@ export const generateSpriteVtt = (options) => {
     intervalSeconds,
     columns,
     thumbWidth,
-    thumbHeight
+    thumbHeight,
   } = options;
 
   if (!fs.existsSync(outputDir)) {
@@ -287,7 +347,7 @@ export const generateSpriteVtt = (options) => {
 
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : intervalSeconds;
   const totalFrames = Math.max(1, Math.ceil(safeDuration / intervalSeconds));
-  const lines = ['WEBVTT', ''];
+  const lines = ["WEBVTT", ""];
 
   for (let index = 0; index < totalFrames; index += 1) {
     const start = index * intervalSeconds;
@@ -299,11 +359,11 @@ export const generateSpriteVtt = (options) => {
     lines.push(
       `${formatVttTimestamp(start)} --> ${formatVttTimestamp(end)}`,
       `${spriteUrl}#xywh=${x},${y},${thumbWidth},${thumbHeight}`,
-      ''
+      ""
     );
   }
 
   const outputPath = path.join(outputDir, filename);
-  fs.writeFileSync(outputPath, lines.join('\n'), 'utf8');
+  fs.writeFileSync(outputPath, lines.join("\n"), "utf8");
   return outputPath;
 };

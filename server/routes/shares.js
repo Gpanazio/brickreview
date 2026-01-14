@@ -312,7 +312,7 @@ router.get("/:token/video/:videoId/stream", async (req, res) => {
     }
 
     const resStream = await query(
-      "SELECT r2_url, proxy_url, mime_type FROM brickreview_videos WHERE id = $1",
+      "SELECT r2_url, proxy_url, streaming_high_url, mime_type FROM brickreview_videos WHERE id = $1",
       [videoIdInt]
     );
 
@@ -324,10 +324,10 @@ router.get("/:token/video/:videoId/stream", async (req, res) => {
 
     let url, isOriginal;
     if (quality === "original") {
-      url = videoData.r2_url;
+      url = videoData.streaming_high_url || videoData.r2_url;
       isOriginal = true;
     } else {
-      url = videoData.proxy_url || videoData.r2_url;
+      url = videoData.proxy_url || videoData.streaming_high_url || videoData.r2_url;
       isOriginal = !videoData.proxy_url;
     }
 

@@ -1,22 +1,16 @@
 import express from "express";
 import multer from "multer";
-import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { query } from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { requireProjectAccess, requireProjectAccessFromVideo } from "../utils/permissions.js";
 import r2Client from "../utils/r2.js";
-import {
-  generateThumbnail,
-  getVideoMetadata,
-  generateProxy,
-  generateSpriteSheet,
-  generateSpriteVtt,
-} from "../utils/video.js";
 import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js";
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
+import { addVideoJob } from "../queue/index.js";
 
 const router = express.Router();
 
@@ -38,21 +32,18 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 2 * 1024 * 1024 * 1024, // 2GB
+    fileSize: 100 * 1024 * 1024 * 1024, // 100GB (Big files supported now)
   },
 });
 
 /**
  * @route POST /api/videos/upload
- * @desc Upload a video to R2 and save metadata
+ * @desc Async Upload: Uploads original to R2 and queues processing
  */
 router.post("/upload", authenticateToken, upload.single("video"), async (req, res) => {
-  res.setTimeout(600000, () => {
-    console.error("Upload timeout");
-    if (!res.headersSent) {
-      res.status(504).json({ error: "Tempo limite de upload excedido" });
-    }
-  });
+  // Increase timeout for large file upload to R2
+  res.setTimeout(3600000); // 1 hour
+
   const { project_id, title, description, folder_id } = req.body;
   const file = req.file;
 
@@ -87,160 +78,12 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
     return res.status(400).json({ error: "folder_id inválido" });
   }
 
-  if (folderId) {
-    const folderCheck = await query(
-      "SELECT 1 FROM brickreview_folders WHERE id = $1 AND project_id = $2",
-      [folderId, projectId]
-    );
-    if (folderCheck.rows.length === 0) {
-      return res.status(400).json({ error: "folder_id não pertence ao projeto" });
-    }
-  }
-
-  const thumbDir = "thumbnails/";
-  const thumbFilename = `thumb-${uuidv4()}.jpg`;
-  const proxyDir = "temp-uploads/proxies/";
-  const proxyFilename = `proxy-720p-${uuidv4()}.mp4`;
-  const spriteDir = "temp-uploads/sprites/";
-  const spriteFilename = `sprite-${uuidv4()}.jpg`;
-  const spriteVttFilename = `sprite-${uuidv4()}.vtt`;
-  let thumbPath = "";
-  let thumbKey = null;
-  let thumbUrl = null;
-  let proxyPath = "";
-  let proxyKey = null;
-  let proxyUrl = null;
-  let spritePath = "";
-  let spriteKey = null;
-  let spriteUrl = null;
-  let spriteVttPath = "";
-  let spriteVttKey = null;
-  let spriteVttUrl = null;
-  let metadata = {
-    duration: null,
-    fps: 30,
-    width: null,
-    height: null,
-  };
-
   try {
-    // 1. Obter metadados
-    try {
-      console.log("📊 Obtendo metadados do vídeo:", file.path);
-      metadata = await getVideoMetadata(file.path);
-      console.log("✅ Metadados obtidos:", metadata);
-    } catch (metadataError) {
-      console.error("❌ Falha ao obter metadados do vídeo:", metadataError.message);
-      console.error("Stack trace:", metadataError.stack);
-    }
-
-    // 2. Gerar thumbnail
-    try {
-      console.log("🖼️  Gerando thumbnail...");
-      thumbPath = await generateThumbnail(file.path, thumbDir, thumbFilename);
-      thumbKey = `thumbnails/${project_id}/${thumbFilename}`;
-      console.log("✅ Thumbnail gerada localmente:", thumbPath);
-
-      // Upload Thumbnail para R2 (usando stream)
-      const thumbStream = fs.createReadStream(thumbPath);
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.R2_BUCKET_NAME,
-          Key: thumbKey,
-          Body: thumbStream,
-          ContentType: "image/jpeg",
-        })
-      );
-
-      thumbUrl = `${process.env.R2_PUBLIC_URL}/${thumbKey}`;
-      console.log("✅ Thumbnail enviada para R2:", thumbUrl);
-    } catch (thumbnailError) {
-      console.error("❌ Falha ao gerar thumbnail:", thumbnailError.message);
-      console.error("Stack trace:", thumbnailError.stack);
-    }
-
-    // 3. Gerar proxy 720p @ 5000kbps
-    try {
-      console.log("🎬 Iniciando geração de proxy 720p...");
-      proxyPath = await generateProxy(file.path, proxyDir, proxyFilename);
-      proxyKey = `proxies/${project_id}/${proxyFilename}`;
-
-      // Upload Proxy para R2 (usando stream)
-      const proxyStream = fs.createReadStream(proxyPath);
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.R2_BUCKET_NAME,
-          Key: proxyKey,
-          Body: proxyStream,
-          ContentType: "video/mp4",
-        })
-      );
-
-      proxyUrl = `${process.env.R2_PUBLIC_URL}/${proxyKey}`;
-      console.log("✅ Proxy gerado e enviado para R2");
-    } catch (proxyError) {
-      console.warn(
-        "⚠️  Falha ao gerar proxy, usando vídeo original:",
-        proxyError.message,
-        proxyError.stack
-      );
-    }
-
-    // 4. Gerar sprite sheet para hover scrubbing
-    try {
-      console.log("🧩 Gerando sprite sheet...");
-      const spriteResult = await generateSpriteSheet(file.path, spriteDir, spriteFilename, {
-        duration: metadata.duration,
-        width: metadata.width,
-        height: metadata.height,
-      });
-
-      spritePath = spriteResult.spritePath;
-      spriteKey = `sprites/${project_id}/${spriteFilename}`;
-      spriteUrl = `${process.env.R2_PUBLIC_URL}/${spriteKey}`;
-
-      const spriteStream = fs.createReadStream(spritePath);
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.R2_BUCKET_NAME,
-          Key: spriteKey,
-          Body: spriteStream,
-          ContentType: "image/jpeg",
-        })
-      );
-
-      spriteVttPath = generateSpriteVtt({
-        outputDir: spriteDir,
-        filename: spriteVttFilename,
-        spriteUrl,
-        duration: spriteResult.duration,
-        intervalSeconds: spriteResult.intervalSeconds,
-        columns: spriteResult.columns,
-        thumbWidth: spriteResult.thumbWidth,
-        thumbHeight: spriteResult.thumbHeight,
-      });
-
-      spriteVttKey = `sprites/${project_id}/${spriteVttFilename}`;
-      const vttStream = fs.createReadStream(spriteVttPath);
-      await r2Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.R2_BUCKET_NAME,
-          Key: spriteVttKey,
-          Body: vttStream,
-          ContentType: "text/vtt",
-        })
-      );
-
-      spriteVttUrl = `${process.env.R2_PUBLIC_URL}/${spriteVttKey}`;
-      console.log("✅ Sprite e VTT enviados para R2");
-    } catch (spriteError) {
-      console.warn("⚠️  Falha ao gerar sprite sheet:", spriteError.message, spriteError.stack);
-    }
-
-    // 5. Upload Vídeo original para R2 (usando stream para reduzir uso de memória)
+    // 1. Upload Original Video to R2
     const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
-    const fileStream = fs.createReadStream(file.path);
+    console.log(`⬆️ Uploading original to R2: ${fileKey}`);
 
+    const fileStream = fs.createReadStream(file.path);
     await r2Client.send(
       new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
@@ -249,69 +92,60 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
         ContentType: file.mimetype,
       })
     );
-
     const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
 
-    // 6. Salva no banco
+    // 2. Create Initial DB Record
     const result = await query(
       `
       INSERT INTO brickreview_videos (
-        project_id, title, description, r2_key, r2_url,
-        proxy_r2_key, proxy_url,
-        thumbnail_r2_key, thumbnail_url,
-        sprite_r2_key, sprite_url, sprite_vtt_url,
-        duration, fps, width, height,
-        file_size, mime_type, uploaded_by, folder_id
+        project_id, folder_id, title, description, 
+        r2_key, r2_url, 
+        file_size, mime_type, uploaded_by, 
+        status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
       RETURNING *
     `,
       [
-        project_id,
+        projectId,
+        folderId,
         title,
         description,
         fileKey,
         r2Url,
-        proxyKey,
-        proxyUrl,
-        thumbKey,
-        thumbUrl,
-        spriteKey,
-        spriteUrl,
-        spriteVttUrl,
-        metadata.duration,
-        metadata.fps,
-        metadata.width,
-        metadata.height,
         file.size,
         file.mimetype,
         req.user.id,
-        folderId || null,
       ]
     );
 
-    // Cleanup - Isolated from DB success to prevent 500 on success
-    const cleanup = (p) => {
-      try {
-        if (p && fs.existsSync(p)) fs.unlinkSync(p);
-      } catch (err) {
-        console.warn(`⚠️ Falha ao remover arquivo temporário ${p}:`, err.message);
-      }
-    };
+    const video = result.rows[0];
 
-    cleanup(file.path);
-    cleanup(thumbPath);
-    cleanup(proxyPath);
-    cleanup(spritePath);
-    cleanup(spriteVttPath);
+    // 3. Add to Processing Queue
+    console.log(`📥 Adding job to queue for video ${video.id}`);
+    await addVideoJob(video.id, {
+      videoId: video.id,
+      r2Key: fileKey,
+      projectId: projectId,
+    });
 
-    res.status(201).json(result.rows[0]);
+    // 4. Return Accepted
+    res.status(202).json({
+      message: "Upload recebido. O vídeo está sendo processado.",
+      video: video,
+    });
   } catch (error) {
-    console.error("Erro no upload de vídeo:", error);
-    if (file && fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
+    console.error("Erro no upload assíncrono:", error);
     res.status(500).json({ error: "Erro ao processar upload" });
+  } finally {
+    // Cleanup local temp file
+    if (file && fs.existsSync(file.path)) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch (e) {
+        console.warn("Failed to cleanup temp upload:", e);
+      }
+    }
   }
 });
 
@@ -331,7 +165,7 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
     if (!(await requireProjectAccessFromVideo(req, res, videoId))) return;
 
     const videoResult = await query(
-      "SELECT r2_key, r2_url, proxy_r2_key, proxy_url, mime_type FROM brickreview_videos WHERE id = $1",
+      "SELECT r2_key, r2_url, proxy_r2_key, proxy_url, streaming_high_r2_key, streaming_high_url, mime_type FROM brickreview_videos WHERE id = $1",
       [req.params.id]
     );
 
@@ -339,19 +173,34 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       return res.status(404).json({ error: "Vídeo não encontrado" });
     }
 
-    const { r2_key, r2_url, proxy_r2_key, proxy_url, mime_type } = videoResult.rows[0];
+    const {
+      r2_key,
+      r2_url,
+      proxy_r2_key,
+      proxy_url,
+      streaming_high_r2_key,
+      streaming_high_url,
+      mime_type,
+    } = videoResult.rows[0];
 
-    // Se quality for 'original', tenta usar o original.
+    // Se quality for 'original', tenta usar Streaming High se existir, senão Original.
     // Senão (ou se original falhar), tenta o proxy.
     let streamKey, streamUrl, isOriginal;
 
     if (quality === "original") {
-      streamKey = r2_key;
-      streamUrl = r2_url;
+      // Prioriza Streaming High se existir (pois é otimizado para web mas alta qualidade)
+      // Se não, usa o original
+      if (streaming_high_url) {
+        streamKey = streaming_high_r2_key;
+        streamUrl = streaming_high_url;
+      } else {
+        streamKey = r2_key;
+        streamUrl = r2_url;
+      }
       isOriginal = true;
     } else {
-      streamKey = proxy_r2_key || r2_key;
-      streamUrl = proxy_url || r2_url;
+      streamKey = proxy_r2_key || streaming_high_r2_key || r2_key;
+      streamUrl = proxy_url || streaming_high_url || r2_url;
       isOriginal = !proxy_url;
     }
 

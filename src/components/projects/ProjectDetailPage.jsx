@@ -116,6 +116,21 @@ export function ProjectDetailPage() {
     fetchFiles();
   }, [id]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
+  // Polling para atualizar status de vídeos em processamento
+  useEffect(() => {
+    const hasProcessing = project?.videos?.some(
+      (v) => v.status === "pending" || v.status === "processing"
+    );
+
+    if (hasProcessing) {
+      const interval = setInterval(() => {
+        fetchProjectDetails();
+        // Opcional: fetchFolders() se contagem de itens depender disso, mas videos estão em project
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [project]);
+
   const fetchProjectDetails = async () => {
     try {
       const response = await fetch(`/api/projects/${id}`, {
@@ -1472,6 +1487,8 @@ const VideoCard = memo(
     const [isDropTarget, setIsDropTarget] = useState(false);
     const [dragCounter, setDragCounter] = useState(0);
     const totalVersions = versions.length + 1; // +1 para incluir a versão original
+    const isProcessing = video.status === "pending" || video.status === "processing";
+    const isFailed = video.status === "failed";
 
     const getStatusColor = (status) => {
       switch (status) {
@@ -1600,6 +1617,27 @@ const VideoCard = memo(
                 >
                   Solte para criar nova versão
                 </motion.div>
+              )}
+
+              {/* Overlay de Processamento */}
+              {(isProcessing || isFailed) && (
+                <div className="absolute inset-0 z-20 bg-zinc-950/80 flex flex-col items-center justify-center backdrop-blur-sm border-b border-zinc-800">
+                  {isProcessing ? (
+                    <>
+                      <div className="w-12 h-12 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4" />
+                      <p className="brick-tech text-[10px] text-red-500 uppercase tracking-widest animate-pulse">
+                        Processando...
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-8 h-8 text-red-600 mb-2" />
+                      <p className="brick-tech text-[10px] text-red-500 uppercase tracking-widest">
+                        Falha no processamento
+                      </p>
+                    </>
+                  )}
+                </div>
               )}
 
               <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0 pointer-events-none">

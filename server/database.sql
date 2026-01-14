@@ -66,6 +66,8 @@ CREATE TABLE IF NOT EXISTS brickreview_videos (
   description TEXT,
   r2_key VARCHAR(500) NOT NULL, -- Chave do objeto no R2
   r2_url TEXT NOT NULL, -- URL pública do vídeo
+  streaming_high_r2_key VARCHAR(500), -- Versão de alta qualidade (15-35Mbps)
+  streaming_high_url TEXT,
   proxy_r2_key VARCHAR(500), -- Chave do proxy 720p no R2
   proxy_url TEXT, -- URL pública do proxy
   thumbnail_r2_key VARCHAR(500),
