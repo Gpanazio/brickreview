@@ -67,6 +67,7 @@ export function ShareViewPage() {
       setLoading(false);
     }
   };
+
   }, [token]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const handleDownloadVideo = async (videoId, type) => {

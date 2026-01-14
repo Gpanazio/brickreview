@@ -562,18 +562,21 @@ export function ProjectDetailPage() {
         const errorData = await response.json();
         toast.error(errorData.error || "Erro ao mover vídeo", { id: moveToast });
       }
-      } catch (_error) {
-        console.error("Erro ao mover vídeo:", _error);
-        toast.error("Erro ao mover vídeo", { id: moveToast });
-      }
-    };
+    } catch (_error) {
+      console.error("Erro ao mover vídeo:", _error);
+      toast.error("Erro ao mover vídeo", { id: moveToast });
+    }
+  };
 
-    useEffect(() => {
-      fetchProjectDetails(); // eslint-disable-next-line react-hooks/exhaustive-deps
-      fetchFolders();
-      fetchFiles();
-    }, [id]); // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    fetchProjectDetails(); // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchFolders();
+    fetchFiles();
+  }, [id]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Helper para formatar tamanho de arquivo
+  const formatFileSize = (bytes) => {
     const videoVersions =
       project?.videos?.filter((v) => v.parent_video_id === selectedVideo.id) || [];
 
@@ -587,7 +590,7 @@ export function ProjectDetailPage() {
         }}
       />
     );
-  }
+  };
 
   const currentLevelFolders = folders.filter(
     (f) =>
