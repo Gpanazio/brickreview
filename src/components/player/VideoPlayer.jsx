@@ -145,7 +145,7 @@ export function VideoPlayer({
     try {
       const ids = localStorage.getItem('brickreview_guest_comment_ids');
       return ids ? JSON.parse(ids) : [];
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   };
@@ -642,6 +642,7 @@ export function VideoPlayer({
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (showHistory) fetchHistory();
   }, [showHistory]);
@@ -674,6 +675,7 @@ export function VideoPlayer({
   };
 
   // Carrega comentários quando a versão muda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (currentVideo?.duration) {
       setDuration(currentVideo.duration);
@@ -703,6 +705,7 @@ export function VideoPlayer({
   }, [currentVideoId, token, isGuest, shareToken]);
 
   // Carrega desenhos quando a versão muda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const fetchDrawings = async () => {
       try {
@@ -846,13 +849,13 @@ export function VideoPlayer({
           const data = await response.json();
           if (data.url) {
             // Se mudou o vídeo ou qualidade, salvamos o tempo atual
-            const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
+            // const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
             setVideoUrl(data.url);
 
             // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
           }
         }
-      } catch (error) {
+      } catch (_) {
         // Erro silencioso em produção
       } finally {
         setIsLoadingVideo(false);
@@ -1673,7 +1676,7 @@ export function VideoPlayer({
                             if (target?.closest?.('button, a, input, textarea, form, label')) return;
 
                             const ts = parseTimestampSeconds(comment.timestamp);
-                            const endTs = parseTimestampSeconds(comment.timestamp_end);
+                            // const endTs = parseTimestampSeconds(comment.timestamp_end); // Reserved for future use
 
                             if (ts !== null) {
                               seekTo(ts);

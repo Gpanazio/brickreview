@@ -1,0 +1,18 @@
+﻿
+> brickreview@0.1.0 lint
+> eslint .
+
+
+C:\brickweb\brickreview\src\components\player\VideoPlayer.jsx
+   148:14  error    'e' is defined but never used. Allowed unused caught errors must match /^_/u                                                                                                                                                                                                                                         no-unused-vars
+   647:6   warning  React Hook useEffect has a missing dependency: 'fetchHistory'. Either include it or remove the dependency array                                                                                                                                                                                                      react-hooks/exhaustive-deps
+   703:6   warning  React Hook useEffect has missing dependencies: 'compareCommentsByTimestamp', 'currentVideo.duration', and 'sharePassword'. Either include them or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setDuration' needs the current value of 'currentVideo.duration'  react-hooks/exhaustive-deps
+   736:6   warning  React Hook useEffect has a missing dependency: 'sharePassword'. Either include it or remove the dependency array                                                                                                                                                                                                     react-hooks/exhaustive-deps
+   849:19  error    'savedTime' is assigned a value but never used. Allowed unused vars must match /(^[A-Z_]|^motion$)/u                                                                                                                                                                                                                 no-unused-vars
+   855:16  error    'error' is defined but never used. Allowed unused caught errors must match /^_/u                                                                                                                                                                                                                                     no-unused-vars
+   866:6   warning  React Hook useEffect has a missing dependency: 'currentTime'. Either include it or remove the dependency array                                                                                                                                                                                                       react-hooks/exhaustive-deps
+   961:6   warning  React Hook useEffect has a missing dependency: 'currentTime'. Either include it or remove the dependency array                                                                                                                                                                                                       react-hooks/exhaustive-deps
+  1676:35  error    'endTs' is assigned a value but never used. Allowed unused vars must match /(^[A-Z_]|^motion$)/u                                                                                                                                                                                                                     no-unused-vars
+
+Ô£û 9 problems (4 errors, 5 warnings)
+
