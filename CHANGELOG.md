@@ -20,6 +20,12 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
   - Adicionado `style-src https:` para fontes externas
 - **FIXED**: Conflito de merge em `server/database.sql` (coluna `timestamp_end`)
 
+#### UX / UI
+- **NEW**: Animação de loading "Brutalist" ao trocar versões
+- **NEW**: Overlay de Pause com identidade visual do projeto
+- **NEW**: Marcadores de timeline interativos (clique para focar comentário)
+- **NEW**: Highlight visual no comentário ao clicar no marcador da timeline
+
 #### Reverts
 - `VideoPlayer.jsx` revertido para estado estável anterior
   - Mantida funcionalidade completa de player, comentários e desenhos

@@ -124,7 +124,17 @@ export function VideoPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [editingComment, setEditingComment] = useState(null);
 
-  const [, setIsLoadingVideo] = useState(false) // Loading ao trocar versão
+  const [isLoadingVideo, setIsLoadingVideo] = useState(false); // Loading ao trocar versão
+  const [highlightedCommentId, setHighlightedCommentId] = useState(null);
+  const commentRefs = useRef({});
+
+  useEffect(() => {
+    if (highlightedCommentId && commentRefs.current[highlightedCommentId]) {
+      commentRefs.current[highlightedCommentId].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const timer = setTimeout(() => setHighlightedCommentId(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedCommentId]);
 
   const playerRef = useRef(null);
   const comparisonControllerRef = useRef(null);
@@ -1357,8 +1367,28 @@ export function VideoPlayer({
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3 text-zinc-400">
-                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                  <span className="text-xs font-bold uppercase tracking-[0.2em]">A carregar stream...</span>
+                  {/* Basic fallback */}
+                </div>
+              )}
+
+              {/* Loading Overlay (Priority Z-50) */}
+              {isLoadingVideo && (
+                <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center">
+                  <div className="flex gap-1 h-8">
+                    <div className="w-2 h-full bg-red-600 animate-[pulse_0.6s_ease-in-out_infinite]" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-full bg-red-600 animate-[pulse_0.6s_ease-in-out_infinite]" style={{ animationDelay: '200ms' }} />
+                    <div className="w-2 h-full bg-red-600 animate-[pulse_0.6s_ease-in-out_infinite]" style={{ animationDelay: '400ms' }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Pause Overlay (Z-40) */}
+              {!isPlaying && !isLoadingVideo && videoSource && !isComparing && !isDrawing && (
+                <div className="absolute inset-0 z-40 bg-black/20 flex items-center justify-center pointer-events-none fade-in duration-300">
+                  <div className="bg-black/90 backdrop-blur border border-zinc-800 p-6 flex flex-col items-center shadow-2xl">
+                    <Pause className="w-8 h-8 text-white mb-2" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Pausado</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -1387,15 +1417,24 @@ export function VideoPlayer({
               {comments.map((comment) => {
                 const ts = parseTimestampSeconds(comment.timestamp);
                 if (ts === null || duration === 0) return null;
-                // Only markers for top-level comments or unique timestamps to avoid too many marks
                 const left = Math.min(100, (ts / duration) * 100);
 
                 return (
-                  <div
+                  <button
                     key={`marker-${comment.id}`}
-                    className="absolute top-0 w-[2px] h-full bg-white/40 group-hover:bg-white/60 z-10 transition-colors"
-                    style={{ left: `${left}%` }}
-                  />
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      seekTo(ts);
+                      setHighlightedCommentId(comment.id);
+                    }}
+                    className="absolute top-0 w-1 h-full bg-red-500/80 hover:bg-red-600 hover:w-1.5 z-20 transition-all cursor-pointer group/marker"
+                    style={{ left: `${left}%`, transform: 'translateX(-50%)' }}
+                  >
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-black border border-red-600 px-2 py-1 text-[10px] uppercase font-bold text-white opacity-0 group-hover/marker:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      {comment.username}
+                    </div>
+                  </button>
                 );
               })}
 
@@ -1666,9 +1705,12 @@ export function VideoPlayer({
                       <div className="space-y-2">
                         {/* Comentário Principal */}
                         <div
-                          className={`group glass-card p-3 border-l-2 transition-all cursor-pointer ${isGeneral
-                            ? 'border-l-red-600 bg-red-600/5 shadow-[inset_0_0_20px_rgba(220,38,38,0.05)]'
-                            : 'border-l-transparent hover:border-l-red-600'
+                          ref={el => commentRefs.current[comment.id] = el}
+                          className={`group glass-card p-3 border-l-2 transition-all cursor-pointer duration-300 ${highlightedCommentId === comment.id
+                              ? 'border-l-red-600 bg-red-600/10 shadow-[inset_0_0_20px_rgba(220,38,38,0.1)]'
+                              : isGeneral
+                                ? 'border-l-red-600 bg-red-600/5 shadow-[inset_0_0_20px_rgba(220,38,38,0.05)]'
+                                : 'border-l-transparent hover:border-l-red-600'
                             }`}
                           onClick={(e) => {
                             const target = e.target;
