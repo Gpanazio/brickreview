@@ -1,7 +1,10 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Iniciando BrickReview no Railway..."
+# Detecta o serviço (API por padrão)
+SERVICE_NAME="${RAILWAY_SERVICE_NAME:-api}"
+
+echo "🚀 Iniciando BrickReview ($SERVICE_NAME)..."
 
 # Find FFmpeg in the Nix store if not already set
 if [ -z "$FFMPEG_PATH" ]; then
@@ -99,6 +102,19 @@ if [ -z "$FFPROBE_PATH" ]; then
   fi
 fi
 
-# Start the Node.js server
-echo "🎬 Iniciando servidor Node.js..."
-exec node server/index.js
+# Inicialização baseada no serviço
+case "$SERVICE_NAME" in
+  "worker")
+    echo "🛠️  Iniciando Worker Process..."
+    exec node server/queue/worker.js
+    ;;
+  "api"|"")
+    echo "🌐 Iniciando API Server..."
+    exec node server/index.js
+    ;;
+  *)
+    echo "⚠️  Serviço desconhecido: $SERVICE_NAME"
+    echo "🌐 Iniciando API Server (fallback)..."
+    exec node server/index.js
+    ;;
+esac

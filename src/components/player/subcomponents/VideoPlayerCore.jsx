@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVideo } from "../../../context/VideoContext";
 import { Play, Pause } from "lucide-react";
+import { toast } from "sonner";
 
 export function VideoPlayerCore() {
   const {
@@ -50,6 +51,14 @@ export function VideoPlayerCore() {
     const handleLoadedData = () => setIsLoading(false);
     const handleWaiting = () => setIsLoading(true);
     const handleCanPlay = () => setIsLoading(false);
+    const handleError = () => {
+      const error = elementRef.current?.error;
+      console.error("[VideoPlayerCore] Erro de reprodução:", error);
+      setIsLoading(false);
+      toast.error("Erro ao reproduzir vídeo", {
+        description: "O arquivo pode estar indisponível ou em formato incompatível.",
+      });
+    };
 
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
@@ -60,6 +69,7 @@ export function VideoPlayerCore() {
     video.addEventListener("loadeddata", handleLoadedData);
     video.addEventListener("waiting", handleWaiting);
     video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("error", handleError);
 
     // Expose video element to Context (compatible with existing playerRef usage)
     playerRef.current = {
@@ -68,15 +78,33 @@ export function VideoPlayerCore() {
         play: () => video.play(),
         pause: () => video.pause(),
         togglePlay: () => (video.paused ? video.play() : video.pause()),
-        get currentTime() { return video.currentTime; },
-        set currentTime(val) { video.currentTime = val; },
-        get duration() { return video.duration; },
-        get volume() { return video.volume; },
-        set volume(val) { video.volume = val; },
-        get muted() { return video.muted; },
-        set muted(val) { video.muted = val; },
-        get speed() { return video.playbackRate; },
-        set speed(val) { video.playbackRate = val; },
+        get currentTime() {
+          return video.currentTime;
+        },
+        set currentTime(val) {
+          video.currentTime = val;
+        },
+        get duration() {
+          return video.duration;
+        },
+        get volume() {
+          return video.volume;
+        },
+        set volume(val) {
+          video.volume = val;
+        },
+        get muted() {
+          return video.muted;
+        },
+        set muted(val) {
+          video.muted = val;
+        },
+        get speed() {
+          return video.playbackRate;
+        },
+        set speed(val) {
+          video.playbackRate = val;
+        },
         fullscreen: {
           enter: () => video.requestFullscreen?.(),
           exit: () => document.exitFullscreen?.(),
@@ -95,6 +123,7 @@ export function VideoPlayerCore() {
       video.removeEventListener("loadeddata", handleLoadedData);
       video.removeEventListener("waiting", handleWaiting);
       video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("error", handleError);
       playerRef.current = null;
     };
   }, [
@@ -151,8 +180,9 @@ export function VideoPlayerCore() {
       {!isLoading && (
         <button
           onClick={handleTogglePlay}
-          className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer bg-transparent transition-opacity duration-200 ${isPlaying ? "opacity-0 group-hover/player:opacity-100" : "opacity-100"
-            }`}
+          className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer bg-transparent transition-opacity duration-200 ${
+            isPlaying ? "opacity-0 group-hover/player:opacity-100" : "opacity-100"
+          }`}
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           <div className="w-20 h-20 rounded-full bg-black/60 flex items-center justify-center transition-all duration-300 hover:bg-black/80 hover:scale-110 shadow-2xl backdrop-blur-sm">
@@ -167,4 +197,3 @@ export function VideoPlayerCore() {
     </div>
   );
 }
-

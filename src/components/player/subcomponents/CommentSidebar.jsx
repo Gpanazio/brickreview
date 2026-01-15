@@ -308,8 +308,6 @@ const CommentItemInline = ({
   );
 };
 
-
-
 export function CommentSidebar({ showHistory, setShowHistory, history }) {
   const {
     currentVideo,
@@ -467,8 +465,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
         const errorData = await response.json();
         toast.error(errorData.error || "Erro ao adicionar comentário");
       }
-    } catch (error) {
-      console.error("Erro ao adicionar comentário:", error);
+    } catch (_error) {
+      console.error("Erro ao adicionar comentário");
       toast.error("Erro ao adicionar comentário");
     }
   };
@@ -520,8 +518,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
         const errorData = await response.json();
         toast.error(errorData.error || "Erro ao adicionar resposta");
       }
-    } catch (error) {
-      console.error("Erro ao adicionar resposta:", error);
+    } catch (_error) {
+      console.error("Erro ao adicionar resposta");
       toast.error("Erro ao adicionar resposta");
     }
   };
@@ -625,7 +623,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
           ...parent,
           replies: comments
             .filter(
-              (c) => c.parent_comment_id != null && String(c.parent_comment_id) === String(parent.id)
+              (c) =>
+                c.parent_comment_id != null && String(c.parent_comment_id) === String(parent.id)
             )
             .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
         }));
@@ -634,8 +633,6 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       return [];
     }
   }, [comments]);
-
-
 
   return (
     <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none overflow-hidden">
@@ -780,10 +777,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    className={`p-2 rounded-sm transition-colors ${hasTimestamp
-                      ? "text-red-500 bg-red-500/10"
-                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                    className={`p-2 rounded-sm transition-colors ${
+                      hasTimestamp
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                    }`}
                     onClick={() => setHasTimestamp(!hasTimestamp)}
                     title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
                   >
@@ -833,10 +831,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className={`p-2 rounded-sm transition-colors ${attachedFile
-                      ? "text-red-500 bg-red-500/10"
-                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                    className={`p-2 rounded-sm transition-colors ${
+                      attachedFile
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                    }`}
                     title="Anexar arquivo"
                   >
                     <Paperclip className="w-4 h-4" />
@@ -845,10 +844,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   <div className="relative">
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors ${showEmojiPicker
-                        ? "text-yellow-500 bg-yellow-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
+                      className={`p-2 rounded-sm transition-colors ${
+                        showEmojiPicker
+                          ? "text-yellow-500 bg-yellow-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      }`}
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       title="Adicionar emoji"
                     >
@@ -874,10 +874,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
                   <button
                     type="button"
-                    className={`p-2 rounded-sm transition-colors ${isDrawingMode
-                      ? "text-red-500 bg-red-500/10"
-                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
+                    className={`p-2 rounded-sm transition-colors ${
+                      isDrawingMode
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                    } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
                     onClick={() => {
                       if (!isComparing) setIsDrawingMode(!isDrawingMode);
                     }}
@@ -894,10 +895,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                           <button
                             key={color}
                             type="button"
-                            className={`w-6 h-6 rounded-sm border transition-all ${selectedColor === color
-                              ? "border-white scale-110"
-                              : "border-zinc-700 hover:border-zinc-500"
-                              }`}
+                            className={`w-6 h-6 rounded-sm border transition-all ${
+                              selectedColor === color
+                                ? "border-white scale-110"
+                                : "border-zinc-700 hover:border-zinc-500"
+                            }`}
                             style={{ backgroundColor: color }}
                             onClick={() => setSelectedColor(color)}
                             title={`Cor: ${color}`}
