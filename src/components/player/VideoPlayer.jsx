@@ -1506,13 +1506,6 @@ export function VideoPlayer({
                       <div className="absolute inset-0 border-2 border-transparent group-hover:border-t-red-600/50 rounded-full animate-spin-slow"></div>
                     </div>
 
-                    {/* Label Badge */}
-                    <div className="absolute -bottom-10 flex flex-col items-center">
-                      <div className="h-4 w-[1px] bg-gradient-to-b from-white/20 to-transparent mb-2"></div>
-                      <div className="px-4 py-1.5 bg-black/60 border border-white/5 backdrop-blur-md text-[8px] font-black uppercase tracking-[0.4em] text-zinc-300 shadow-2xl">
-                        Ready for Review
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -1520,10 +1513,10 @@ export function VideoPlayer({
           </div>
 
           {/* Barra de Controles Unificada (Frame.io style) */}
-          <div className="bg-[#0a0a0a] border-t border-zinc-800/50 flex flex-col relative z-30">
+          <div className="bg-[#0a0a0a] border-t border-zinc-800/50 flex flex-col relative z-30 overflow-visible">
             {/* Progress Scrubber */}
             <div
-              className="w-full h-2 bg-zinc-900 cursor-pointer relative group"
+              className="w-full h-2 bg-zinc-900 cursor-pointer relative group overflow-visible"
               onMouseMove={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const x = e.clientX - rect.left;
