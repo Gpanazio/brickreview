@@ -1292,13 +1292,6 @@ export function VideoPlayer({
                       <Download className="w-3 h-3 mr-2" />
                       Baixar Original
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleDownload("original")}
-                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest"
-                    >
-                      <Download className="w-3 h-3 mr-2" />
-                      Baixar Original
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
