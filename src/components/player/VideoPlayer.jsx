@@ -11,6 +11,7 @@ const isMobile = () => {
     window.innerWidth < 768
   );
 };
+
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
@@ -328,6 +329,7 @@ export function VideoPlayer({
     return `${shortSide}p`;
   };
 
+  // 1. MOVER PARA FORA DO COMPONENTE (Lógica Original Restaurada)
   const compareCommentsByTimestamp = (a, b) => {
     const aTs = parseTimestampSeconds(a?.timestamp);
     const bTs = parseTimestampSeconds(b?.timestamp);
@@ -703,22 +705,23 @@ export function VideoPlayer({
     }
   };
 
-  const fetchHistory = async () => {
+  // 4. REFATORAÇÃO DO FETCHHISTORY (Hook Dependencies)
+  const fetchHistory = useCallback(async () => {
     try {
       const response = await fetch(`/api/reviews/${currentVideoId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
       setHistory(data);
-    } catch (error) {
-      console.error("Erro ao buscar histórico:", error);
+    } catch (_error) {
+      console.error("Erro ao buscar histórico");
     }
-  };
+  }, [currentVideoId, token]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // 5. USEEFFECT CORRIGIDO
   useEffect(() => {
     if (showHistory) fetchHistory();
-  }, [showHistory]);
+  }, [showHistory, fetchHistory]);
 
   // Função para trocar de versão
   const handleVersionChange = (versionId) => {
@@ -748,7 +751,7 @@ export function VideoPlayer({
   };
 
   // Carrega comentários quando a versão muda
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     if (currentVideo?.duration) {
       setDuration(currentVideo.duration);
@@ -780,7 +783,7 @@ export function VideoPlayer({
   }, [currentVideoId, token, isGuest, shareToken]);
 
   // Carrega desenhos quando a versão muda
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     const fetchDrawings = async () => {
       try {
@@ -914,7 +917,9 @@ export function VideoPlayer({
   useEffect(() => {
     const fetchStreamUrl = async () => {
       try {
-        console.log(`[VideoPlayer] Fetching stream URL for video ${currentVideoId}, quality: ${quality}`);
+        console.log(
+          `[VideoPlayer] Fetching stream URL for video ${currentVideoId}, quality: ${quality}`
+        );
         // Use endpoint público para guests, privado para usuários autenticados
         const endpoint = isGuest
           ? `/api/shares/${shareToken}/video/${currentVideoId}/stream?quality=${quality}`
@@ -931,8 +936,7 @@ export function VideoPlayer({
           const data = await response.json();
           console.log(`[VideoPlayer] Received stream URL:`, data);
           if (data.url) {
-            // Se mudou o vídeo ou qualidade, salvamos o tempo atual
-            // const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
+            // 6. CORREÇÃO DE LINT 3: Variável savedTime (remover)
             setVideoUrl(data.url);
 
             // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
@@ -1206,10 +1210,11 @@ export function VideoPlayer({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${approvalStatus === "approved"
-                        ? "border-green-500/50 text-green-500 bg-green-500/10"
-                        : "border-zinc-700 text-zinc-400 bg-zinc-900"
-                        }`}
+                      className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${
+                        approvalStatus === "approved"
+                          ? "border-green-500/50 text-green-500 bg-green-500/10"
+                          : "border-zinc-700 text-zinc-400 bg-zinc-900"
+                      }`}
                     >
                       {approvalStatus === "approved" ? (
                         <CheckCircle className="w-3 h-3 mr-2" />
@@ -1303,10 +1308,11 @@ export function VideoPlayer({
                     variant="ghost"
                     size="sm"
                     onClick={handleToggleCompare}
-                    className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${isComparing
-                      ? "border-red-600 text-white bg-red-600"
-                      : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
-                      }`}
+                    className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${
+                      isComparing
+                        ? "border-red-600 text-white bg-red-600"
+                        : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
+                    }`}
                   >
                     <Columns2 className="w-3 h-3 mr-2" />
                     Comparar
@@ -1321,8 +1327,8 @@ export function VideoPlayer({
                           className="text-xs font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
                         >
                           <History className="w-3 h-3" />v
-                          {compareOptions.find((opt) => opt.id === compareVersionId)?.version_number ??
-                            "--"}
+                          {compareOptions.find((opt) => opt.id === compareVersionId)
+                            ?.version_number ?? "--"}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
@@ -1330,10 +1336,11 @@ export function VideoPlayer({
                           <DropdownMenuItem
                             key={v.id}
                             onClick={() => handleCompareVersionChange(v.id)}
-                            className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${v.id === compareVersionId
-                              ? "text-red-500 bg-red-500/10"
-                              : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                              }`}
+                            className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                              v.id === compareVersionId
+                                ? "text-red-500 bg-red-500/10"
+                                : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                            }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <span>Versão {v.version_number}</span>
@@ -1364,10 +1371,11 @@ export function VideoPlayer({
                       <DropdownMenuItem
                         key={v.id}
                         onClick={() => handleVersionChange(v.id)}
-                        className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${v.id === currentVideoId
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                          }`}
+                        className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                          v.id === currentVideoId
+                            ? "text-red-500 bg-red-500/10"
+                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <span>Versão {v.version_number}</span>
@@ -1508,7 +1516,6 @@ export function VideoPlayer({
                       {/* Rotating border effect on hover */}
                       <div className="absolute inset-0 border-2 border-transparent group-hover:border-t-red-600/50 rounded-full animate-spin-slow"></div>
                     </div>
-
                   </div>
                 </div>
               )}
@@ -1613,8 +1620,13 @@ export function VideoPlayer({
                     style={{ left: `${left}%` }}
                   >
                     {/* Visual do Marcador */}
-                    <div className={`w-full h-full rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.5)] transform transition-transform group-hover/marker:scale-150 ${isRange ? 'bg-amber-400 border border-amber-200' : 'bg-white border border-zinc-200'
-                      }`} />
+                    <div
+                      className={`w-full h-full rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.5)] transform transition-transform group-hover/marker:scale-150 ${
+                        isRange
+                          ? "bg-amber-400 border border-amber-200"
+                          : "bg-white border border-zinc-200"
+                      }`}
+                    />
 
                     {/* Linha conectora vertical (opcional, estilo DaVinci Resolve) */}
                     <div className="absolute top-full left-1/2 w-px h-2 bg-white/50 -translate-x-1/2 group-hover/marker:h-4 transition-all" />
@@ -1622,7 +1634,9 @@ export function VideoPlayer({
                     {/* Tooltip */}
                     <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 opacity-0 group-hover/marker:opacity-100 transition-opacity pointer-events-none z-50">
                       <div className="bg-zinc-900 border border-zinc-700 px-2 py-1.5 rounded-sm shadow-xl flex items-center gap-2 whitespace-nowrap">
-                        <div className={`w-1.5 h-1.5 rounded-full ${isRange ? 'bg-amber-400' : 'bg-red-500'}`} />
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full ${isRange ? "bg-amber-400" : "bg-red-500"}`}
+                        />
                         <span className="text-[10px] uppercase font-bold text-zinc-100 max-w-[150px] truncate">
                           {comment.username}
                         </span>
@@ -1694,10 +1708,11 @@ export function VideoPlayer({
                             playerRef.current.plyr.speed = speed;
                           }
                         }}
-                        className={`text-xs justify-center cursor-pointer font-bold ${playbackSpeed === speed
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                          }`}
+                        className={`text-xs justify-center cursor-pointer font-bold ${
+                          playbackSpeed === speed
+                            ? "text-red-500 bg-red-500/10"
+                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                       >
                         {speed}x
                       </DropdownMenuItem>
@@ -1713,8 +1728,9 @@ export function VideoPlayer({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`text-xs font-bold uppercase tracking-widest h-8 px-2 rounded-none ${quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
-                        }`}
+                      className={`text-xs font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
+                        quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
+                      }`}
                     >
                       {quality === "original" ? getResolutionLabel(currentVideo) : "720p"}
                     </Button>
@@ -1725,19 +1741,21 @@ export function VideoPlayer({
                   >
                     <DropdownMenuItem
                       onClick={() => setQuality("proxy")}
-                      className={`text-xs cursor-pointer font-bold ${quality === "proxy"
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                        }`}
+                      className={`text-xs cursor-pointer font-bold ${
+                        quality === "proxy"
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                      }`}
                     >
                       720p
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setQuality("original")}
-                      className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${quality === "original"
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                        }`}
+                      className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                        quality === "original"
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                      }`}
                     >
                       {getResolutionLabel(currentVideo)}
                     </DropdownMenuItem>
@@ -1830,7 +1848,6 @@ export function VideoPlayer({
             </div>
           </div>
         </div>
-
 
         {/* Barra Lateral de Comentarios / Historico - Usando componente refatorado */}
         <CommentSidebar

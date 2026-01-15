@@ -12,7 +12,9 @@ import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import { processVideo } from "../../scripts/process-video-metadata.js";
 import { ensureVideoAssets } from "../jobs/ensureVideoAssets.js";
-// Queue removed - Redis not configured
+import { addVideoJobSafe } from "../queue/index.js";
+import { FEATURES } from "../config/features.js";
+import { logger } from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -123,17 +125,40 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
 
     const video = result.rows[0];
 
-    // 3. Return success and start processing in background
+    // 3. Return success first
     res.status(201).json({
       message: "Upload concluído com sucesso.",
       video: video,
     });
 
-    // 4. Process video in background (don't await)
-    processVideo(video.id).catch(err => {
-      console.error(`Error processing video ${video.id} in background:`, err);
-    });
+    // 4. Processamento: Fila (Assíncrono) ou Fallback Síncrono
+    const processData = { r2Key: fileKey, projectId: projectId };
 
+    // Função de fallback para não duplicar código
+    const runSyncFallback = (reason) => {
+      logger.warn("VIDEO_PROCESS", `Executando fallback síncrono (${reason})`, {
+        videoId: video.id,
+      });
+      processVideo(video.id).catch((err) => {
+        logger.error("VIDEO_PROCESS", `Erro fatal no processamento síncrono`, {
+          videoId: video.id,
+          error: err.message,
+        });
+        // Aqui poderíamos atualizar o status do vídeo para 'failed' no banco
+      });
+    };
+
+    // Tenta usar a fila se a flag estiver ativa e o Redis configurado
+    if (FEATURES.USE_VIDEO_QUEUE && process.env.REDIS_URL) {
+      addVideoJobSafe(video.id, processData).catch((err) => {
+        logger.error("VIDEO_PROCESS", "Falha ao adicionar à fila, ativando fallback", {
+          error: err.message,
+        });
+        runSyncFallback("queue_error");
+      });
+    } else {
+      runSyncFallback("feature_flag_disabled_or_no_redis");
+    }
   } catch (error) {
     console.error("Erro no upload assíncrono:", error);
     res.status(500).json({ error: "Erro ao processar upload" });
@@ -382,7 +407,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
     // Background: Verificar e gerar assets faltantes (sprites/thumbnail)
     if (video.status === "ready" && (!video.sprite_vtt_url || !video.thumbnail_url)) {
       console.log(`[VideoGet] Vídeo ${videoId} sem assets, disparando geração em background...`);
-      ensureVideoAssets(videoId).catch(err => {
+      ensureVideoAssets(videoId).catch((err) => {
         console.error(`[VideoGet] Erro ao gerar assets para vídeo ${videoId}:`, err);
       });
     }
