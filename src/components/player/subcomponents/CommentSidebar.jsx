@@ -323,6 +323,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
     shareToken,
     sharePassword,
     isPublic,
+    activeRange,
+    setActiveRange,
   } = useVideo();
 
   const { token } = useAuth();
@@ -456,6 +458,9 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
         setNewComment("");
         setAttachedFile(null);
         setIsDrawingMode(false);
+        setIsRangeMode(false);
+        setRangeEndTime(null);
+        setActiveRange(null);
         toast.success("Comentário adicionado!");
       } else {
         const errorData = await response.json();
@@ -535,15 +540,18 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       body: JSON.stringify({ content: newContent }),
     });
 
-    if (response.ok) {
-      const updatedComment = await response.json();
-      setComments((prev) => prev.map((c) => (c.id === commentId ? updatedComment : c)));
-      setEditingComment(null);
-      toast.success("Comentário atualizado!");
-    } else {
-      const data = await response.json().catch(() => ({}));
-      toast.error(data.error || "Erro ao atualizar comentário");
-    }
+      if (response.ok) {
+        const comment = await response.json();
+        if (isGuest) addGuestCommentId(comment.id);
+        setComments((prev) => [...prev, comment].sort(compareCommentsByTimestamp));
+        setNewComment("");
+        setAttachedFile(null);
+        setIsDrawingMode(false);
+        setIsRangeMode(false);
+        setRangeEndTime(null);
+        setActiveRange(null);
+        toast.success("Comentário adicionado!");
+      }
   };
 
   const handleDeleteComment = (commentId) => {
@@ -769,8 +777,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 disabled={isGuest && !canComment}
               />
 
-              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between">
-                <div className="flex items-center gap-1">
+              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
                     className={`p-2 rounded-sm transition-colors cursor-pointer ${
@@ -790,10 +798,12 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                       className={`p-2 rounded-sm transition-colors flex items-center gap-1 cursor-pointer ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
                       onClick={() => {
                         if (!isRangeMode) {
-                          // Ao ativar o range, define o fim como +5 segundos do tempo atual como default
-                          setRangeEndTime(currentTime + 5);
+                          const end = currentTime + 5;
+                          setRangeEndTime(end);
+                          setActiveRange({ start: currentTime, end });
                         } else {
                           setRangeEndTime(null);
+                          setActiveRange(null);
                         }
                         setIsRangeMode(!isRangeMode);
                       }}
@@ -805,16 +815,35 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   )}
 
                   {hasTimestamp && isRangeMode && (
-                    <div className="flex items-center gap-1 text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800">
-                      <span>Fim:</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="w-12 bg-transparent border-none focus:outline-none text-white font-bold"
-                        value={rangeEndTime !== null ? rangeEndTime.toFixed(1) : ""}
-                        onChange={(e) => setRangeEndTime(parseFloat(e.target.value))}
-                      />
-                      <span className="text-zinc-600">s</span>
+                    <div
+                      className="flex items-center gap-1 text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 cursor-ew-resize select-none active:bg-zinc-800 transition-colors shrink-0"
+                      title="Clique e arraste para ajustar"
+                      onMouseDown={(e) => {
+                        const startX = e.clientX;
+                        const startValue = rangeEndTime || currentTime;
+
+                        const handleMouseMove = (moveEvent) => {
+                          const deltaX = moveEvent.clientX - startX;
+                          // Sensibilidade: 0.1s para cada 2px
+                          const newValue = Math.max(currentTime + 0.1, startValue + deltaX * 0.05);
+                          setRangeEndTime(newValue);
+                          setActiveRange({ start: currentTime, end: newValue });
+                          seekTo(newValue);
+                        };
+
+                        const handleMouseUp = () => {
+                          window.removeEventListener("mousemove", handleMouseMove);
+                          window.removeEventListener("mouseup", handleMouseUp);
+                        };
+
+                        window.addEventListener("mousemove", handleMouseMove);
+                        window.addEventListener("mouseup", handleMouseUp);
+                      }}
+                    >
+                      <span className="font-black opacity-50">FIM:</span>
+                      <span className="text-white font-bold min-w-[3rem] text-center">
+                        {formatTime(rangeEndTime)}
+                      </span>
                     </div>
                   )}
 

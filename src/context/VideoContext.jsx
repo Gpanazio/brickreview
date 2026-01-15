@@ -26,6 +26,7 @@ export const VideoProvider = ({
   const [compareVideoUrl, setCompareVideoUrl] = useState(null);
   const [visitorName, setVisitorName] = useState(initialVisitorName);
   const [drawings, setDrawings] = useState([]);
+  const [activeRange, setActiveRange] = useState(null);
 
   const playerRef = useRef(null);
   const canvasRef = useRef(null);
@@ -66,6 +67,8 @@ export const VideoProvider = ({
     setComments,
     videoUrl,
     setVideoUrl,
+    activeRange,
+    setActiveRange,
     isComparing,
     setIsComparing,
     compareVideoUrl,

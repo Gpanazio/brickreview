@@ -2,7 +2,7 @@ import { useVideo } from "../../../context/VideoContext";
 import { parseTimestampSeconds } from "../../../utils/time";
 
 export function Timeline() {
-  const { currentTime, duration, seekTo, comments } = useVideo();
+  const { currentTime, duration, seekTo, comments, activeRange } = useVideo();
 
   const getCommentRange = (comment) => {
     if (!comment || comment.timestamp === null) return null;
@@ -42,6 +42,17 @@ export function Timeline() {
           />
         );
       })}
+
+      {/* New Active Range Feedback */}
+      {activeRange && duration > 0 && (
+        <div
+          className="absolute top-0 h-full bg-red-500/30 border-l border-r border-red-500 z-20 pointer-events-none"
+          style={{
+            left: `${(activeRange.start / duration) * 100}%`,
+            width: `${((activeRange.end - activeRange.start) / duration) * 100}%`,
+          }}
+        />
+      )}
 
       {comments.map((comment) => {
         const ts = parseTimestampSeconds(comment.timestamp);
