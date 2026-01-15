@@ -89,10 +89,10 @@ async function processVideo(videoId) {
     // Update database
     console.log(`💾 Updating database...`);
     await query(
-      `UPDATE brickreview_videos
+      "UPDATE brickreview_videos
        SET duration = $1, width = $2, height = $3, fps = $4,
-           thumbnail_r2_key = $5, thumbnail_url = $6
-       WHERE id = $7`,
+           thumbnail_r2_key = $5, thumbnail_url = $6, status = 'ready'
+       WHERE id = $7",
       [metadata.duration, metadata.width, metadata.height, metadata.fps, thumbKey, thumbnailUrl, videoId]
     );
     console.log(`✅ Database updated!`);
@@ -105,23 +105,12 @@ async function processVideo(videoId) {
 
   } catch (error) {
     console.error(`❌ Error processing video ${videoId}:`, error);
+    await query(
+        "UPDATE brickreview_videos SET status = 'failed' WHERE id = $1",
+        [videoId]
+      );
     throw error;
   }
 }
 
-// Main
-const videoId = process.argv[2];
-if (!videoId) {
-  console.error('Usage: node process-video-metadata.js <video_id>');
-  process.exit(1);
-}
-
-processVideo(videoId)
-  .then(() => {
-    console.log('✅ All done!');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('❌ Failed:', error);
-    process.exit(1);
-  });
+export { processVideo };

@@ -10,6 +10,7 @@ import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
+import { processVideo } from "../../scripts/process-video-metadata.js";
 // Queue removed - Redis not configured
 
 const router = express.Router();
@@ -94,7 +95,7 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
     );
     const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
 
-    // 2. Create DB Record with status 'ready' (no queue processing)
+    // 2. Create DB Record with status 'processing'
     const result = await query(
       `
       INSERT INTO brickreview_videos (
@@ -103,7 +104,7 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
         file_size, mime_type, uploaded_by, 
         status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'processing')
       RETURNING *
     `,
       [
@@ -121,12 +122,17 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
 
     const video = result.rows[0];
 
-    // 3. Return Success (no queue - video is ready immediately)
-    console.log(`✅ Video ${video.id} uploaded and ready`);
+    // 3. Return success and start processing in background
     res.status(201).json({
       message: "Upload concluído com sucesso.",
       video: video,
     });
+
+    // 4. Process video in background (don't await)
+    processVideo(video.id).catch(err => {
+      console.error(`Error processing video ${video.id} in background:`, err);
+    });
+
   } catch (error) {
     console.error("Erro no upload assíncrono:", error);
     res.status(500).json({ error: "Erro ao processar upload" });
