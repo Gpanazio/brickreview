@@ -52,16 +52,6 @@ export function VideoPlayerCore() {
     const handleWaiting = () => setIsLoading(true);
     const handleCanPlay = () => setIsLoading(false);
     const handleError = () => {
-      const error = elementRef.current?.error;
-      console.error("[VideoPlayerCore] Erro de reprodução:", error);
-      setIsLoading(false);
-      toast.error("Erro ao reproduzir vídeo", {
-        description: "O arquivo pode estar indisponível ou em formato incompatível.",
-      });
-    };
-
-    // Novo handler de erro
-    const handleError = () => {
       const err = elementRef.current?.error;
       const errorMessage = err?.message || "Erro desconhecido ao carregar vídeo";
       console.error("[VideoPlayerCore] Erro de reprodução:", err);
