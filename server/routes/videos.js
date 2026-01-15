@@ -10,11 +10,10 @@ import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
-import { processVideo } from "../../scripts/process-video-metadata.js";
-import { ensureVideoAssets } from "../jobs/ensureVideoAssets.js";
 import { addVideoJobSafe } from "../queue/index.js";
 import { FEATURES } from "../config/features.js";
 import { logger } from "../utils/logger.js";
+import { processVideo } from "../../scripts/process-video-metadata.js";
 
 const router = express.Router();
 
@@ -98,7 +97,7 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
     );
     const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
 
-    // 2. Create DB Record with status 'processing'
+    // 2. Create DB Record with status 'ready' (no queue processing)
     const result = await query(
       `
       INSERT INTO brickreview_videos (
@@ -107,7 +106,7 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
         file_size, mime_type, uploaded_by, 
         status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'processing')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready')
       RETURNING *
     `,
       [
@@ -131,7 +130,7 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
       video: video,
     });
 
-    // 4. Processamento: Fila (Assíncrono) ou Fallback Síncrono
+    // 4. Processamento Assíncrono: Queue ou Fallback Síncrono
     const processData = { r2Key: fileKey, projectId: projectId };
 
     // Função de fallback para não duplicar código
@@ -144,7 +143,6 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
           videoId: video.id,
           error: err.message,
         });
-        // Aqui poderíamos atualizar o status do vídeo para 'failed' no banco
       });
     };
 
@@ -232,31 +230,12 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       }
       isOriginal = true;
     } else {
-      // Para qualidade 'proxy' (default)
-      // Tenta: Proxy -> Streaming High -> Original
-      if (proxy_url) {
-        streamKey = proxy_r2_key;
-        streamUrl = proxy_url;
-        isOriginal = false;
-      } else if (streaming_high_url) {
-        streamKey = streaming_high_r2_key;
-        streamUrl = streaming_high_url;
-        isOriginal = true; // High quality is close to original
-      } else {
-        streamKey = r2_key;
-        streamUrl = r2_url;
-        isOriginal = true;
-      }
+      streamKey = proxy_r2_key || streaming_high_r2_key || r2_key;
+      streamUrl = proxy_url || streaming_high_url || r2_url;
+      isOriginal = !proxy_url;
     }
 
-    console.log(`📡 Resolved stream for video ${req.params.id}:`, {
-      streamUrl,
-      isOriginal,
-      quality,
-    });
-
     if (process.env.R2_PUBLIC_URL && streamUrl && streamUrl.includes(process.env.R2_PUBLIC_URL)) {
-      console.log(`🔗 Returning public R2 URL`);
       return res.json({
         url: streamUrl,
         mime: isOriginal ? mime_type || "video/mp4" : "video/mp4",
@@ -403,14 +382,6 @@ router.get("/:id", authenticateToken, async (req, res) => {
       ...video,
       comments: commentsResult.rows,
     });
-
-    // Background: Verificar e gerar assets faltantes (sprites/thumbnail)
-    if (video.status === "ready" && (!video.sprite_vtt_url || !video.thumbnail_url)) {
-      console.log(`[VideoGet] Vídeo ${videoId} sem assets, disparando geração em background...`);
-      ensureVideoAssets(videoId).catch((err) => {
-        console.error(`[VideoGet] Erro ao gerar assets para vídeo ${videoId}:`, err);
-      });
-    }
   } catch (error) {
     console.error("Erro ao buscar detalhes do vídeo:", error);
     res.status(500).json({ error: "Erro ao buscar detalhes do vídeo" });

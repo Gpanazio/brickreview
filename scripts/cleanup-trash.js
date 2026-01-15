@@ -46,13 +46,10 @@ async function cleanupTrash() {
         sevenDaysAgo,
       ]);
 
-      if (res.rows.length === 0) {
-        logger.info("CLEANUP", `Nenhum item para deletar em ${table}.`);
-        continue;
-      }
+      if (res.rows.length === 0) continue;
 
       for (const item of res.rows) {
-        logger.info("CLEANUP", `Deletando permanentemente ${table}: ${item.name || item.id}`);
+        logger.info("CLEANUP", `Deletando permanentemente ${table}: ${item.id}`);
 
         // Deletar do R2 se for vídeo ou arquivo
         // Usa r2_key conforme schema do banco

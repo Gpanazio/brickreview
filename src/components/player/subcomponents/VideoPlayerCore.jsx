@@ -51,6 +51,14 @@ export function VideoPlayerCore() {
     const handleLoadedData = () => setIsLoading(false);
     const handleWaiting = () => setIsLoading(true);
     const handleCanPlay = () => setIsLoading(false);
+    const handleError = () => {
+      const error = elementRef.current?.error;
+      console.error("[VideoPlayerCore] Erro de reprodução:", error);
+      setIsLoading(false);
+      toast.error("Erro ao reproduzir vídeo", {
+        description: "O arquivo pode estar indisponível ou em formato incompatível.",
+      });
+    };
 
     // Novo handler de erro
     const handleError = () => {
