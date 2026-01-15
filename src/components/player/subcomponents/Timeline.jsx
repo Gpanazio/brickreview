@@ -46,12 +46,14 @@ export function Timeline() {
       {/* New Active Range Feedback */}
       {activeRange && duration > 0 && (
         <div
-          className="absolute top-0 h-full bg-red-500/30 border-l border-r border-red-500 z-20 pointer-events-none"
+          className="absolute top-0 h-full bg-red-500/40 border-l border-r border-white z-20 pointer-events-none"
           style={{
-            left: `${(activeRange.start / duration) * 100}%`,
-            width: `${((activeRange.end - activeRange.start) / duration) * 100}%`,
+            left: `${(Math.min(activeRange.start, activeRange.end) / duration) * 100}%`,
+            width: `${(Math.abs(activeRange.end - activeRange.start) / duration) * 100}%`,
           }}
-        />
+        >
+          <div className="absolute inset-0 bg-red-600/20 animate-pulse" />
+        </div>
       )}
 
       {comments.map((comment) => {

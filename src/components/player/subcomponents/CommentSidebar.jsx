@@ -540,18 +540,18 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       body: JSON.stringify({ content: newContent }),
     });
 
-      if (response.ok) {
-        const comment = await response.json();
-        if (isGuest) addGuestCommentId(comment.id);
-        setComments((prev) => [...prev, comment].sort(compareCommentsByTimestamp));
-        setNewComment("");
-        setAttachedFile(null);
-        setIsDrawingMode(false);
-        setIsRangeMode(false);
-        setRangeEndTime(null);
-        setActiveRange(null);
-        toast.success("Comentário adicionado!");
-      }
+    if (response.ok) {
+      const updatedComment = await response.json();
+      setComments((prev) => prev.map((c) => (c.id === commentId ? updatedComment : c)));
+      setEditingComment(null);
+      setIsRangeMode(false);
+      setRangeEndTime(null);
+      setActiveRange(null);
+      toast.success("Comentário atualizado!");
+    } else {
+      const data = await response.json().catch(() => ({}));
+      toast.error(data.error || "Erro ao atualizar comentário");
+    }
   };
 
   const handleDeleteComment = (commentId) => {
@@ -777,8 +777,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 disabled={isGuest && !canComment}
               />
 
-              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
-                <div className="flex items-center gap-1 shrink-0">
+              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
                   <button
                     type="button"
                     className={`p-2 rounded-sm transition-colors cursor-pointer ${
@@ -816,7 +816,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
                   {hasTimestamp && isRangeMode && (
                     <div
-                      className="flex items-center gap-1 text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 cursor-ew-resize select-none active:bg-zinc-800 transition-colors shrink-0"
+                      className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-1.5 py-1 rounded-sm border border-zinc-800 cursor-ew-resize select-none active:bg-zinc-800 transition-colors shrink-0 touch-none"
+                      style={{ touchAction: "none" }}
                       title="Clique e arraste para ajustar"
                       onMouseDown={(e) => {
                         const startX = e.clientX;
@@ -840,8 +841,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                         window.addEventListener("mouseup", handleMouseUp);
                       }}
                     >
-                      <span className="font-black opacity-50">FIM:</span>
-                      <span className="text-white font-bold min-w-[3rem] text-center">
+                      <span className="font-black opacity-50 uppercase">Fim:</span>
+                      <span className="text-white font-bold min-w-[2.5rem] text-center tracking-tighter">
                         {formatTime(rangeEndTime)}
                       </span>
                     </div>
