@@ -1310,7 +1310,7 @@ export function VideoPlayer({
                           className="text-xs font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
                         >
                           <History className="w-3 h-3" />v
-                          {compareOptions.find((v) => v.id === compareVersionId)?.version_number ??
+                          {compareOptions.find((opt) => opt.id === compareVersionId)?.version_number ??
                             "--"}
                         </Button>
                       </DropdownMenuTrigger>
@@ -1688,10 +1688,9 @@ export function VideoPlayer({
                       Auto (720p)
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      key={v.id}
-                      onClick={() => handleCompareVersionChange(v.id)}
+                      onClick={() => setQuality("original")}
                       className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
-                        v.id === compareVersionId
+                        quality === "original"
                           ? "text-red-500 bg-red-500/10"
                           : "text-zinc-400 focus:text-white focus:bg-zinc-800"
                       }`}
