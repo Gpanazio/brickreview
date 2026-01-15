@@ -99,6 +99,19 @@ if [ -z "$FFPROBE_PATH" ]; then
   fi
 fi
 
-# Start the Node.js server
-echo "🎬 Iniciando servidor Node.js..."
-exec node server/index.js
+  # Inicialização baseada no serviço
+case "$SERVICE_NAME" in
+  "worker")
+      echo "🛠️  Iniciando Worker Process..."
+      exec node server/queue/worker.js
+      ;;
+  "api"|"")
+      echo "🌐 Iniciando API Server..."
+      exec node server/index.js
+      ;;
+  *)
+      echo "⚠️  Serviço desconhecido: $SERVICE_NAME"
+      echo "🌐 Iniciando API Server (fallback)..."
+      exec node server/index.js
+      ;;
+esac

@@ -9,9 +9,11 @@
     "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
     "server": "nodemon server/index.js",
     "worker": "node server/queue/worker.js",
+    "worker:production": "node server/queue/worker.js",
     "build": "vite build",
     "start": "chmod +x railway-start.sh && ./railway-start.sh",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "preview": "vite preview"
   },
   "dependencies": {
