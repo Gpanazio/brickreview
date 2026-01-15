@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { useVttThumbnails } from "../../hooks/useVttThumbnails";
 import Plyr from "plyr";
-import "plyr/dist/plyr.css";
-import "./VideoPlayer.css";
 import { useAuth } from "../../hooks/useAuth";
+import { VideoProvider, useVideo } from "../../context/VideoContext";
+import { VideoPlayerCore } from "./subcomponents/VideoPlayerCore";
+import { ReviewCanvas } from "./subcomponents/ReviewCanvas";
+import { CommentSidebar } from "./subcomponents/CommentSidebar";
+import { Timeline } from "./subcomponents/Timeline";
+import { VideoComparison } from "./VideoComparison";
+import { formatTimecode, parseTimestampSeconds } from "../../utils/time";
 
 const isMobile = () => {
   return (
@@ -11,226 +15,144 @@ const isMobile = () => {
     window.innerWidth < 768
   );
 };
-
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
   ChevronRight,
-  MessageSquare,
   Clock,
   CheckCircle,
-  AlertCircle,
   History,
-  Reply,
-  CornerDownRight,
   Download,
   Share2,
-  Trash2,
-  Pencil,
-  Eraser,
-  Smile,
-  Paperclip,
-  X,
   Play,
   Pause,
   Volume2,
   VolumeX,
   Maximize,
-  Settings,
-  Gauge,
   Columns2,
 } from "lucide-react";
 import { toast } from "sonner";
-import EmojiPicker from "emoji-picker-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { VideoComparison } from "./VideoComparison";
-import { CommentSidebar } from "./subcomponents/CommentSidebar";
 
-const PLYR_OPTIONS = {
-  controls: ["play-large"], // Mantém apenas o play central, os demais são customizados
-  keyboard: { focused: true, global: true },
-  tooltips: { controls: true, seek: true },
-  ratio: null, // Desativa cálculo automático de aspect-ratio do Plyr
-  debug: false, // Disable debug logs
-  blankVideo: "", // Prevent blank video loading issues
-  // Configurações críticas para Mobile Fullscreen:
-  fullscreen: {
-    enabled: true,
-    fallback: true,
-    iosNative: true, // Permite que o iOS use seu player nativo no Fullscreen (essencial para iPhone)
-  },
-  playsinline: true, // Permite tocar "inline" no mobile sem forçar fullscreen automaticamente no play
+const compareCommentsByTimestamp = (a, b) => {
+  const aTs = parseTimestampSeconds(a?.timestamp);
+  const bTs = parseTimestampSeconds(b?.timestamp);
+
+  if (aTs === null && bTs === null) {
+    return new Date(a.created_at) - new Date(b.created_at);
+  }
+  if (aTs === null) return 1;
+  if (bTs === null) return -1;
+  if (aTs !== bTs) return aTs - bTs;
+
+  return new Date(a.created_at) - new Date(b.created_at);
 };
 
-export function VideoPlayer({
-  video,
-  versions = [],
-  onBack,
-  isPublic = false,
-  visitorName: initialVisitorName = "",
-  shareToken = null,
-  sharePassword = null,
-  accessType: _accessType = "view",
-}) {
-  // Determina a versão inicial (mais recente) ao montar o componente
+export function VideoPlayer({ video, versions = [], ...props }) {
+  // Determine initial version (latest)
   const getLatestVersion = useCallback(() => {
     if (versions.length === 0) return video;
-    // Encontra a versão com maior version_number
     const sorted = [video, ...versions].sort((a, b) => b.version_number - a.version_number);
     return sorted[0];
   }, [video, versions]);
 
   const latestVersion = useMemo(() => getLatestVersion(), [getLatestVersion]);
 
-  const [currentVideoId, setCurrentVideoId] = useState(latestVersion.id);
-  const [currentVideo, setCurrentVideo] = useState(latestVersion);
-  const [comments, setComments] = useState(latestVersion.comments || []);
-  const [newComment, setNewComment] = useState("");
-  const [currentTime, setCurrentTime] = useState(0);
+  return (
+    <VideoProvider
+      initialVideo={latestVersion}
+      versions={versions}
+      isPublic={props.isPublic}
+      shareToken={props.shareToken}
+      sharePassword={props.sharePassword}
+      initialVisitorName={props.visitorName}
+    >
+      <VideoPlayerContent video={video} versions={versions} {...props} />
+    </VideoProvider>
+  );
+}
+
+function VideoPlayerContent({
+  video, // Main video object (parent)
+  versions = [],
+  onBack,
+  isPublic = false,
+  shareToken = null,
+  sharePassword = null,
+}) {
+  const {
+    currentVideo,
+    setCurrentVideo,
+    currentTime,
+    setCurrentTime,
+    duration,
+    setDuration,
+    isPlaying,
+    setIsPlaying,
+    volume,
+    setVolume,
+    isMuted,
+    setIsMuted,
+    playbackRate,
+    setPlaybackRate,
+    isDrawingMode,
+    setIsDrawingMode,
+    videoUrl,
+    setVideoUrl,
+    isComparing,
+    setIsComparing,
+    compareVideoUrl,
+    setCompareVideoUrl,
+    playerRef,
+    videoContainerRef,
+    setComments,
+  } = useVideo();
+
+  // Derived state from context
+  const currentVideoId = currentVideo.id;
+  const playbackSpeed = playbackRate;
+
+  // Local state
   const [approvalStatus, setApprovalStatus] = useState(
-    latestVersion.latest_approval_status || "pending"
+    currentVideo.latest_approval_status || "pending"
   );
   const [, setIsSubmittingApproval] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
-  const [confirmDialog, setConfirmDialog] = useState({
-    isOpen: false,
-    title: "Confirmar ação",
-    message: "Tem certeza que deseja continuar?",
-    confirmText: "Confirmar",
-    cancelText: "Cancelar",
-    variant: "danger",
-    onConfirm: null,
-  });
-  const [videoUrl, setVideoUrl] = useState(null);
-  const [isComparing, setIsComparing] = useState(false);
+
   const [compareVersionId, setCompareVersionId] = useState(null);
-  const [compareVideoUrl, setCompareVideoUrl] = useState(null);
-  const [replyingTo, setReplyingTo] = useState(null); // ID do comentário sendo respondido
-  const [replyText, setReplyText] = useState("");
   const [shareLink, setShareLink] = useState("");
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
-  const [visitorName, setVisitorName] = useState(
-    initialVisitorName || localStorage.getItem("brickreview_visitor_name") || ""
-  );
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawingMode, setDrawingMode] = useState(false); // Se está no modo desenho
 
-  const [drawings, setDrawings] = useState([]); // Desenhos salvos por timestamp
-  const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
-  const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
-  const [rangeStartTime, setRangeStartTime] = useState(null); // Início do range
-  const [rangeEndTime, setRangeEndTime] = useState(null); // Fim do range (opcional)
-  const [isRangeMode, setIsRangeMode] = useState(false); // Modo de seleção de range
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(1);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [quality, setQuality] = useState(() => {
     if (isMobile()) return "proxy";
-    const mime = latestVersion.mime_type || "";
+    const mime = currentVideo.mime_type || "";
     return mime.includes("mp4") || mime.includes("h264") ? "original" : "proxy";
   });
-  const [duration, setDuration] = useState(latestVersion.duration || 0);
-  const [isMuted, setIsMuted] = useState(false);
+  const [, setIsLoadingVideo] = useState(false);
 
-  const [isLoadingVideo, setIsLoadingVideo] = useState(false); // Loading ao trocar versão
-  const [highlightedCommentId, setHighlightedCommentId] = useState(null);
-
-  // Hover thumbnail states
-  const [hoverTime, setHoverTime] = useState(null);
-  const [hoverPos, setHoverPos] = useState(0);
-  const thumbnails = useVttThumbnails(currentVideo?.sprite_vtt_url);
-
-  const currentThumbnail = useMemo(() => {
-    if (hoverTime === null || !thumbnails.length) return null;
-    return thumbnails.find((t) => hoverTime >= t.start && hoverTime <= t.end) || thumbnails[0];
-  }, [hoverTime, thumbnails]);
-
-  const commentRefs = useRef({});
-
-  useEffect(() => {
-    if (highlightedCommentId && commentRefs.current[highlightedCommentId]) {
-      commentRefs.current[highlightedCommentId].scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      const timer = setTimeout(() => setHighlightedCommentId(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [highlightedCommentId]);
-
-  const playerRef = useRef(null);
   const comparisonControllerRef = useRef(null);
   const compareSyncKeyRef = useRef(null);
-  const pendingSeekTimeRef = useRef(null);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
 
-  const videoContainerRef = useRef(null);
   const { token } = useAuth();
 
-  // Guest mode: no token, use visitor name for identification
   const isGuest = isPublic || !token;
-
   const canApprove = !isGuest;
-
-  const getGuestCommentIds = () => {
-    try {
-      const ids = localStorage.getItem("brickreview_guest_comment_ids");
-      return ids ? JSON.parse(ids) : [];
-    } catch (_) {
-      return [];
-    }
-  };
-
-  const addGuestCommentId = (id) => {
-    const ids = getGuestCommentIds();
-    localStorage.setItem("brickreview_guest_comment_ids", JSON.stringify([...ids, id]));
-  };
-
-  const removeGuestCommentId = (id) => {
-    const ids = getGuestCommentIds().filter((savedId) => savedId !== id);
-    localStorage.setItem("brickreview_guest_comment_ids", JSON.stringify(ids));
-  };
-
   const canShare = !isGuest;
   const canDownload = true;
-}
 
-  // Pause video when entering drawing mode
-  useEffect(() => {
-    if (drawingMode && playerRef.current?.plyr) {
-      playerRef.current.plyr.pause();
-    }
-  }, [drawingMode]);
-
-  // Reset range mode when timestamp is toggled off
-  useEffect(() => {
-    if (!hasTimestamp) {
-      setIsRangeMode(false);
-      setRangeEndTime(null);
-    }
-  }, [hasTimestamp]);
-
-  // Constrói lista completa de versões (vídeo original + versões)
-  // Ordena da versão mais recente para a mais antiga
-  const allVersions = [video, ...versions].sort((a, b) => b.version_number - a.version_number);
+  const allVersions = useMemo(
+    () => [video, ...versions].sort((a, b) => b.version_number - a.version_number),
+    [video, versions]
+  );
   const compareOptions = allVersions.filter((version) => version.id !== currentVideoId);
 
   useEffect(() => {
@@ -241,37 +163,270 @@ export function VideoPlayer({
   }, [compareOptions, compareVersionId, isComparing]);
 
   useEffect(() => {
+    if (isComparing) {
+      setQuality("proxy");
+      if (isDrawingMode) setIsDrawingMode(false);
+    }
+  }, [isComparing, isDrawingMode, setIsDrawingMode]);
+
+  const copyToClipboard = async (text) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (err) {
+      console.warn("Clipboard API falhou, tentando fallback", err);
+    }
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (err) {
+      console.error("Fallback de cópia falhou", err);
+      return false;
+    }
+  };
+
+  const videoFPS = currentVideo.fps || 30;
+  const frameTime = 1 / videoFPS;
+
+  const handleComparisonControllerReady = useCallback(
+    (controller) => {
+      comparisonControllerRef.current = controller;
+      playerRef.current = controller ? { plyr: controller } : null;
+    },
+    [playerRef]
+  );
+
+  const handleApproval = async (status) => {
+    setIsSubmittingApproval(true);
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          video_id: currentVideoId,
+          status,
+          notes:
+            status === "approved" ? "Aprovado pelo cliente" : "Ajustes solicitados pelo cliente",
+        }),
+      });
+
+      if (response.ok) {
+        setApprovalStatus(status);
+        fetchHistory();
+      }
+    } catch (_error) {
+      console.error("Erro ao processar aprovação:");
+    } finally {
+      setIsSubmittingApproval(false);
+    }
+  };
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/reviews/${currentVideoId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      setHistory(data);
+    } catch (error) {
+      console.error("Erro ao buscar histórico:", error);
+    }
+  }, [currentVideoId, token]);
+
+  useEffect(() => {
+    if (showHistory) fetchHistory();
+  }, [showHistory, fetchHistory]);
+
+  const handleVersionChange = (versionId) => {
+    if (versionId === currentVideoId) return;
+
+    setIsLoadingVideo(true);
+    setVideoUrl(null); // Limpa URL atual para forçar loading
+
+    // setCurrentVideoId(versionId); // Removed as it's derived
+    const selectedVersion = allVersions.find((v) => v.id === versionId);
+    if (selectedVersion) {
+      setCurrentVideo(selectedVersion);
+      setApprovalStatus(selectedVersion.latest_approval_status || "pending");
+
+      const mime = selectedVersion.mime_type || "";
+      setQuality(mime.includes("mp4") || mime.includes("h264") ? "original" : "proxy");
+    }
+  };
+
+  const handleToggleCompare = () => {
+    setIsComparing((prev) => !prev);
+  };
+
+  const handleCompareVersionChange = (versionId) => {
+    if (versionId === compareVersionId) return;
+    setCompareVersionId(versionId);
+  };
+
+  useEffect(() => {
+    if (currentVideo?.duration) {
+      setDuration(currentVideo.duration);
+    }
+    const fetchComments = async () => {
+      try {
+        const endpoint = isGuest
+          ? `/api/shares/${shareToken}/comments/video/${currentVideoId}`
+          : `/api/comments/video/${currentVideoId}`;
+
+        const headers = isGuest
+          ? sharePassword
+            ? { "x-share-password": sharePassword }
+            : {}
+          : { Authorization: `Bearer ${token}` };
+
+        const response = await fetch(endpoint, { headers });
+        if (response.ok) {
+          const data = await response.json();
+          setComments([...data].sort(compareCommentsByTimestamp));
+        }
+      } catch (error) {
+        console.error("Erro ao carregar comentários:", error);
+      }
+    };
+
+    fetchComments();
+  }, [
+    currentVideoId,
+    token,
+    isGuest,
+    shareToken,
+    setDuration,
+    sharePassword,
+    setComments,
+    currentVideo.duration,
+  ]);
+
+  const handleDownload = async (type) => {
+    try {
+      const headers = isGuest
+        ? sharePassword
+          ? { "x-share-password": sharePassword }
+          : {}
+        : { Authorization: `Bearer ${token}` };
+
+      const endpoint = isGuest
+        ? `/api/shares/${shareToken}/video/${currentVideoId}/download?type=${type}`
+        : `/api/videos/${currentVideoId}/download?type=${type}`;
+
+      const response = await fetch(endpoint, { headers });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        const videoResponse = await fetch(data.url);
+        const blob = await videoResponse.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = data.filename || `${currentVideo.title}_${type}.mp4`;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        }, 100);
+      }
+    } catch (_error) {
+      console.error("Erro ao fazer download");
+    }
+  };
+
+  const handleGenerateShare = async () => {
+    setIsGeneratingShare(true);
+    const shareToast = toast.loading("Gerando link de compartilhamento...");
+
+    try {
+      const response = await fetch("/api/shares", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          video_id: currentVideoId,
+          access_type: "comment",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        toast.error(errorData.error || "Erro ao gerar link", { id: shareToast });
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!data.token) {
+        toast.error("Token de compartilhamento não recebido", { id: shareToast });
+        return;
+      }
+
+      const fullUrl = `${window.location.origin}/share/${data.token}`;
+      setShareLink(fullUrl);
+
+      const copied = await copyToClipboard(fullUrl);
+
+      if (copied) {
+        toast.success("Link copiado!", {
+          id: shareToast,
+          description: "O link de revisão já está na sua área de transferência.",
+        });
+      } else {
+        toast.dismiss(shareToast);
+        setShowShareDialog(true);
+      }
+    } catch (error) {
+      console.error("Erro ao gerar link:", error);
+      toast.error("Erro ao gerar link de compartilhamento", { id: shareToast });
+    } finally {
+      setIsGeneratingShare(false);
+    }
+  };
+
+  useEffect(() => {
     const fetchStreamUrl = async () => {
       try {
-        console.log(`[VideoPlayer] Fetching stream URL for video ${currentVideoId}, quality: ${quality}`);
-        // Use endpoint público para guests, privado para usuários autenticados
         const endpoint = isGuest
           ? `/api/shares/${shareToken}/video/${currentVideoId}/stream?quality=${quality}`
           : `/api/videos/${currentVideoId}/stream?quality=${quality}`;
 
-        const headers = {};
-        if (!isGuest) {
-          headers.Authorization = `Bearer ${token}`;
-        }
-        if (isGuest && sharePassword) {
-          headers["x-share-password"] = sharePassword;
-        }
+        const headers = isGuest
+          ? sharePassword
+            ? { "x-share-password": sharePassword }
+            : {}
+          : { Authorization: `Bearer ${token}` };
 
         const response = await fetch(endpoint, { headers });
-
         if (response.ok) {
           const data = await response.json();
-          console.log(`[VideoPlayer] Received stream URL:`, data);
           if (data.url) {
             setVideoUrl(data.url);
           }
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          console.error(`[VideoPlayer] Failed to fetch stream URL:`, errorData);
-          toast.error("Erro ao carregar vídeo: " + (errorData.error || "Falha na conexão"));
         }
-      } catch (err) {
-        console.error(`[VideoPlayer] Critical error fetching stream URL:`, err);
+      } catch (_) {
+        // Silent error
       } finally {
         setIsLoadingVideo(false);
       }
@@ -281,7 +436,7 @@ export function VideoPlayer({
       setIsLoadingVideo(true);
       fetchStreamUrl();
     }
-  }, [currentVideoId, isGuest, quality, sharePassword, shareToken, token]);
+  }, [currentVideoId, isGuest, quality, sharePassword, shareToken, token, setVideoUrl]);
 
   useEffect(() => {
     if (!isComparing || !compareVersionId) {
@@ -314,7 +469,16 @@ export function VideoPlayer({
     };
 
     fetchCompareStreamUrl();
-  }, [compareVersionId, isComparing, isGuest, quality, sharePassword, shareToken, token]);
+  }, [
+    compareVersionId,
+    isComparing,
+    isGuest,
+    quality,
+    sharePassword,
+    shareToken,
+    token,
+    setCompareVideoUrl,
+  ]);
 
   useEffect(() => {
     if (!isComparing || !comparisonControllerRef.current || !videoUrl || !compareVideoUrl) return;
@@ -326,212 +490,93 @@ export function VideoPlayer({
     }
   }, [compareVideoUrl, currentTime, isComparing, videoUrl]);
 
-  // Inicializa o player Plyr nativo
   useEffect(() => {
-    if (isComparing || !videoSource || !videoRef.current) return;
+    const handleKeyDown = (e) => {
+      const activeElement = document.activeElement;
+      const isInputFocused =
+        activeElement?.tagName === "INPUT" || activeElement?.tagName === "TEXTAREA";
+      if (isInputFocused) return;
 
-    const player = new Plyr(videoRef.current, {
-      ...PLYR_OPTIONS,
-      previewThumbnails: currentVideo?.sprite_vtt_url
-        ? { enabled: true, src: currentVideo.sprite_vtt_url }
-        : { enabled: false },
-      autoplay: false,
-    });
+      const player = playerRef.current?.plyr;
+      if (!player) return;
 
-    // Define a fonte inicial
-    player.source = videoSource;
-
-    // Event Listeners para sincronizar estado
-    player.on("play", () => setIsPlaying(true));
-    player.on("pause", () => setIsPlaying(false));
-    player.on("timeupdate", () => setCurrentTime(player.currentTime));
-    player.on("durationchange", () => setDuration(player.duration));
-    player.on("volumechange", () => {
-      setVolume(player.volume);
-      setIsMuted(player.muted);
-    });
-    player.on("ratechange", () => setPlaybackSpeed(player.speed));
-
-    // Mantém compatibilidade com o resto do código que usa playerRef.current.plyr
-    playerRef.current = { plyr: player };
-
-    // Se temos um currentTime salvo (ex: trocou qualidade), busca esse tempo ao carregar
-    // Se houver um seek pendente (ex: clique em comentário antes do player ficar pronto), aplica primeiro.
-    player.on("ready", () => {
-      const pendingSeekTime = pendingSeekTimeRef.current;
-      if (Number.isFinite(pendingSeekTime)) {
-        player.currentTime = pendingSeekTime;
-        player.pause();
-        pendingSeekTimeRef.current = null;
-        return;
-      }
-
-      if (currentTime > 0.1) {
-        player.currentTime = currentTime;
-      }
-    });
-
-    // Cleanup ao desmontar ou trocar de fonte
-    return () => {
-      if (player) {
-        player.destroy();
-      }
-      playerRef.current = null;
-    };
-  }, [currentVideo?.sprite_vtt_url, isComparing, videoSource]);
-
-  // Polling para atualizar currentTime removido em favor de eventos nativos
-
-  // Canvas drawing handlers
-  const startDrawing = (e) => {
-    if (!drawingMode) return;
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setCurrentDrawing([{ x, y }]);
-  };
-
-  const draw = (e) => {
-    if (!isDrawing || !drawingMode) return;
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setCurrentDrawing([...currentDrawing, { x, y }]);
-  };
-
-  const stopDrawing = async () => {
-    if (!isDrawing) return;
-    setIsDrawing(false);
-    if (currentDrawing.length > 0) {
-      // Salva o desenho localmente primeiro
-      const newDrawing = {
-        timestamp: currentTime,
-        points: currentDrawing,
-        color: drawColor,
-        id: Date.now(),
-
-      setDrawings([...drawings, newDrawing]);
-
-      // Salva no backend (apenas para usuários autenticados)
-      if (!isGuest) {
-        const saveToast = toast.loading("Salvando desenho...");
-        try {
-          const response = await fetch("/api/drawings", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              video_id: currentVideoId,
-              timestamp: currentTime,
-              drawing_data: currentDrawing,
-              color: drawColor,
-            }),
-          });
-
-          if (response.ok) {
-            toast.success("Desenho salvo com sucesso!", { id: saveToast });
-            setCurrentDrawing([]);
-            setDrawingMode(false); // Desativa modo desenho automaticamente
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          isPlaying ? player.pause() : player.play();
+          break;
+        case "f":
+        case "F":
+          if (player.fullscreen) {
+            player.fullscreen.exit();
           } else {
-            toast.error("Erro ao salvar desenho", { id: saveToast });
+            player.fullscreen.enter();
           }
-        } catch (error) {
-          console.error("Erro ao salvar desenho:", error);
-          toast.error("Erro ao salvar desenho", { id: saveToast });
-        }
-      } else {
-        setCurrentDrawing([]);
+          break;
+        case "j":
+        case "J":
+          e.preventDefault();
+          if (isPlaying) {
+            player.pause();
+          }
+          player.currentTime = Math.max(0, currentTime - 0.1);
+          break;
+        case "k":
+        case "K":
+          e.preventDefault();
+          player.pause();
+          break;
+        case "l":
+        case "L":
+          e.preventDefault();
+          if (!isPlaying) {
+            player.play();
+          }
+          player.currentTime = Math.min(duration || 0, currentTime + 0.1);
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          if (e.shiftKey) {
+            player.currentTime = Math.max(0, currentTime - 1);
+          } else {
+            player.currentTime = Math.max(0, currentTime - frameTime);
+          }
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (e.shiftKey) {
+            player.currentTime = Math.min(duration || 0, currentTime + 1);
+          } else {
+            player.currentTime = Math.min(duration || 0, currentTime + frameTime);
+          }
+          break;
       }
-    }
-  };
+    };
 
-
-
-  // Renderiza os desenhos no canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    const container = videoContainerRef.current;
-    if (!container) return;
-
-    // Ajusta o tamanho do canvas para o container
-    canvas.width = container.offsetWidth;
-    canvas.height = container.offsetHeight;
-
-    // Limpa o canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Desenha os desenhos salvos para o timestamp atual
-    const currentDrawings = drawings.filter((d) => Math.abs(d.timestamp - currentTime) < 0.1);
-    currentDrawings.forEach((drawing) => {
-      ctx.strokeStyle = drawing.color;
-      ctx.lineWidth = 3;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      ctx.beginPath();
-      drawing.points.forEach((point, i) => {
-        const x = point.x * canvas.width;
-        const y = point.y * canvas.height;
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-      ctx.stroke();
-    });
-
-    // Desenha o desenho atual (em progresso)
-    if (currentDrawing.length > 0) {
-      ctx.strokeStyle = drawColor;
-      ctx.lineWidth = 3;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      ctx.beginPath();
-      currentDrawing.forEach((point, i) => {
-        const x = point.x * canvas.width;
-        const y = point.y * canvas.height;
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-      ctx.stroke();
-    }
-  }, [drawings, currentDrawing, currentTime, drawColor]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying, currentTime, duration, frameTime, playerRef]);
 
   return (
     <>
       <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden min-h-0">
-        {/* Área do Player */}
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
             <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors">
               <ChevronLeft className="w-5 h-5" />
             </button>
             <h2 className="brick-title text-lg tracking-tighter uppercase truncate">
-              {video.title}
+              {currentVideo.title}
             </h2>
 
             <div className="flex items-center gap-2 ml-auto">
-              {/* Approval Button - Only for authenticated users */}
               {canApprove && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${
+                      className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
                         approvalStatus === "approved"
                           ? "border-green-500/50 text-green-500 bg-green-500/10"
                           : "border-zinc-700 text-zinc-400 bg-zinc-900"
@@ -548,19 +593,13 @@ export function VideoPlayer({
                   <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-48">
                     <DropdownMenuItem
                       onClick={() => handleApproval("approved")}
-                      className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest"
+                      className="text-green-500 focus:text-green-400 focus:bg-green-500/10 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                     >
                       <CheckCircle className="w-3 h-3 mr-2" /> Marcar como Aprovado
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleApproval("pending")}
-                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest"
-                    >
-                      <Clock className="w-3 h-3 mr-2" /> Voltar para Em aprovação
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleApproval("pending")}
-                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest"
+                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                     >
                       <Clock className="w-3 h-3 mr-2" /> Voltar para Em aprovação
                     </DropdownMenuItem>
@@ -568,7 +607,6 @@ export function VideoPlayer({
                 </DropdownMenu>
               )}
 
-              {/* History Button - Available for all users */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -578,7 +616,6 @@ export function VideoPlayer({
                 <History className="w-4 h-4" />
               </Button>
 
-              {/* Share Button - Only for authenticated users */}
               {canShare && (
                 <Button
                   variant="ghost"
@@ -591,7 +628,6 @@ export function VideoPlayer({
                 </Button>
               )}
 
-              {/* Download Menu - Only for authenticated users */}
               {canDownload && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -606,14 +642,14 @@ export function VideoPlayer({
                   <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
                     <DropdownMenuItem
                       onClick={() => handleDownload("proxy")}
-                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest"
+                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                     >
                       <Download className="w-3 h-3 mr-2" />
                       Baixar Proxy (720p)
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleDownload("original")}
-                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest"
+                      className="text-zinc-400 focus:text-white focus:bg-zinc-800 rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest"
                     >
                       <Download className="w-3 h-3 mr-2" />
                       Baixar Original
@@ -622,14 +658,13 @@ export function VideoPlayer({
                 </DropdownMenu>
               )}
 
-              {/* Compare Button */}
               {allVersions.length > 1 && (
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleToggleCompare}
-                    className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${
+                    className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
                       isComparing
                         ? "border-red-600 text-white bg-red-600"
                         : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
@@ -645,11 +680,11 @@ export function VideoPlayer({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-xs font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
+                          className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
                         >
                           <History className="w-3 h-3" />v
-                          {compareOptions.find((opt) => opt.id === compareVersionId)
-                            ?.version_number ?? "--"}
+                          {compareOptions.find((v) => v.id === compareVersionId)?.version_number ??
+                            "--"}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
@@ -657,7 +692,7 @@ export function VideoPlayer({
                           <DropdownMenuItem
                             key={v.id}
                             onClick={() => handleCompareVersionChange(v.id)}
-                            className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                            className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
                               v.id === compareVersionId
                                 ? "text-red-500 bg-red-500/10"
                                 : "text-zinc-400 focus:text-white focus:bg-zinc-800"
@@ -675,14 +710,13 @@ export function VideoPlayer({
                 </div>
               )}
 
-              {/* Version Selector */}
               {allVersions.length > 1 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-xs font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
+                      className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
                     >
                       <History className="w-3 h-3" />v{currentVideo.version_number}
                     </Button>
@@ -692,7 +726,7 @@ export function VideoPlayer({
                       <DropdownMenuItem
                         key={v.id}
                         onClick={() => handleVersionChange(v.id)}
-                        className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                        className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
                           v.id === currentVideoId
                             ? "text-red-500 bg-red-500/10"
                             : "text-zinc-400 focus:text-white focus:bg-zinc-800"
@@ -708,19 +742,18 @@ export function VideoPlayer({
                 </DropdownMenu>
               )}
 
-              {/* Version badge when only one version */}
               {allVersions.length === 1 && (
-                <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-2 py-1.5 h-8 flex items-center">
+                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-zinc-900 border border-zinc-800 px-2 py-1.5 h-8 flex items-center">
                   v{currentVideo.version_number}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden max-h-[40vh] lg:max-h-none">
+          <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden">
             <div
               ref={videoContainerRef}
-              className={`relative w-full h-full flex items-center justify-center bg-black ${drawingMode ? "is-drawing" : ""}`}
+              className={`relative w-full h-full flex items-center justify-center bg-black ${isDrawingMode ? "is-drawing" : ""}`}
             >
               {isComparing ? (
                 videoUrl && compareVideoUrl ? (
@@ -735,7 +768,7 @@ export function VideoPlayer({
                       setVolume(nextVolume);
                       setIsMuted(nextMuted);
                     }}
-                    onRateChange={setPlaybackSpeed}
+                    onRateChange={setPlaybackRate}
                   />
                 ) : (
                   <div className="flex flex-col items-center gap-3 text-zinc-400">
@@ -745,259 +778,42 @@ export function VideoPlayer({
                     </span>
                   </div>
                 )
-              ) : videoSource ? (
+              ) : videoUrl ? (
                 <div
                   key={`player-${currentVideoId}-${videoUrl}`}
                   className="relative w-full h-full"
                 >
-                  <ContextMenu>
-                    <ContextMenuTrigger className="w-full h-full">
-                      <video
-                        ref={videoRef}
-                        className="plyr-react plyr"
-                        crossOrigin="anonymous"
-                        playsInline
-                      />
-                    </ContextMenuTrigger>
-                    <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
-                      <ContextMenuItem
-                        onClick={() => handleDownload("original")}
-                        className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-xs uppercase tracking-widest"
-                      >
-                        <Download className="w-3 h-3 mr-2" />
-                        Baixar Original
-                      </ContextMenuItem>
-                      <ContextMenuItem
-                        onClick={() => handleDownload("proxy")}
-                        className="focus:bg-red-600 focus:text-white cursor-pointer font-bold text-xs uppercase tracking-widest"
-                      >
-                        <Download className="w-3 h-3 mr-2" />
-                        Baixar Proxy (720p)
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
-                  {/* Canvas overlay for drawing */}
-                  <canvas
-                    ref={canvasRef}
-                    className={`absolute top-0 left-0 w-full h-full pointer-events-none ${drawingMode ? "pointer-events-auto cursor-crosshair" : ""}`}
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                    style={{ zIndex: drawingMode ? 10 : 1 }}
-                  />
+                  <VideoPlayerCore />
+                  <ReviewCanvas />
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-3 text-zinc-400">
-                  {/* Basic fallback */}
-                </div>
-              )}
-
-              {/* Loading Overlay (Priority Z-50) */}
-              {isLoadingVideo && (
-                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 video-overlay-fade-in">
-                  <div className="relative flex items-center justify-center scale-110">
-                    {/* Outer animated ring */}
-                    <div className="absolute w-20 h-20 border-2 border-red-600/20 rounded-full"></div>
-                    <div className="absolute w-20 h-20 border-t-2 border-red-600 rounded-full animate-spin"></div>
-
-                    {/* Inner static brand circle */}
-                    <div className="w-16 h-16 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center shadow-2xl">
-                      <div className="brick-title text-[10px] text-white uppercase tracking-tighter">
-                        Brick
-                      </div>
-                    </div>
-                  </div>
-                  <span className="mt-8 text-[9px] font-black uppercase tracking-[0.5em] text-zinc-400 animate-pulse">
-                    Sincronizando
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                  <span className="text-xs font-bold uppercase tracking-[0.2em]">
+                    A carregar stream...
                   </span>
-                </div>
-              )}
-
-              {/* Play/Pause Overlay (Z-40) */}
-              {!isPlaying && !isLoadingVideo && videoSource && !isComparing && !isDrawing && (
-                <div
-                  className="absolute inset-0 z-40 bg-black/30 backdrop-blur-[2px] flex items-center justify-center cursor-pointer group transition-all duration-500 hover:bg-black/40 video-overlay-fade-in"
-                  onClick={() => playerRef.current?.plyr?.play()}
-                >
-                  <div className="relative flex items-center justify-center transform transition-all duration-500 group-hover:scale-105">
-                    {/* Animated Glow effect */}
-                    <div className="absolute inset-0 bg-red-600/20 blur-[100px] rounded-full scale-150 animate-pulse"></div>
-
-                    {/* Big Play Button Container */}
-                    <div className="w-24 h-24 bg-zinc-950/50 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
-                      {/* Gradient overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-tr from-red-600/10 via-transparent to-white/5 opacity-50"></div>
-
-                      {/* Play Icon */}
-                      <div className="relative z-10 transform transition-transform duration-300 group-hover:translate-x-1">
-                        <Play className="w-10 h-10 text-white fill-current drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
-                      </div>
-
-                      {/* Rotating border effect on hover */}
-                      <div className="absolute inset-0 border-2 border-transparent group-hover:border-t-red-600/50 rounded-full animate-spin-slow"></div>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Barra de Controles Unificada (Frame.io style) */}
-          <div className="bg-[#0a0a0a] border-t border-zinc-800/50 flex flex-col relative z-30 overflow-visible">
-            {/* Progress Scrubber */}
-            <div
-              className="w-full h-2 bg-zinc-900 cursor-pointer relative group overflow-visible"
-              onMouseMove={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const pos = x / rect.width;
-                setHoverPos(x);
-                setHoverTime(pos * (playerRef.current?.plyr?.duration || duration));
-              }}
-              onMouseLeave={() => setHoverTime(null)}
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const pos = (e.clientX - rect.left) / rect.width;
-                if (playerRef.current?.plyr) {
-                  playerRef.current.plyr.currentTime =
-                    pos * (playerRef.current.plyr.duration || duration);
-                }
-              }}
-            >
-              {/* Thumbnail Preview Tooltip */}
-              {hoverTime !== null && !isMobile() && (
-                <div
-                  className="absolute bottom-full mb-4 z-[100] pointer-events-none -translate-x-1/2 flex flex-col items-center"
-                  style={{ left: `${hoverPos}px` }}
-                >
-                  {currentThumbnail && (
-                    <div
-                      className="border-2 border-red-600 bg-black overflow-hidden shadow-2xl"
-                      style={{
-                        width: `${currentThumbnail.w}px`,
-                        height: `${currentThumbnail.h}px`,
-                        backgroundImage: `url(${currentThumbnail.url})`,
-                        backgroundPosition: `-${currentThumbnail.x}px -${currentThumbnail.y}px`,
-                        backgroundRepeat: "no-repeat",
-                      }}
-                    />
-                  )}
-                  <div className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 mt-1 brick-tech font-mono">
-                    {formatTimecode(hoverTime)}
-                  </div>
-                </div>
-              )}
+          <div className="bg-[#0a0a0a] border-t border-zinc-800/50 flex flex-col relative z-30">
+            <Timeline />
 
-              {/* Buffered progress (opcional, se quiser implementar) */}
-              <div
-                className="absolute top-0 left-0 h-full bg-red-600"
-                style={{
-                  width: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%`,
-                }}
-              />
-
-              {/* Range Markers (Rendered FIRST so they are behind single markers) */}
-              {comments.map((comment) => {
-                const range = getCommentRange(comment);
-                if (!range || range.end === null || duration === 0) return null;
-
-                const startPct = Math.min(100, Math.max(0, (range.start / duration) * 100));
-                const endPct = Math.min(100, Math.max(0, (range.end / duration) * 100));
-                const width = Math.max(0.2, endPct - startPct);
-
-                return (
-                  <div
-                    key={`range-${comment.id}`}
-                    className="absolute top-0 h-full bg-red-600/30 border-l border-r border-red-500/50 z-10 pointer-events-none group/range"
-                    style={{ left: `${startPct}%`, width: `${width}%` }}
-                  >
-                    <div className="absolute inset-0 bg-red-600/10 group-hover/range:bg-red-600/20 transition-colors" />
-                  </div>
-                );
-              })}
-
-              {/* Single Markers & Range Handles */}
-              {comments.map((comment) => {
-                const range = getCommentRange(comment);
-                const ts = parseTimestampSeconds(comment.timestamp);
-                if (ts === null || duration === 0) return null;
-
-                // Se for range, desenha marcadores de início e fim se não forem muito grudados?
-                // Por simplicidade, desenhamos o marcador principal no start time sempre
-                const left = Math.min(100, (ts / duration) * 100);
-                const isRange = range && range.end !== null;
-
-                return (
-                  <button
-                    key={`marker-${comment.id}`}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      seekTo(ts);
-                      setHighlightedCommentId(comment.id);
-                    }}
-                    className={`absolute top-1/2 -translate-y-1/2 h-3 w-3 z-30 transition-all cursor-pointer group/marker -ml-[6px] outline-none focus:outline-none`}
-                    style={{ left: `${left}%` }}
-                  >
-                    {/* Visual do Marcador */}
-                    <div
-                      className={`w-full h-full rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.5)] transform transition-transform group-hover/marker:scale-150 ${
-                        isRange
-                          ? "bg-amber-400 border border-amber-200"
-                          : "bg-white border border-zinc-200"
-                      }`}
-                    />
-
-                    {/* Linha conectora vertical (opcional, estilo DaVinci Resolve) */}
-                    <div className="absolute top-full left-1/2 w-px h-2 bg-white/50 -translate-x-1/2 group-hover/marker:h-4 transition-all" />
-
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 opacity-0 group-hover/marker:opacity-100 transition-opacity pointer-events-none z-50">
-                      <div className="bg-zinc-900 border border-zinc-700 px-2 py-1.5 rounded-sm shadow-xl flex items-center gap-2 whitespace-nowrap">
-                        <div
-                          className={`w-1.5 h-1.5 rounded-full ${isRange ? "bg-amber-400" : "bg-red-500"}`}
-                        />
-                        <span className="text-[10px] uppercase font-bold text-zinc-100 max-w-[150px] truncate">
-                          {comment.username}
-                        </span>
-                      </div>
-                      {/* Seta do tooltip */}
-                      <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-zinc-700 mx-auto -mt-px relative z-10" />
-                    </div>
-                  </button>
-                );
-              })}
-
-              {/* Current Range Selection Preview */}
-              {isRangeMode && hasTimestamp && rangeEndTime !== null && duration > 0 && (
-                <div
-                  className="absolute top-0 h-full bg-white/50 border-x border-white z-20 pointer-events-none shadow-[0_0_10px_rgba(255,255,255,0.3)]"
-                  style={{
-                    left: `${Math.min((rangeStartTime / duration) * 100, (rangeEndTime / duration) * 100)}%`,
-                    width: `${Math.abs(((rangeEndTime - rangeStartTime) / duration) * 100)}%`,
-                  }}
-                />
-              )}
-
-              {/* Scrubber Handle on Hover */}
-              <div
-                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                style={{
-                  left: `${duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0}%`,
-                }}
-              />
-            </div>
-
-            {/* Controls Row */}
             <div className="flex items-center justify-between px-4 py-2 h-12">
-              {/* Left Controls: Play & Speed */}
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => playerRef.current?.plyr?.togglePlay()}
-                  className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                  onClick={() => {
+                    if (!videoUrl) {
+                      toast.error("Aguarde o vídeo carregar...");
+                      return;
+                    }
+                    playerRef.current?.plyr?.togglePlay();
+                  }}
+                  disabled={!videoUrl}
+                  className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8 disabled:opacity-50"
                 >
                   {isPlaying ? (
                     <Pause className="w-4 h-4 fill-current" />
@@ -1006,13 +822,12 @@ export function VideoPlayer({
                   )}
                 </Button>
 
-                {/* Speed Selector */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-xs font-bold text-zinc-500 hover:text-white uppercase tracking-widest w-12 h-8 rounded-none"
+                      className="text-[10px] font-bold text-zinc-500 hover:text-white uppercase tracking-widest w-12 h-8 rounded-none"
                     >
                       {playbackSpeed}x
                     </Button>
@@ -1029,10 +844,10 @@ export function VideoPlayer({
                             playerRef.current.plyr.speed = speed;
                           }
                         }}
-                        className={`text-xs justify-center cursor-pointer font-bold ${
+                        className={`text-[10px] justify-center cursor-pointer font-bold ${
                           playbackSpeed === speed
                             ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                            : "text-zinc-500 focus:text-white focus:bg-zinc-800"
                         }`}
                       >
                         {speed}x
@@ -1043,17 +858,16 @@ export function VideoPlayer({
 
                 <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
 
-                {/* Quality Selector */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`text-xs font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
+                      className={`text-[10px] font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
                         quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
                       }`}
                     >
-                      {quality === "original" ? getResolutionLabel(currentVideo) : "720p"}
+                      {quality === "original" ? "Original" : "720p"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -1062,29 +876,28 @@ export function VideoPlayer({
                   >
                     <DropdownMenuItem
                       onClick={() => setQuality("proxy")}
-                      className={`text-xs cursor-pointer font-bold ${
+                      className={`text-[10px] cursor-pointer font-bold ${
                         quality === "proxy"
                           ? "text-red-500 bg-red-500/10"
                           : "text-zinc-400 focus:text-white focus:bg-zinc-800"
                       }`}
                     >
-                      720p
+                      Auto (720p)
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setQuality("original")}
-                      className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                      className={`text-[10px] cursor-pointer font-bold ${
                         quality === "original"
                           ? "text-red-500 bg-red-500/10"
                           : "text-zinc-400 focus:text-white focus:bg-zinc-800"
                       }`}
                     >
-                      {getResolutionLabel(currentVideo)}
+                      Original (Máx)
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
 
-              {/* Center Controls: Frame & Timecode */}
               <div className="flex items-center gap-4 lg:absolute lg:left-1/2 lg:-translate-x-1/2">
                 <Button
                   variant="ghost"
@@ -1098,11 +911,11 @@ export function VideoPlayer({
                 </Button>
 
                 <div className="flex flex-col items-center min-w-[80px] lg:min-w-[100px]">
-                  <div className="brick-tech font-mono text-white font-bold text-sm lg:text-lg tabular-nums tracking-tight leading-none">
-                    {formatTimecode(currentTime)}
+                  <div className="brick-tech text-white font-bold text-sm lg:text-lg tabular-nums tracking-tight leading-none">
+                    {formatTimecode(currentTime, videoFPS)}
                   </div>
-                  <div className="text-xs text-zinc-600 font-medium uppercase tracking-widest mt-0.5 brick-tech font-mono">
-                    {formatTimecode(duration)}
+                  <div className="text-[9px] text-zinc-600 font-medium uppercase tracking-widest mt-0.5">
+                    {formatTimecode(duration, videoFPS)}
                   </div>
                 </div>
 
@@ -1118,7 +931,6 @@ export function VideoPlayer({
                 </Button>
               </div>
 
-              {/* Right Controls: Volume & Fullscreen */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center group relative">
                   <Button
@@ -1137,7 +949,6 @@ export function VideoPlayer({
                       <Volume2 className="w-4 h-4" />
                     )}
                   </Button>
-                  {/* Volume Slider on Hover (Simple implementation) */}
                   <div className="w-0 overflow-hidden group-hover:w-20 transition-all duration-300 ease-out flex items-center">
                     <input
                       type="range"
@@ -1170,37 +981,12 @@ export function VideoPlayer({
           </div>
         </div>
 
-        {/* Barra Lateral de Comentarios / Historico - Usando componente refatorado */}
         <CommentSidebar
           showHistory={showHistory}
           setShowHistory={setShowHistory}
           history={history}
-          propCurrentVideo={currentVideo}
-          propCurrentTime={currentTime}
-          propComments={comments}
-          propSetComments={setComments}
-          propIsDrawingMode={drawingMode}
-          propSetIsDrawingMode={setDrawingMode}
-          propSeekTo={seekTo}
-          propVisitorName={visitorName}
-          propSetVisitorName={setVisitorName}
-          propDrawings={drawings}
-          propSetDrawings={setDrawings}
-          propShareToken={shareToken}
-          propSharePassword={sharePassword}
-          propIsPublic={isPublic}
-          propIsComparing={isComparing}
-          propIsRangeMode={isRangeMode}
-          propSetIsRangeMode={setIsRangeMode}
-          propRangeStartTime={rangeStartTime}
-          propSetRangeStartTime={setRangeStartTime}
-          propRangeEndTime={rangeEndTime}
-          propSetRangeEndTime={setRangeEndTime}
-          propHasTimestamp={hasTimestamp}
-          propSetHasTimestamp={setHasTimestamp}
         />
 
-        {/* Share Link Dialog Fallback */}
         <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
           <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none sm:max-w-md">
             <DialogHeader>
@@ -1221,7 +1007,7 @@ export function VideoPlayer({
                 />
                 <Button
                   variant="ghost"
-                  className="bg-red-600 hover:bg-red-700 text-white rounded-none h-10 px-4 text-xs font-black uppercase tracking-widest"
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-none h-10 px-4 text-[10px] font-black uppercase tracking-widest"
                   onClick={() => {
                     navigator.clipboard.writeText(shareLink);
                     toast.success("Copiado!");
@@ -1234,17 +1020,6 @@ export function VideoPlayer({
           </DialogContent>
         </Dialog>
       </div>
-
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        onClose={closeConfirmDialog}
-        onConfirm={() => confirmDialog.onConfirm?.()}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        confirmText={confirmDialog.confirmText}
-        cancelText={confirmDialog.cancelText}
-        variant={confirmDialog.variant}
-      />
     </>
   );
 }
