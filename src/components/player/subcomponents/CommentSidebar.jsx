@@ -174,6 +174,21 @@ const CommentItemInline = ({
               className="text-sm text-zinc-300 leading-relaxed"
             />
           )}
+
+          {comment.attachment_url && (
+            <a
+              href={comment.attachment_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 mt-2 p-2 bg-zinc-900/50 border border-zinc-800 rounded hover:bg-zinc-800 transition-colors group/attach"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Paperclip className="w-3 h-3 text-red-500" />
+              <span className="text-[11px] text-zinc-400 group-hover/attach:text-zinc-200 truncate font-mono">
+                {comment.attachment_name || 'Anexo'}
+              </span>
+            </a>
+          )}
         </div>
 
         {canComment && (
@@ -341,9 +356,9 @@ const CommentItemInline = ({
 };
 
 export function CommentSidebar({
-  showHistory,
-  setShowHistory,
-  history,
+  showHistory = false,
+  setShowHistory = () => { },
+  history = [],
   // Props opcionais - se fornecidas, usam elas; senão, usam o contexto
   propCurrentVideo,
   propCurrentTime,
@@ -591,7 +606,7 @@ export function CommentSidebar({
       }
 
       const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : "/api/comments";
-      const headers = { "Content-Type": "application/json" };
+      const headers = {};
 
       if (isGuest && sharePassword) headers["x-share-password"] = sharePassword;
       if (!isGuest) headers["Authorization"] = `Bearer ${token}`;
@@ -606,19 +621,18 @@ export function CommentSidebar({
         finalEnd = temp;
       }
 
-      const body = {
-        video_id: currentVideoId,
-        content: newComment,
-        timestamp: finalStart,
-        timestamp_end: finalEnd,
-      };
-
-      if (isGuest) body.visitor_name = visitorName;
+      const formData = new FormData();
+      formData.append("video_id", currentVideoId);
+      formData.append("content", newComment);
+      if (finalStart !== null) formData.append("timestamp", finalStart);
+      if (finalEnd !== null) formData.append("timestamp_end", finalEnd);
+      if (isGuest) formData.append("visitor_name", visitorName);
+      if (attachedFile) formData.append("file", attachedFile);
 
       const response = await fetch(endpoint, {
         method: "POST",
         headers,
-        body: JSON.stringify(body),
+        body: formData, // Browser envia como multipart/form-data automaticamente
       });
 
       if (response.ok) {
@@ -832,7 +846,7 @@ export function CommentSidebar({
 
       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
         {showHistory ? (
-          history.length === 0 ? (
+          (!history || history.length === 0) ? (
             <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
               Nenhum histórico registrado ainda.
             </div>

@@ -109,6 +109,19 @@ app.use('/api/drawings', drawingsRoutes)
 app.use('/api/images', imagesRoutes)
 // app.use('/api/notifications', notificationsRoutes)
 
+// Serve comment attachments from Railway Volume
+const ANEXOS_PATH = process.env.ANEXOS_PATH || '/anexos';
+if (fs.existsSync(ANEXOS_PATH)) {
+  console.log(`📂 Servindo anexos de: ${ANEXOS_PATH}`);
+  app.use('/anexos', express.static(ANEXOS_PATH));
+} else {
+  // Local development fallback
+  const localAnexos = path.join(__dirname, 'anexos');
+  if (!fs.existsSync(localAnexos)) fs.mkdirSync(localAnexos, { recursive: true });
+  console.log(`📂 Servindo anexos (local): ${localAnexos}`);
+  app.use('/anexos', express.static(localAnexos));
+}
+
 // Serve static files em produção
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, '../dist')

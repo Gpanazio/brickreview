@@ -2,6 +2,7 @@ import express from "express";
 import { query } from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { requireProjectAccess } from "../utils/permissions.js";
+import { attachmentUpload } from "../utils/attachmentStorage.js";
 
 const router = express.Router();
 
@@ -46,7 +47,7 @@ router.get("/video/:videoId", authenticateToken, async (req, res) => {
  * @route POST /api/comments
  * @desc Add a comment to a video
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, attachmentUpload.single('file'), async (req, res) => {
   const { video_id, parent_comment_id, content, timestamp, timestamp_end } = req.body;
 
   if (!video_id || !content) {
@@ -59,17 +60,28 @@ router.post('/', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "video_id inválido" });
     }
 
-    // Permite comentário/reply livre para qualquer usuário autenticado
     const videoExists = await query("SELECT 1 FROM brickreview_videos WHERE id = $1", [videoId]);
     if (videoExists.rows.length === 0) {
       return res.status(404).json({ error: "Vídeo não encontrado" });
     }
 
+    const attachment_name = req.file ? req.file.originalname : null;
+    const attachment_url = req.file ? `/anexos/${req.file.filename}` : null;
+
     const result = await query(
-      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp, timestamp_end)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, content, timestamp, timestamp_end, attachment_url, attachment_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [videoId, parent_comment_id, req.user.id, content, timestamp, timestamp_end]
+      [
+        videoId,
+        parent_comment_id || null,
+        req.user.id,
+        content,
+        timestamp ? parseFloat(timestamp) : null,
+        timestamp_end ? parseFloat(timestamp_end) : null,
+        attachment_url,
+        attachment_name
+      ]
     )
 
     // Busca detalhes do comentário recém criado com dados do usuário

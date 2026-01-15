@@ -9,6 +9,7 @@ import {
 } from "../utils/permissions.js";
 import { v4 as uuidv4 } from "uuid";
 import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js";
+import { attachmentUpload } from "../utils/attachmentStorage.js";
 
 const router = express.Router();
 
@@ -179,7 +180,7 @@ router.post("/", authenticateToken, async (req, res) => {
 });
 
 // POST /api/shares/:token/comments - Adiciona comentário como convidado (PÚBLICO)
-router.post("/:token/comments", async (req, res) => {
+router.post("/:token/comments", attachmentUpload.single('file'), async (req, res) => {
   try {
     const { token } = req.params;
     const { video_id, parent_comment_id, content, timestamp, visitor_name, timestamp_end } =
@@ -202,13 +203,27 @@ router.post("/:token/comments", async (req, res) => {
     }
 
     const visitorName = visitor_name.trim();
+    const attachment_name = req.file ? req.file.originalname : null;
+    const attachment_url = req.file ? `/anexos/${req.file.filename}` : null;
+
+    const vId = Number(video_id);
+    const pId = parent_comment_id ? Number(parent_comment_id) : null;
 
     // Insere comentário como convidado (user_id = NULL)
     const commentResult = await query(
-      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, visitor_name, content, timestamp, timestamp_end)
-       VALUES ($1, $2, NULL, $3, $4, $5, $6)
+      `INSERT INTO brickreview_comments (video_id, parent_comment_id, user_id, visitor_name, content, timestamp, timestamp_end, attachment_url, attachment_name)
+       VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [video_id, parent_comment_id, visitorName, content, timestamp, timestamp_end]
+      [
+        vId,
+        pId,
+        visitorName,
+        content,
+        timestamp ? parseFloat(timestamp) : null,
+        timestamp_end ? parseFloat(timestamp_end) : null,
+        attachment_url,
+        attachment_name
+      ]
     );
 
     // Busca detalhes do comentário com dados do usuário

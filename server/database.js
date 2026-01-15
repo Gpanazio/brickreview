@@ -103,7 +103,11 @@ export async function initDatabase() {
           (SELECT EXISTS (
             SELECT 1 FROM information_schema.columns 
             WHERE table_name = 'brickreview_comments' AND column_name = 'timestamp_end'
-          )) as "commentsHaveTimestampEnd"
+          )) as "commentsHaveTimestampEnd",
+          (SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'brickreview_comments' AND column_name = 'attachment_url'
+          )) as "commentsHaveAttachments"
       `,
         [requiredViews]
       );
@@ -130,7 +134,7 @@ export async function initDatabase() {
         projectsViewHasDeletedAt &&
         foldersViewHasDeletedAt;
 
-      if (shareTableExists && missingViews.length === 0 && softDeleteReady && commentsHaveTimestampEnd) {
+      if (shareTableExists && missingViews.length === 0 && softDeleteReady && commentsHaveTimestampEnd && schemaCheck.rows[0].commentsHaveAttachments) {
         console.log("✅ Database schema already initialized. Skipping setup.");
         return;
       }
@@ -199,7 +203,7 @@ export async function initDatabase() {
     // Execute setup
     await query(sql);
 
-    // Ensure timestamp_end exists (migration for existing tables)
+    // Ensure timestamp_end and attachments exist (migration for existing tables)
     try {
       await query(`
         DO $$ 
@@ -207,10 +211,16 @@ export async function initDatabase() {
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brickreview_comments' AND column_name='timestamp_end') THEN
             ALTER TABLE brickreview_comments ADD COLUMN timestamp_end DECIMAL(10, 3);
           END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brickreview_comments' AND column_name='attachment_url') THEN
+            ALTER TABLE brickreview_comments ADD COLUMN attachment_url TEXT;
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brickreview_comments' AND column_name='attachment_name') THEN
+            ALTER TABLE brickreview_comments ADD COLUMN attachment_name TEXT;
+          END IF;
         END $$;
       `);
     } catch (migError) {
-      console.log("⚠️  Could not add timestamp_end column:", migError.message);
+      console.log("⚠️  Could not add migration columns:", migError.message);
     }
 
     console.log("✅ Database schema initialized successfully");
