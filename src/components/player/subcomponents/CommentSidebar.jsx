@@ -777,180 +777,196 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 disabled={isGuest && !canComment}
               />
 
-              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
-                  <button
-                    type="button"
-                    className={`p-2 rounded-sm transition-colors cursor-pointer ${
-                      hasTimestamp
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                    }`}
-                    onClick={() => setHasTimestamp(!hasTimestamp)}
-                    title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
-                  >
-                    {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                  </button>
-
-                  {hasTimestamp && (
-                    <button
-                      type="button"
-                      className={`p-2 rounded-sm transition-colors flex items-center gap-1 cursor-pointer ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
-                      onClick={() => {
-                        if (!isRangeMode) {
-                          const end = currentTime + 5;
-                          setRangeEndTime(end);
-                          setActiveRange({ start: currentTime, end });
-                        } else {
-                          setRangeEndTime(null);
-                          setActiveRange(null);
-                        }
-                        setIsRangeMode(!isRangeMode);
-                      }}
-                    >
-                      <span className="text-xs font-black uppercase border border-current px-1">
-                        Range
-                      </span>
-                    </button>
-                  )}
-
-                  {hasTimestamp && isRangeMode && (
-                    <div
-                      className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-1.5 py-1 rounded-sm border border-zinc-800 cursor-ew-resize select-none active:bg-zinc-800 transition-colors shrink-0 touch-none"
-                      style={{ touchAction: "none" }}
-                      title="Clique e arraste para ajustar"
-                      onMouseDown={(e) => {
-                        const startX = e.clientX;
-                        const startValue = rangeEndTime || currentTime;
-
-                        const handleMouseMove = (moveEvent) => {
-                          const deltaX = moveEvent.clientX - startX;
-                          // Sensibilidade: 0.1s para cada 2px
-                          const newValue = Math.max(currentTime + 0.1, startValue + deltaX * 0.05);
-                          setRangeEndTime(newValue);
-                          setActiveRange({ start: currentTime, end: newValue });
-                          seekTo(newValue);
-                        };
-
-                        const handleMouseUp = () => {
-                          window.removeEventListener("mousemove", handleMouseMove);
-                          window.removeEventListener("mouseup", handleMouseUp);
-                        };
-
-                        window.addEventListener("mousemove", handleMouseMove);
-                        window.addEventListener("mouseup", handleMouseUp);
-                      }}
-                    >
-                      <span className="font-black opacity-50 uppercase">Fim:</span>
-                      <span className="text-white font-bold min-w-[2.5rem] text-center tracking-tighter">
-                        {formatTime(rangeEndTime)}
-                      </span>
-                    </div>
-                  )}
-
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={(e) => setAttachedFile(e.target.files[0])}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`p-2 rounded-sm transition-colors cursor-pointer ${
-                      attachedFile
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                    }`}
-                    title="Anexar arquivo"
-                  >
-                    <Paperclip className="w-4 h-4" />
-                  </button>
-
-                  <div className="relative">
+              <div className="absolute bottom-0 left-0 right-0 bg-[#0a0a0a] p-2 flex flex-col gap-2">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-1">
+                  <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
                     <button
                       type="button"
                       className={`p-2 rounded-sm transition-colors cursor-pointer ${
-                        showEmojiPicker
-                          ? "text-yellow-500 bg-yellow-500/10"
+                        hasTimestamp
+                          ? "text-red-500 bg-red-500/10"
                           : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
                       }`}
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      title="Adicionar emoji"
+                      onClick={() => setHasTimestamp(!hasTimestamp)}
+                      title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
                     >
-                      <Smile className="w-4 h-4" />
+                      {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
                     </button>
 
-                    {showEmojiPicker && (
-                      <div className="absolute bottom-full left-0 mb-2 z-50">
-                        <ErrorBoundary>
-                          <EmojiPicker
-                            onEmojiClick={(emojiData) => {
-                              setNewComment(newComment + emojiData.emoji);
-                              setShowEmojiPicker(false);
+                    {hasTimestamp && (
+                      <button
+                        type="button"
+                        className={`p-2 rounded-sm transition-colors flex items-center gap-1 cursor-pointer ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
+                        onClick={() => {
+                          if (!isRangeMode) {
+                            const end = Math.min(currentVideo.duration || currentTime + 5, currentTime + 5);
+                            setRangeEndTime(end);
+                            setActiveRange({ start: currentTime, end });
+                          } else {
+                            setRangeEndTime(null);
+                            setActiveRange(null);
+                          }
+                          setIsRangeMode(!isRangeMode);
+                        }}
+                      >
+                        <span className="text-[10px] font-black uppercase border border-current px-1 leading-tight">
+                          Range
+                        </span>
+                      </button>
+                    )}
+
+                    {hasTimestamp && isRangeMode && (
+                      <div className="flex items-center gap-1 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 shrink-0">
+                        <span className="text-[9px] font-black opacity-50 uppercase text-zinc-400">OUT:</span>
+                        <input
+                          type="text"
+                          value={formatTime(rangeEndTime)}
+                          readOnly
+                          className="bg-transparent border-none text-white font-bold text-[10px] w-10 text-center focus:outline-none"
+                        />
+                        <div className="flex flex-col gap-0.5 ml-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newVal = Math.min(currentVideo.duration || rangeEndTime + 1, rangeEndTime + 1);
+                              setRangeEndTime(newVal);
+                              setActiveRange(prev => ({ ...prev, end: newVal }));
+                              seekTo(newVal);
                             }}
-                            theme="dark"
-                            width={300}
-                            height={400}
-                          />
-                        </ErrorBoundary>
+                            className="text-zinc-500 hover:text-white"
+                          >
+                            <span className="block h-2 flex items-center">▲</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newVal = Math.max(currentTime + 0.1, rangeEndTime - 1);
+                              setRangeEndTime(newVal);
+                              setActiveRange(prev => ({ ...prev, end: newVal }));
+                              seekTo(newVal);
+                            }}
+                            className="text-zinc-500 hover:text-white"
+                          >
+                            <span className="block h-2 flex items-center">▼</span>
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRangeEndTime(currentTime);
+                            setActiveRange(prev => ({ ...prev, end: currentTime }));
+                          }}
+                          className="ml-1 text-[9px] font-bold text-zinc-500 hover:text-red-500 uppercase px-1 border border-zinc-800 hover:border-red-500/50 rounded-sm"
+                          title="Marcar ponto de saída no tempo atual"
+                        >
+                          SET
+                        </button>
+                      </div>
+                    )}
+
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      onChange={(e) => setAttachedFile(e.target.files[0])}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                        attachedFile
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      }`}
+                      title="Anexar arquivo"
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </button>
+
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                          showEmojiPicker
+                            ? "text-yellow-500 bg-yellow-500/10"
+                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        }`}
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        title="Adicionar emoji"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+
+                      {showEmojiPicker && (
+                        <div className="absolute bottom-full left-0 mb-2 z-50">
+                          <ErrorBoundary>
+                            <EmojiPicker
+                              onEmojiClick={(emojiData) => {
+                                setNewComment(newComment + emojiData.emoji);
+                                setShowEmojiPicker(false);
+                              }}
+                              theme="dark"
+                              width={300}
+                              height={400}
+                            />
+                          </ErrorBoundary>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                        isDrawingMode
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
+                      onClick={() => {
+                        if (!isComparing) setIsDrawingMode(!isDrawingMode);
+                      }}
+                      title="Desenhar no frame"
+                      disabled={isComparing}
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                    </button>
+
+                    {isDrawingMode && (
+                      <div className="flex items-center gap-1 ml-1 pl-1 border-l border-zinc-800">
+                        {["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"].map(
+                          (color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              className={`w-4 h-4 rounded-sm border transition-all cursor-pointer ${
+                                selectedColor === color
+                                  ? "border-white scale-110"
+                                  : "border-zinc-700 hover:border-zinc-500"
+                              }`}
+                              style={{ backgroundColor: color }}
+                              onClick={() => setSelectedColor(color)}
+                              title={`Cor: ${color}`}
+                            />
+                          )
+                        )}
+                        <button
+                          type="button"
+                          className="p-1 rounded-sm text-zinc-500 hover:text-red-500 transition-colors cursor-pointer"
+                          onClick={clearDrawing}
+                          title="Limpar desenho"
+                        >
+                          <Eraser className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     )}
                   </div>
-
-                  <button
-                    type="button"
-                    className={`p-2 rounded-sm transition-colors cursor-pointer ${
-                      isDrawingMode
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                    } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
-                    onClick={() => {
-                      if (!isComparing) setIsDrawingMode(!isDrawingMode);
-                    }}
-                    title="Desenhar no frame"
-                    disabled={isComparing}
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                  </button>
-
-                  {isDrawingMode && (
-                    <>
-                      {["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"].map(
-                        (color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            className={`w-6 h-6 rounded-sm border transition-all cursor-pointer ${
-                              selectedColor === color
-                                ? "border-white scale-110"
-                                : "border-zinc-700 hover:border-zinc-500"
-                            }`}
-                            style={{ backgroundColor: color }}
-                            onClick={() => setSelectedColor(color)}
-                            title={`Cor: ${color}`}
-                          />
-                        )
-                      )}
-
-                      <button
-                        type="button"
-                        className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1 cursor-pointer"
-                        onClick={clearDrawing}
-                        title="Limpar desenho"
-                      >
-                        <Eraser className="w-4 h-4" />
-                      </button>
-                    </>
-                  )}
                 </div>
 
                 <button
                   type="submit"
                   disabled={!newComment.trim() || (isGuest && !canComment)}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-bold uppercase tracking-widest rounded-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  className="w-full py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm transition-all active:scale-[0.98] shadow-lg shadow-red-900/20 disabled:cursor-not-allowed"
                 >
-                  Enviar
+                  Enviar Comentário
                 </button>
               </div>
             </div>
