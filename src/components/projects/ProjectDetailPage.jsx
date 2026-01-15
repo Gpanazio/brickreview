@@ -553,12 +553,11 @@ export function ProjectDetailPage() {
     }
   };
 
-
-
   // Filter uploads for current project
-  const uploadQueue = useMemo(() =>
-    globalUploadQueue.filter(u => u.projectId === id),
-    [globalUploadQueue, id]);
+  const uploadQueue = useMemo(
+    () => globalUploadQueue.filter((u) => u.projectId === id),
+    [globalUploadQueue, id]
+  );
 
   const handleFileUpload = async (e, filesList = null) => {
     const rawFiles = filesList || e.target.files;
@@ -574,14 +573,16 @@ export function ProjectDetailPage() {
 
       let exists = false;
       if (isVideo) {
-        exists = project?.videos?.some(v =>
-          (v.folder_id === currentFolderId || (!currentFolderId && v.folder_id === null)) &&
-          v.title === title
+        exists = project?.videos?.some(
+          (v) =>
+            (v.folder_id === currentFolderId || (!currentFolderId && v.folder_id === null)) &&
+            v.title === title
         );
       } else {
-        exists = files.some(f =>
-          (f.folder_id === currentFolderId || (!currentFolderId && f.folder_id === null)) &&
-          f.name === name
+        exists = files.some(
+          (f) =>
+            (f.folder_id === currentFolderId || (!currentFolderId && f.folder_id === null)) &&
+            f.name === name
         );
       }
 
@@ -590,17 +591,19 @@ export function ProjectDetailPage() {
 
     if (duplicates.length > 0) {
       // Ask for confirmation
-      // For now, simpler approach: just show warning and filter out? 
+      // For now, simpler approach: just show warning and filter out?
       // Or showing a toaster and stop?
-      // The user said "doesn't warn". 
-      const proceed = window.confirm(`Arquivos duplicados encontrados: ${duplicates.join(", ")}. Deseja continuar e criar duplicatas?`);
+      // The user said "doesn't warn".
+      const proceed = window.confirm(
+        `Arquivos duplicados encontrados: ${duplicates.join(", ")}. Deseja continuar e criar duplicatas?`
+      );
       if (!proceed) return;
     }
 
     uploadFiles(filesToUpload, id, currentFolderId);
 
     // setUploading(true); // handled by context
-    // setTimeout(() => setUploading(false), 1000); 
+    // setTimeout(() => setUploading(false), 1000);
 
     if (e?.target) e.target.value = "";
   };
@@ -835,19 +838,21 @@ export function ProjectDetailPage() {
             <div className="flex bg-zinc-950/50 p-1 border border-zinc-800/50">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "grid"
-                  ? "bg-red-600 text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
+                className={`w-9 h-9 flex items-center justify-center transition-all ${
+                  viewMode === "grid"
+                    ? "bg-red-600 text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("folders")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "folders"
-                  ? "bg-red-600 text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
+                className={`w-9 h-9 flex items-center justify-center transition-all ${
+                  viewMode === "folders"
+                    ? "bg-red-600 text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
               >
                 <FolderTree className="w-4 h-4" />
               </button>
@@ -973,10 +978,10 @@ export function ProjectDetailPage() {
                   exit={{ opacity: 0 }}
                 >
                   {currentLevelFolders.length === 0 &&
-                    currentLevelVideos.length === 0 &&
-                    currentLevelFiles.length === 0 &&
-                    uploadQueue.length === 0 &&
-                    !currentFolderId ? (
+                  currentLevelVideos.length === 0 &&
+                  currentLevelFiles.length === 0 &&
+                  uploadQueue.length === 0 &&
+                  !currentFolderId ? (
                     <div className="flex flex-col items-center justify-center h-80 border border-dashed border-zinc-800 bg-zinc-950/10">
                       <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
                         <FileVideo className="w-8 h-8 text-zinc-700" />
@@ -1001,7 +1006,6 @@ export function ProjectDetailPage() {
                         >
                           <FolderCard
                             folder={folder}
-                            fileCount={files.filter((f) => f.folder_id === folder.id).length}
                             isSelected={selectedItems.has(`folder-${folder.id}`)}
                             onClick={() => {
                               if (selectedItems.size > 0) {
@@ -1311,16 +1315,7 @@ const formatFileSize = (bytes) => {
 };
 
 const FolderCard = memo(
-  ({
-    folder,
-    onClick,
-    onGenerateShare,
-    onDelete,
-    onMoveVideo,
-    onMoveFolder,
-    isSelected,
-    fileCount,
-  }) => {
+  ({ folder, onClick, onGenerateShare, onDelete, onMoveVideo, onMoveFolder, isSelected }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const previews = folder.previews || [];
     const hasPreviews = previews.length > 0;
@@ -1401,8 +1396,9 @@ const FolderCard = memo(
               ) : (
                 <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px] bg-zinc-950">
                   <div
-                    className={`relative bg-zinc-900 overflow-hidden ${previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
-                      }`}
+                    className={`relative bg-zinc-900 overflow-hidden ${
+                      previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
+                    }`}
                   >
                     <img
                       src={previews[0]}
@@ -1455,8 +1451,23 @@ const FolderCard = memo(
                     {folder.name}
                   </h3>
                   <p className="brick-manifesto text-[10px] text-zinc-500 truncate uppercase tracking-widest font-bold">
-                    {(folder.videos_count || 0) + (folder.subfolders_count || 0) + (fileCount || 0)}{" "}
-                    Itens no diretório
+                    {folder.videos_count > 0
+                      ? `${folder.videos_count} vídeo${folder.videos_count > 1 ? "s" : ""}`
+                      : ""}
+                    {folder.videos_count > 0 &&
+                    (folder.subfolders_count > 0 || folder.files_count > 0)
+                      ? ", "
+                      : ""}
+                    {folder.subfolders_count > 0
+                      ? `${folder.subfolders_count} pasta${folder.subfolders_count > 1 ? "s" : ""}`
+                      : ""}
+                    {folder.subfolders_count > 0 && folder.files_count > 0 ? ", " : ""}
+                    {folder.files_count > 0
+                      ? `${folder.files_count} arquivo${folder.files_count > 1 ? "s" : ""}`
+                      : ""}
+                    {!(folder.videos_count || folder.subfolders_count || folder.files_count)
+                      ? "Vazio"
+                      : ""}
                   </p>
                 </div>
                 <button className="text-zinc-700 hover:text-white transition-colors">
@@ -1756,9 +1767,11 @@ const VideoCard = memo(
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragging ? "opacity-50 scale-95" : ""
-                } ${isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
-                } ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
+              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
+                isDragging ? "opacity-50 scale-95" : ""
+              } ${
+                isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
+              } ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
               style={{ zIndex: 1 }}
             >
               {/* Indicador de Drop para criar versão */}

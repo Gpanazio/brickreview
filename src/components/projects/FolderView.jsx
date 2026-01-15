@@ -509,7 +509,20 @@ export function FolderView({
           )}
 
           <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-            {(folder.videos_count || 0) + (folder.subfolders_count || 0) + folderFiles.length} itens
+            {folder.videos_count > 0
+              ? `${folder.videos_count} vídeo${folder.videos_count > 1 ? "s" : ""}`
+              : ""}
+            {folder.videos_count > 0 && (folder.subfolders_count > 0 || folder.files_count > 0)
+              ? ", "
+              : ""}
+            {folder.subfolders_count > 0
+              ? `${folder.subfolders_count} pasta${folder.subfolders_count > 1 ? "s" : ""}`
+              : ""}
+            {folder.subfolders_count > 0 && folder.files_count > 0 ? ", " : ""}
+            {folder.files_count > 0
+              ? `${folder.files_count} arquivo${folder.files_count > 1 ? "s" : ""}`
+              : ""}
+            {!(folder.videos_count || folder.subfolders_count || folder.files_count) ? "Vazio" : ""}
           </span>
 
           <DropdownMenu>

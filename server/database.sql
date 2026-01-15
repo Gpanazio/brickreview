@@ -324,21 +324,36 @@ SELECT
 FROM brickreview_comments c
 LEFT JOIN master_users u ON c.user_id = u.id;
 
--- View: Folders com estatísticas
+-- View: Folders com estatísticas (contagem recursiva como no Windows)
 CREATE VIEW brickreview_folders_with_stats AS
-SELECT
+WITH RECURSIVE all_subfolders AS (
+  SELECT 
+    f.id as root_id,
+    f.id as folder_id
+  FROM brickreview_folders f
+  WHERE f.deleted_at IS NULL
+  
+  UNION ALL
+  
+  SELECT 
+    t.root_id,
+    f.id
+  FROM brickreview_folders f
+  JOIN all_subfolders t ON t.folder_id = f.parent_folder_id
+  WHERE f.deleted_at IS NULL
+)
+SELECT 
   f.id,
   f.project_id,
   f.parent_folder_id,
   f.name,
   f.created_at,
   f.deleted_at,
-  COUNT(DISTINCT v.id) as videos_count,
-  COUNT(DISTINCT sf.id) as subfolders_count
+  (SELECT COUNT(DISTINCT v.id) FROM brickreview_videos v JOIN all_subfolders s ON s.root_id = f.id AND v.folder_id = s.folder_id WHERE v.deleted_at IS NULL) as videos_count,
+  (SELECT COUNT(DISTINCT sf.id) FROM brickreview_folders sf JOIN all_subfolders s ON s.root_id = f.id AND sf.id = s.folder_id WHERE sf.deleted_at IS NULL AND sf.id != f.id) as subfolders_count,
+  (SELECT COUNT(DISTINCT fl.id) FROM brickreview_files fl JOIN all_subfolders s ON s.root_id = f.id AND fl.folder_id = s.folder_id WHERE fl.deleted_at IS NULL) as files_count
 FROM brickreview_folders f
-LEFT JOIN brickreview_videos v ON v.folder_id = f.id AND v.deleted_at IS NULL
-LEFT JOIN brickreview_folders sf ON sf.parent_folder_id = f.id AND sf.deleted_at IS NULL
-GROUP BY f.id, f.project_id, f.parent_folder_id, f.name, f.created_at, f.deleted_at;
+WHERE f.deleted_at IS NULL;
 
 -- View: Projetos com estatísticas
 CREATE VIEW brickreview_projects_with_stats AS
