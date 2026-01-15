@@ -140,6 +140,26 @@
   display: none !important;
 }
 
+/* Animações Customizadas */
+@keyframes spin-soft {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-soft 3s linear infinite;
+}
+
+/* Ajustes para os novos Overlays */
+.video-overlay-fade-in {
+  animation: overlayFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 /* Garante que o vídeo use object-fit contain para não cropagem no modo full-size */
 .plyr video,
 .plyr__video-wrapper video,

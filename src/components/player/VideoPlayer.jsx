@@ -1463,32 +1463,56 @@ export function VideoPlayer({
 
               {/* Loading Overlay (Priority Z-50) */}
               {isLoadingVideo && (
-                <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center">
-                  <div className="flex gap-1 h-8">
-                    <div
-                      className="w-2 h-full bg-red-600 animate-[pulse_0.6s_ease-in-out_infinite]"
-                      style={{ animationDelay: "0ms" }}
-                    />
-                    <div
-                      className="w-2 h-full bg-red-600 animate-[pulse_0.6s_ease-in-out_infinite]"
-                      style={{ animationDelay: "200ms" }}
-                    />
-                    <div
-                      className="w-2 h-full bg-red-600 animate-[pulse_0.6s_ease-in-out_infinite]"
-                      style={{ animationDelay: "400ms" }}
-                    />
+                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 video-overlay-fade-in">
+                  <div className="relative flex items-center justify-center scale-110">
+                    {/* Outer animated ring */}
+                    <div className="absolute w-20 h-20 border-2 border-red-600/20 rounded-full"></div>
+                    <div className="absolute w-20 h-20 border-t-2 border-red-600 rounded-full animate-spin"></div>
+
+                    {/* Inner static brand circle */}
+                    <div className="w-16 h-16 bg-zinc-900 border border-zinc-800 rounded-full flex items-center justify-center shadow-2xl">
+                      <div className="brick-title text-[10px] text-white uppercase tracking-tighter">
+                        Brick
+                      </div>
+                    </div>
                   </div>
+                  <span className="mt-8 text-[9px] font-black uppercase tracking-[0.5em] text-zinc-400 animate-pulse">
+                    Sincronizando
+                  </span>
                 </div>
               )}
 
-              {/* Pause Overlay (Z-40) */}
+              {/* Play/Pause Overlay (Z-40) */}
               {!isPlaying && !isLoadingVideo && videoSource && !isComparing && !isDrawing && (
-                <div className="absolute inset-0 z-40 bg-black/20 flex items-center justify-center pointer-events-none fade-in duration-300">
-                  <div className="bg-black/90 backdrop-blur border border-zinc-800 p-6 flex flex-col items-center shadow-2xl">
-                    <Pause className="w-8 h-8 text-white mb-2" />
-                    <span className="text-xs font-black uppercase tracking-[0.3em] text-zinc-400">
-                      Pausado
-                    </span>
+                <div
+                  className="absolute inset-0 z-40 bg-black/30 backdrop-blur-[2px] flex items-center justify-center cursor-pointer group transition-all duration-500 hover:bg-black/40 video-overlay-fade-in"
+                  onClick={() => playerRef.current?.plyr?.play()}
+                >
+                  <div className="relative flex items-center justify-center transform transition-all duration-500 group-hover:scale-105">
+                    {/* Animated Glow effect */}
+                    <div className="absolute inset-0 bg-red-600/20 blur-[100px] rounded-full scale-150 animate-pulse"></div>
+
+                    {/* Big Play Button Container */}
+                    <div className="w-24 h-24 bg-zinc-950/50 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden">
+                      {/* Gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-tr from-red-600/10 via-transparent to-white/5 opacity-50"></div>
+
+                      {/* Play Icon */}
+                      <div className="relative z-10 transform transition-transform duration-300 group-hover:translate-x-1">
+                        <Play className="w-10 h-10 text-white fill-current drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" />
+                      </div>
+
+                      {/* Rotating border effect on hover */}
+                      <div className="absolute inset-0 border-2 border-transparent group-hover:border-t-red-600/50 rounded-full animate-spin-slow"></div>
+                    </div>
+
+                    {/* Label Badge */}
+                    <div className="absolute -bottom-10 flex flex-col items-center">
+                      <div className="h-4 w-[1px] bg-gradient-to-b from-white/20 to-transparent mb-2"></div>
+                      <div className="px-4 py-1.5 bg-black/60 border border-white/5 backdrop-blur-md text-[8px] font-black uppercase tracking-[0.4em] text-zinc-300 shadow-2xl">
+                        Ready for Review
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
