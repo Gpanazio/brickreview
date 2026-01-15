@@ -1,5 +1,5 @@
-import pkg from "pg";
-const { Pool } = pkg;
+import pg from "pg";
+const { Pool } = pg;
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -12,13 +12,13 @@ const connectionString = process.env.DATABASE_URL;
 
 export const pool = connectionString
   ? new Pool({
-      connectionString: connectionString,
-      // Força SSL se estiver usando um banco remoto (Railway) mesmo em desenvolvimento
-      ssl:
-        connectionString.includes("railway.net") || isProduction
-          ? { rejectUnauthorized: false }
-          : false,
-    })
+    connectionString: connectionString,
+    // Força SSL se estiver usando um banco remoto (Railway) mesmo em desenvolvimento
+    ssl:
+      connectionString.includes("railway.net") || isProduction
+        ? { rejectUnauthorized: false }
+        : false,
+  })
   : null;
 
 if (!pool) {

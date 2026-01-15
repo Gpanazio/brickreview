@@ -384,7 +384,8 @@ router.get("/:token/project-videos", async (req, res) => {
          GROUP BY video_id
        ) c ON c.video_id = v.id
        WHERE v.project_id = $1
-         AND (v.parent_video_id IS NULL)
+         AND v.parent_video_id IS NULL
+         AND v.deleted_at IS NULL
        ORDER BY f.name ASC NULLS FIRST, v.created_at DESC`,
       [share.project_id]
     );
@@ -421,7 +422,8 @@ router.get("/:token/folder-videos", async (req, res) => {
          GROUP BY video_id
        ) c ON c.video_id = v.id
        WHERE v.folder_id = $1
-         AND (v.parent_video_id IS NULL)
+         AND v.parent_video_id IS NULL
+         AND v.deleted_at IS NULL
        ORDER BY v.created_at DESC`,
       [share.folder_id]
     );

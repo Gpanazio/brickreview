@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, memo, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { useUpload } from "../../context/UploadContext";
 import { VideoPlayer } from "../player/VideoPlayer";
 import { FolderView } from "./FolderView";
 import { Button } from "@/components/ui/button";
@@ -52,8 +53,9 @@ export function ProjectDetailPage() {
   const [project, setProject] = useState(null);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
+  const { uploadFiles, uploadQueue: globalUploadQueue, isUploading } = useUpload();
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
+  // const [uploading, setUploading] = useState(false); // Removed local state
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'folders'
   const [currentFolderId, setCurrentFolderId] = useState(null);
@@ -551,94 +553,55 @@ export function ProjectDetailPage() {
     }
   };
 
-  const [uploadQueue, setUploadQueue] = useState([]);
 
-  const handleFileUpload = async (e, files = null) => {
-    const fileList = files || e.target.files;
-    if (!fileList || fileList.length === 0) return;
 
-    setUploading(true);
+  // Filter uploads for current project
+  const uploadQueue = useMemo(() =>
+    globalUploadQueue.filter(u => u.projectId === id),
+    [globalUploadQueue, id]);
 
-    // Add to queue for UI feedback
-    const newUploads = Array.from(fileList).map((file) => ({
-      id: Math.random().toString(36),
-      name: file.name,
-      status: "uploading",
-      isVideo: file.type.startsWith("video/"),
-    }));
+  const handleFileUpload = async (e, filesList = null) => {
+    const rawFiles = filesList || e.target.files;
+    if (!rawFiles || rawFiles.length === 0) return;
+    const filesToUpload = Array.from(rawFiles);
 
-    setUploadQueue((prev) => [...prev, ...newUploads]);
-
-    // Upload múltiplos arquivos
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      const currentUploadId = newUploads[i].id;
+    // Check for duplicates
+    const duplicates = [];
+    for (const file of filesToUpload) {
       const isVideo = file.type.startsWith("video/");
+      const name = file.name;
+      const title = name.split(".")[0];
 
-      const formData = new FormData();
-
+      let exists = false;
       if (isVideo) {
-        // Upload de vídeo usa endpoint específico
-        formData.append("video", file);
-        formData.append("project_id", id);
-        formData.append("title", file.name.split(".")[0]);
-        if (currentFolderId) {
-          formData.append("folder_id", currentFolderId);
-        }
+        exists = project?.videos?.some(v =>
+          (v.folder_id === currentFolderId || (!currentFolderId && v.folder_id === null)) &&
+          v.title === title
+        );
       } else {
-        // Upload de arquivo genérico (imagem, documento, etc)
-        formData.append("file", file);
-        formData.append("project_id", id);
-        formData.append("name", file.name);
-        if (currentFolderId) {
-          formData.append("folder_id", currentFolderId);
-        }
-      }
-
-      try {
-        const endpoint = isVideo ? "/api/videos/upload" : "/api/files/upload";
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        });
-
-        if (response.ok) {
-          toast.success(`${file.name} ENVIADO`, {
-            description: isVideo ? "Processamento iniciado" : "Arquivo salvo",
-          });
-          setUploadQueue((prev) =>
-            prev.map((u) => (u.id === currentUploadId ? { ...u, status: "success" } : u))
-          );
-          setTimeout(() => {
-            setUploadQueue((prev) => prev.filter((u) => u.id !== currentUploadId));
-          }, 1500);
-        } else {
-          const errorData = await response.json().catch((parseError) => {
-            console.error("Error parsing server response:", parseError);
-            return {};
-          });
-          toast.error("FALHA NO UPLOAD", {
-            description: errorData.error || "Erro desconhecido",
-          });
-          setUploadQueue((prev) =>
-            prev.map((u) => (u.id === currentUploadId ? { ...u, status: "error" } : u))
-          );
-        }
-      } catch (_error) {
-        console.error("Error", _error);
-        toast.error("ERRO DE CONEXÃO", {
-          description: `Falha ao enviar ${file.name}`,
-        });
-        setUploadQueue((prev) =>
-          prev.map((u) => (u.id === currentUploadId ? { ...u, status: "error" } : u))
+        exists = files.some(f =>
+          (f.folder_id === currentFolderId || (!currentFolderId && f.folder_id === null)) &&
+          f.name === name
         );
       }
+
+      if (exists) duplicates.push(name);
     }
 
-    setUploading(false);
-    fetchProjectDetails();
-    fetchFiles();
+    if (duplicates.length > 0) {
+      // Ask for confirmation
+      // For now, simpler approach: just show warning and filter out? 
+      // Or showing a toaster and stop?
+      // The user said "doesn't warn". 
+      const proceed = window.confirm(`Arquivos duplicados encontrados: ${duplicates.join(", ")}. Deseja continuar e criar duplicatas?`);
+      if (!proceed) return;
+    }
+
+    uploadFiles(filesToUpload, id, currentFolderId);
+
+    // setUploading(true); // handled by context
+    // setTimeout(() => setUploading(false), 1000); 
+
     if (e?.target) e.target.value = "";
   };
 
@@ -872,21 +835,19 @@ export function ProjectDetailPage() {
             <div className="flex bg-zinc-950/50 p-1 border border-zinc-800/50">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${
-                  viewMode === "grid"
-                    ? "bg-red-600 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "grid"
+                  ? "bg-red-600 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("folders")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${
-                  viewMode === "folders"
-                    ? "bg-red-600 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "folders"
+                  ? "bg-red-600 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
               >
                 <FolderTree className="w-4 h-4" />
               </button>
@@ -897,13 +858,13 @@ export function ProjectDetailPage() {
               id="file-upload"
               className="hidden"
               onChange={handleFileUpload}
-              disabled={uploading}
+              disabled={isUploading}
               multiple
             />
             <Button
               asChild
               className="glass-button-primary border-none rounded-none px-6 h-10 font-black uppercase tracking-widest text-xs"
-              disabled={uploading}
+              disabled={isUploading}
             >
               <label htmlFor="file-upload" className="cursor-pointer flex items-center">
                 <Upload className="w-4 h-4 mr-3" />
@@ -1012,10 +973,10 @@ export function ProjectDetailPage() {
                   exit={{ opacity: 0 }}
                 >
                   {currentLevelFolders.length === 0 &&
-                  currentLevelVideos.length === 0 &&
-                  currentLevelFiles.length === 0 &&
-                  uploadQueue.length === 0 &&
-                  !currentFolderId ? (
+                    currentLevelVideos.length === 0 &&
+                    currentLevelFiles.length === 0 &&
+                    uploadQueue.length === 0 &&
+                    !currentFolderId ? (
                     <div className="flex flex-col items-center justify-center h-80 border border-dashed border-zinc-800 bg-zinc-950/10">
                       <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
                         <FileVideo className="w-8 h-8 text-zinc-700" />
@@ -1440,9 +1401,8 @@ const FolderCard = memo(
               ) : (
                 <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px] bg-zinc-950">
                   <div
-                    className={`relative bg-zinc-900 overflow-hidden ${
-                      previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
-                    }`}
+                    className={`relative bg-zinc-900 overflow-hidden ${previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
+                      }`}
                   >
                     <img
                       src={previews[0]}
@@ -1796,11 +1756,9 @@ const VideoCard = memo(
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
-                isDragging ? "opacity-50 scale-95" : ""
-              } ${
-                isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
-              } ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
+              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragging ? "opacity-50 scale-95" : ""
+                } ${isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
+                } ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
               style={{ zIndex: 1 }}
             >
               {/* Indicador de Drop para criar versão */}

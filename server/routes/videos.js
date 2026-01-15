@@ -11,6 +11,7 @@ import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import { processVideo } from "../../scripts/process-video-metadata.js";
+import { ensureVideoAssets } from "../jobs/ensureVideoAssets.js";
 // Queue removed - Redis not configured
 
 const router = express.Router();
@@ -377,6 +378,14 @@ router.get("/:id", authenticateToken, async (req, res) => {
       ...video,
       comments: commentsResult.rows,
     });
+
+    // Background: Verificar e gerar assets faltantes (sprites/thumbnail)
+    if (video.status === "ready" && (!video.sprite_vtt_url || !video.thumbnail_url)) {
+      console.log(`[VideoGet] Vídeo ${videoId} sem assets, disparando geração em background...`);
+      ensureVideoAssets(videoId).catch(err => {
+        console.error(`[VideoGet] Erro ao gerar assets para vídeo ${videoId}:`, err);
+      });
+    }
   } catch (error) {
     console.error("Erro ao buscar detalhes do vídeo:", error);
     res.status(500).json({ error: "Erro ao buscar detalhes do vídeo" });

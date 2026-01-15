@@ -40,6 +40,7 @@ import {
 import { Label } from "@/components/ui/label";
 import "./App.css";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { UploadProvider } from "./context/UploadContext";
 
 const APP_VERSION = "1.1.1-flex-fix";
 console.log("BRICK Review Version:", APP_VERSION);
@@ -60,16 +61,19 @@ const isDefaultUrl = (url) => {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
-          <Route path="/share/:token" element={<ShareViewPage />} />
+      <UploadProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
+            <Route path="/share/:token" element={<ShareViewPage />} />
 
-          {/* Rotas Principais do App */}
-          <Route path="/*" element={<AppContent />} />
-        </Routes>
-        <Toaster position="top-right" />
-      </BrowserRouter>
+            {/* Rotas Principais do App */}
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
+          <Toaster position="top-right" />
+
+        </BrowserRouter>
+      </UploadProvider>
     </AuthProvider>
   );
 }
