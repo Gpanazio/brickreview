@@ -59,7 +59,7 @@ export function VideoPlayerCore() {
       console.error("[VideoPlayerCore] Erro de reprodução:", err);
       setIsLoading(false);
       toast.error("Erro ao reproduzir vídeo", {
-        description: "O arquivo pode estar indisponível ou em formato incompatível.",
+        description: errorMessage,
       });
     };
 
