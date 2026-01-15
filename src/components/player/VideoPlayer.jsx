@@ -1395,7 +1395,7 @@ export function VideoPlayer({
             </div>
           </div>
 
-          <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden">
+          <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden max-h-[40vh] lg:max-h-none">
             <div
               ref={videoContainerRef}
               className={`relative w-full h-full flex items-center justify-center bg-black ${drawingMode ? "is-drawing" : ""}`}

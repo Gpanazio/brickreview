@@ -74,7 +74,7 @@ const CommentItemInline = ({
   return (
     <div className="space-y-2">
       <div
-        className="group glass-card p-3 border-l-2 border-l-transparent hover:border-l-red-600 transition-all cursor-pointer"
+        className="group glass-card p-2 lg:p-3 border-l-2 border-l-transparent hover:border-l-red-600 transition-all cursor-pointer"
         onClick={(e) => {
           const target = e.target;
           if (target?.closest?.("[data-comment-actions]")) return;
@@ -823,8 +823,8 @@ export function CommentSidebar({
   }, [comments]);
 
   return (
-    <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none overflow-hidden">
-      <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
+    <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[50vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none overflow-hidden">
+      <div className="p-3 lg:p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
         <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
           {showHistory ? (
             <>
@@ -878,7 +878,7 @@ export function CommentSidebar({
             Nenhum comentário ainda. Vá para um frame específico e comece a discussão.
           </div>
         ) : (
-          <div className="space-y-2 p-4">
+          <div className="space-y-2 p-2 lg:p-4">
             {sortedComments.map((comment) => (
               <CommentItemInline
                 key={comment.id}
@@ -949,7 +949,7 @@ export function CommentSidebar({
                   if (isDrawingMode) setIsDrawingMode(false);
                 }}
                 placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
-                className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-20"
+                className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16 lg:h-20"
                 disabled={isGuest && !canComment}
               />
 
@@ -1115,7 +1115,7 @@ export function CommentSidebar({
                 <button
                   type="submit"
                   disabled={!newComment.trim() && !attachedFile && !isDrawingMode}
-                  className="w-full py-3 glass-button-primary disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+                  className="w-full py-2 lg:py-3 glass-button-primary disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
                 >
                   <span>Enviar Comentário</span>
                   <CornerDownRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
