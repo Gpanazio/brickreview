@@ -25,7 +25,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-
 const VideoItem = ({ video, onVideoClick }) => {
   return (
     <div
@@ -179,24 +178,27 @@ export function FolderView({
     onConfirm: null,
   });
 
-  const openConfirmDialog = useCallback(({
-    title,
-    message,
-    confirmText = "Confirmar",
-    cancelText = "Cancelar",
-    variant = "danger",
-    onConfirm,
-  }) => {
-    setConfirmDialog({
-      isOpen: true,
+  const openConfirmDialog = useCallback(
+    ({
       title,
       message,
-      confirmText,
-      cancelText,
-      variant,
+      confirmText = "Confirmar",
+      cancelText = "Cancelar",
+      variant = "danger",
       onConfirm,
-    });
-  }, []);
+    }) => {
+      setConfirmDialog({
+        isOpen: true,
+        title,
+        message,
+        confirmText,
+        cancelText,
+        variant,
+        onConfirm,
+      });
+    },
+    []
+  );
 
   const closeConfirmDialog = () => {
     setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
@@ -244,93 +246,106 @@ export function FolderView({
     setNewFolderName(folder.name);
   }, []);
 
-  const handleRenameSubmit = useCallback(async (folderId) => {
-    if (!newFolderName.trim()) return;
+  const handleRenameSubmit = useCallback(
+    async (folderId) => {
+      if (!newFolderName.trim()) return;
 
-    try {
-      const response = await fetch(`/api/folders/${folderId}`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name: newFolderName }),
-      });
+      try {
+        const response = await fetch(`/api/folders/${folderId}`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: newFolderName }),
+        });
 
-      if (response.ok) {
-        onRenameFolder();
-        setRenamingFolder(null);
-        setNewFolderName("");
+        if (response.ok) {
+          onRenameFolder();
+          setRenamingFolder(null);
+          setNewFolderName("");
+        }
+      } catch (error) {
+        console.error("Erro ao renomear pasta:", error);
       }
-    } catch (error) {
-      console.error("Erro ao renomear pasta:", error);
-    }
-  }, [newFolderName, token, onRenameFolder]);
+    },
+    [newFolderName, token, onRenameFolder]
+  );
 
-  const performDeleteFolder = useCallback(async (folderId) => {
-    try {
-      const response = await fetch(`/api/folders/${folderId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  const performDeleteFolder = useCallback(
+    async (folderId) => {
+      try {
+        const response = await fetch(`/api/folders/${folderId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      if (response.ok) {
-        toast.success("Pasta excluída");
-        onDeleteFolder();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || "Erro ao excluir pasta");
+        if (response.ok) {
+          toast.success("Pasta excluída");
+          onDeleteFolder();
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          toast.error(errorData.error || "Erro ao excluir pasta");
+        }
+      } catch (error) {
+        console.error("Erro ao excluir pasta:", error);
+        toast.error("Erro ao excluir pasta");
       }
-    } catch (error) {
-      console.error("Erro ao excluir pasta:", error);
-      toast.error("Erro ao excluir pasta");
-    }
-  }, [token, onDeleteFolder]);
+    },
+    [token, onDeleteFolder]
+  );
 
-  const handleDeleteFolder = useCallback((folderId) => {
-    openConfirmDialog({
-      title: "Excluir pasta",
-      message:
-        "Tem certeza que deseja excluir esta pasta? Todas as subpastas serão excluídas e os vídeos ficarão sem pasta.",
-      confirmText: "Excluir",
-      cancelText: "Cancelar",
-      variant: "danger",
-      onConfirm: () => performDeleteFolder(folderId),
-    });
-  }, [openConfirmDialog, performDeleteFolder]);
-
-  const performDeleteFile = useCallback(async (fileId) => {
-    try {
-      const response = await fetch(`/api/files/${fileId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+  const handleDeleteFolder = useCallback(
+    (folderId) => {
+      openConfirmDialog({
+        title: "Excluir pasta",
+        message:
+          "Tem certeza que deseja excluir esta pasta? Todas as subpastas serão excluídas e os vídeos ficarão sem pasta.",
+        confirmText: "Excluir",
+        cancelText: "Cancelar",
+        variant: "danger",
+        onConfirm: () => performDeleteFolder(folderId),
       });
+    },
+    [openConfirmDialog, performDeleteFolder]
+  );
 
-      if (response.ok) {
-        toast.success("Arquivo excluído");
-        onFileDelete?.();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || "Erro ao excluir arquivo");
+  const performDeleteFile = useCallback(
+    async (fileId) => {
+      try {
+        const response = await fetch(`/api/files/${fileId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.ok) {
+          toast.success("Arquivo excluído");
+          onFileDelete?.();
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          toast.error(errorData.error || "Erro ao excluir arquivo");
+        }
+      } catch (error) {
+        console.error("Erro ao excluir arquivo:", error);
+        toast.error("Erro ao excluir arquivo");
       }
-    } catch (error) {
-      console.error("Erro ao excluir arquivo:", error);
-      toast.error("Erro ao excluir arquivo");
-    }
-  }, [token, onFileDelete]);
+    },
+    [token, onFileDelete]
+  );
 
-  const handleDeleteFile = useCallback((fileId) => {
-    openConfirmDialog({
-      title: "Excluir arquivo",
-      message: "Tem certeza que deseja excluir este arquivo?",
-      confirmText: "Excluir",
-      cancelText: "Cancelar",
-      variant: "danger",
-      onConfirm: () => performDeleteFile(fileId),
-    });
-  }, [openConfirmDialog, performDeleteFile]);
-
-
+  const handleDeleteFile = useCallback(
+    (fileId) => {
+      openConfirmDialog({
+        title: "Excluir arquivo",
+        message: "Tem certeza que deseja excluir este arquivo?",
+        confirmText: "Excluir",
+        cancelText: "Cancelar",
+        variant: "danger",
+        onConfirm: () => performDeleteFile(fileId),
+      });
+    },
+    [openConfirmDialog, performDeleteFile]
+  );
 
   const handleCreateFolder = useCallback((parentFolderId = null) => {
     setCreateFolderDialog({
@@ -340,11 +355,14 @@ export function FolderView({
     });
   }, []);
 
-  const handleCreateConfirm = useCallback(async (name) => {
-    await onCreateFolder(name, createFolderDialog.parentFolderId);
-    setCreatingFolder(false);
-    setNewSubfolderParent(null);
-  }, [onCreateFolder, createFolderDialog.parentFolderId]);
+  const handleCreateConfirm = useCallback(
+    async (name) => {
+      await onCreateFolder(name, createFolderDialog.parentFolderId);
+      setCreatingFolder(false);
+      setNewSubfolderParent(null);
+    },
+    [onCreateFolder, createFolderDialog.parentFolderId]
+  );
 
   const handleFolderDragOver = useCallback((e, folderId) => {
     e.preventDefault();
@@ -358,35 +376,41 @@ export function FolderView({
     }
   }, []);
 
-  const handleFolderDragLeave = useCallback((e, folderId) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dragOverFolder === folderId) {
+  const handleFolderDragLeave = useCallback(
+    (e, folderId) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (dragOverFolder === folderId) {
+        setDragOverFolder(null);
+      }
+    },
+    [dragOverFolder]
+  );
+
+  const handleFolderDrop = useCallback(
+    async (e, folderId) => {
+      e.preventDefault();
+      e.stopPropagation();
       setDragOverFolder(null);
-    }
-  }, [dragOverFolder]);
 
-  const handleFolderDrop = useCallback(async (e, folderId) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOverFolder(null);
-
-    try {
-      let videoData = e.dataTransfer.getData("video");
-      if (!videoData) {
-        const videoId = e.dataTransfer.getData("application/x-brick-video-id");
-        if (videoId) {
-          videoData = JSON.stringify({ id: parseInt(videoId) });
+      try {
+        let videoData = e.dataTransfer.getData("video");
+        if (!videoData) {
+          const videoId = e.dataTransfer.getData("application/x-brick-video-id");
+          if (videoId) {
+            videoData = JSON.stringify({ id: parseInt(videoId) });
+          }
         }
+        if (videoData) {
+          const video = JSON.parse(videoData);
+          await onMoveVideo?.(video.id, folderId);
+        }
+      } catch (error) {
+        console.error("Erro ao processar drop na pasta:", error);
       }
-      if (videoData) {
-        const video = JSON.parse(videoData);
-        await onMoveVideo?.(video.id, folderId);
-      }
-    } catch (error) {
-      console.error("Erro ao processar drop na pasta:", error);
-    }
-  }, [onMoveVideo]);
+    },
+    [onMoveVideo]
+  );
 
   const renderFileItem = (file, depth = 0) => {
     const FileIcon = getFileIcon(file.file_type);
@@ -446,17 +470,18 @@ export function FolderView({
     return (
       <div key={folder.id} style={{ marginLeft: `${depth * 20}px` }}>
         <div
-          className={`group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 transition-all ${isDragOver
-            ? "border-l-blue-500 bg-blue-900/20"
-            : "border-l-transparent hover:border-l-red-600"
-            }`}
+          className={`group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 transition-all ${
+            isDragOver
+              ? "border-l-blue-500 bg-blue-900/20"
+              : "border-l-transparent hover:border-l-red-600"
+          }`}
           onDragOver={(e) => handleFolderDragOver(e, folder.id)}
           onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
           onDrop={(e) => handleFolderDrop(e, folder.id)}
         >
           <button
             onClick={() => toggleFolder(folder.id)}
-            className="text-zinc-400 hover:text-white"
+            className="text-zinc-400 hover:text-white cursor-pointer"
           >
             {isExpanded ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />}
           </button>
@@ -477,7 +502,7 @@ export function FolderView({
           ) : (
             <button
               onClick={() => onFolderClick(folder)}
-              className="flex-1 text-left text-sm text-zinc-300 hover:text-white font-medium uppercase tracking-tight"
+              className="flex-1 text-left text-sm text-zinc-300 hover:text-white font-medium uppercase tracking-tight cursor-pointer"
             >
               {folder.name}
             </button>
@@ -587,11 +612,7 @@ export function FolderView({
             </div>
             <div className="max-h-[400px] overflow-y-auto w-full">
               {currentLevelVideos.map((video) => (
-                <VideoItem
-                  key={video.id}
-                  video={video}
-                  onVideoClick={onVideoClick}
-                />
+                <VideoItem key={video.id} video={video} onVideoClick={onVideoClick} />
               ))}
             </div>
           </div>

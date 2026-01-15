@@ -62,13 +62,13 @@ const CommentItemInline = ({
       >
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">
+            <span className="text-xs font-black text-red-600 uppercase tracking-tighter">
               {parseTimestampSeconds(comment.timestamp) !== null
                 ? formatTime(parseTimestampSeconds(comment.timestamp))
                 : "—"}
             </span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
                 {comment.username}
               </span>
               {(canEditComment(comment) || canDeleteComment(comment)) && (
@@ -81,7 +81,7 @@ const CommentItemInline = ({
                         e.stopPropagation();
                         setEditingComment(editingComment === comment.id ? null : comment.id);
                       }}
-                      className="text-zinc-600 hover:text-blue-500 transition-colors"
+                      className="text-zinc-600 hover:text-blue-500 transition-colors cursor-pointer"
                       title="Editar comentário"
                     >
                       <Pencil className="w-3 h-3" />
@@ -95,7 +95,7 @@ const CommentItemInline = ({
                         e.stopPropagation();
                         handleDeleteComment(comment.id);
                       }}
-                      className="text-zinc-600 hover:text-red-500 transition-colors"
+                      className="text-zinc-600 hover:text-red-500 transition-colors cursor-pointer"
                       title="Excluir comentário"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -128,17 +128,13 @@ const CommentItemInline = ({
               <div className="flex gap-2 mt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest py-2 transition-colors cursor-pointer"
                 >
                   Salvar
                 </button>
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingComment(null);
-                  }}
-                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-black uppercase tracking-widest py-2 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -156,7 +152,7 @@ const CommentItemInline = ({
                 e.stopPropagation();
                 setReplyingTo(replyingTo === comment.id ? null : comment.id);
               }}
-              className="mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
+              className="mt-2 flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
             >
               <Reply className="w-3 h-3" />
               {replyingTo === comment.id ? "Cancelar" : "Responder"}
@@ -174,7 +170,7 @@ const CommentItemInline = ({
                     value={visitorName}
                     onChange={(e) => setVisitorName(e.target.value)}
                     placeholder="Seu nome"
-                    className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
+                    className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-sm text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
                     required={isGuest}
                   />
                 )}
@@ -185,13 +181,13 @@ const CommentItemInline = ({
                     if (isDrawingMode) setIsDrawingMode(false);
                   }}
                   placeholder="Escreva sua resposta..."
-                  className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
+                  className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
                   autoFocus
                 />
                 <button
                   type="submit"
                   disabled={!replyText.trim()}
-                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-widest py-2 transition-colors"
                 >
                   Enviar Resposta
                 </button>
@@ -211,12 +207,12 @@ const CommentItemInline = ({
             >
               <div className="flex items-center gap-2 mb-2">
                 <CornerDownRight className="w-3 h-3 text-zinc-600" />
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
                   {reply.username}
                 </span>
 
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="text-[9px] text-zinc-600">
+                  <span className="text-xs text-zinc-600">
                     {new Date(reply.created_at).toLocaleString("pt-BR", {
                       day: "2-digit",
                       month: "short",
@@ -281,7 +277,7 @@ const CommentItemInline = ({
                   <div className="flex gap-2 mt-2">
                     <button
                       type="submit"
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest py-2 transition-colors"
                     >
                       Salvar
                     </button>
@@ -291,7 +287,7 @@ const CommentItemInline = ({
                         e.stopPropagation();
                         setEditingComment(null);
                       }}
-                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] font-black uppercase tracking-widest py-2 transition-colors"
+                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-black uppercase tracking-widest py-2 transition-colors"
                     >
                       Cancelar
                     </button>
@@ -307,8 +303,6 @@ const CommentItemInline = ({
     </div>
   );
 };
-
-
 
 export function CommentSidebar({ showHistory, setShowHistory, history }) {
   const {
@@ -625,7 +619,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
           ...parent,
           replies: comments
             .filter(
-              (c) => c.parent_comment_id != null && String(c.parent_comment_id) === String(parent.id)
+              (c) =>
+                c.parent_comment_id != null && String(c.parent_comment_id) === String(parent.id)
             )
             .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
         }));
@@ -634,8 +629,6 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       return [];
     }
   }, [comments]);
-
-
 
   return (
     <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none overflow-hidden">
@@ -653,7 +646,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
         </h3>
         <button
           onClick={() => setShowHistory(!showHistory)}
-          className="text-[10px] font-black uppercase tracking-tighter text-zinc-500 hover:text-white transition-colors"
+          className="text-xs font-black uppercase tracking-tighter text-zinc-500 hover:text-white transition-colors cursor-pointer"
         >
           {showHistory ? "Ver Comentários" : "Ver Histórico"}
         </button>
@@ -674,13 +667,13 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                       className={`w-2 h-2 rounded-full ${item.status === "approved" ? "bg-green-500" : "bg-zinc-500"}`}
                     />
                     <span
-                      className={`text-[10px] font-black uppercase tracking-widest ${item.status === "approved" ? "text-green-500" : "text-zinc-400"}`}
+                      className={`text-xs font-black uppercase tracking-widest ${item.status === "approved" ? "text-green-500" : "text-zinc-400"}`}
                     >
                       {item.status === "approved" ? "Aprovado" : "Em aprovação"}
                     </span>
                   </div>
-                  <p className="text-xs text-white font-medium mb-1">{item.notes}</p>
-                  <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase font-bold tracking-widest">
+                  <p className="text-sm text-white font-medium mb-1">{item.notes}</p>
+                  <div className="flex items-center justify-between text-xs text-zinc-500 uppercase font-bold tracking-widest">
                     <span>{item.username}</span>
                     <span>{new Date(item.created_at).toLocaleDateString()}</span>
                   </div>
@@ -727,7 +720,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       {!showHistory && (
         <div className="p-4 border-t border-zinc-800/50 bg-white/5">
           <form onSubmit={addComment} className="flex flex-col gap-3">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-between">
+            <div className="text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-between">
               {hasTimestamp ? (
                 <div className="flex items-center gap-2 text-zinc-500">
                   <Clock className="w-3 h-3" />
@@ -745,7 +738,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 value={visitorName}
                 onChange={(e) => setVisitorName(e.target.value)}
                 placeholder="Seu nome"
-                className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
+                className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-sm text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
                 required={isGuest}
               />
             )}
@@ -754,7 +747,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
               {attachedFile && (
                 <div className="absolute bottom-full left-0 mb-2 flex items-center gap-2 bg-red-600/10 border border-red-600/20 px-2 py-1">
                   <Paperclip className="w-3 h-3 text-red-500" />
-                  <span className="text-[10px] text-zinc-300 truncate max-w-[150px]">
+                  <span className="text-xs text-zinc-300 truncate max-w-[150px]">
                     {attachedFile.name}
                   </span>
                   <button
@@ -780,10 +773,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    className={`p-2 rounded-sm transition-colors ${hasTimestamp
-                      ? "text-red-500 bg-red-500/10"
-                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                    className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                      hasTimestamp
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                    }`}
                     onClick={() => setHasTimestamp(!hasTimestamp)}
                     title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
                   >
@@ -793,7 +787,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   {hasTimestamp && (
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
+                      className={`p-2 rounded-sm transition-colors flex items-center gap-1 cursor-pointer ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
                       onClick={() => {
                         if (!isRangeMode) {
                           // Ao ativar o range, define o fim como +5 segundos do tempo atual como default
@@ -804,14 +798,14 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                         setIsRangeMode(!isRangeMode);
                       }}
                     >
-                      <span className="text-[10px] font-black uppercase border border-current px-1">
+                      <span className="text-xs font-black uppercase border border-current px-1">
                         Range
                       </span>
                     </button>
                   )}
 
                   {hasTimestamp && isRangeMode && (
-                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800">
+                    <div className="flex items-center gap-1 text-xs text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800">
                       <span>Fim:</span>
                       <input
                         type="number"
@@ -833,10 +827,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className={`p-2 rounded-sm transition-colors ${attachedFile
-                      ? "text-red-500 bg-red-500/10"
-                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                    className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                      attachedFile
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                    }`}
                     title="Anexar arquivo"
                   >
                     <Paperclip className="w-4 h-4" />
@@ -845,10 +840,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   <div className="relative">
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors ${showEmojiPicker
-                        ? "text-yellow-500 bg-yellow-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                        showEmojiPicker
+                          ? "text-yellow-500 bg-yellow-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      }`}
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       title="Adicionar emoji"
                     >
@@ -874,10 +870,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
                   <button
                     type="button"
-                    className={`p-2 rounded-sm transition-colors ${isDrawingMode
-                      ? "text-red-500 bg-red-500/10"
-                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
+                    className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                      isDrawingMode
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                    } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
                     onClick={() => {
                       if (!isComparing) setIsDrawingMode(!isDrawingMode);
                     }}
@@ -894,10 +891,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                           <button
                             key={color}
                             type="button"
-                            className={`w-6 h-6 rounded-sm border transition-all ${selectedColor === color
-                              ? "border-white scale-110"
-                              : "border-zinc-700 hover:border-zinc-500"
-                              }`}
+                            className={`w-6 h-6 rounded-sm border transition-all cursor-pointer ${
+                              selectedColor === color
+                                ? "border-white scale-110"
+                                : "border-zinc-700 hover:border-zinc-500"
+                            }`}
                             style={{ backgroundColor: color }}
                             onClick={() => setSelectedColor(color)}
                             title={`Cor: ${color}`}
@@ -907,7 +905,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
                       <button
                         type="button"
-                        className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1"
+                        className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1 cursor-pointer"
                         onClick={clearDrawing}
                         title="Limpar desenho"
                       >
@@ -920,7 +918,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 <button
                   type="submit"
                   disabled={!newComment.trim() || (isGuest && !canComment)}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors"
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-bold uppercase tracking-widest rounded-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
                 >
                   Enviar
                 </button>

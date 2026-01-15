@@ -68,15 +68,33 @@ export function VideoPlayerCore() {
         play: () => video.play(),
         pause: () => video.pause(),
         togglePlay: () => (video.paused ? video.play() : video.pause()),
-        get currentTime() { return video.currentTime; },
-        set currentTime(val) { video.currentTime = val; },
-        get duration() { return video.duration; },
-        get volume() { return video.volume; },
-        set volume(val) { video.volume = val; },
-        get muted() { return video.muted; },
-        set muted(val) { video.muted = val; },
-        get speed() { return video.playbackRate; },
-        set speed(val) { video.playbackRate = val; },
+        get currentTime() {
+          return video.currentTime;
+        },
+        set currentTime(val) {
+          video.currentTime = val;
+        },
+        get duration() {
+          return video.duration;
+        },
+        get volume() {
+          return video.volume;
+        },
+        set volume(val) {
+          video.volume = val;
+        },
+        get muted() {
+          return video.muted;
+        },
+        set muted(val) {
+          video.muted = val;
+        },
+        get speed() {
+          return video.playbackRate;
+        },
+        set speed(val) {
+          video.playbackRate = val;
+        },
         fullscreen: {
           enter: () => video.requestFullscreen?.(),
           exit: () => document.exitFullscreen?.(),
@@ -151,15 +169,16 @@ export function VideoPlayerCore() {
       {!isLoading && (
         <button
           onClick={handleTogglePlay}
-          className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer bg-transparent transition-opacity duration-200 ${isPlaying ? "opacity-0 group-hover/player:opacity-100" : "opacity-100"
-            }`}
+          className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer bg-transparent transition-opacity duration-200 ${
+            isPlaying ? "opacity-0 group-hover/player:opacity-100" : "opacity-100"
+          }`}
           aria-label={isPlaying ? "Pause" : "Play"}
         >
-          <div className="w-20 h-20 rounded-full bg-black/60 flex items-center justify-center transition-all duration-300 hover:bg-black/80 hover:scale-110 shadow-2xl backdrop-blur-sm">
+          <div className="w-16 h-16 md:w-24 md:h-24 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 hover:bg-red-600 hover:border-red-500 hover:scale-105 shadow-2xl group">
             {isPlaying ? (
-              <Pause className="w-8 h-8 text-white fill-white" />
+              <Pause className="w-6 h-6 md:w-10 md:h-10 text-white fill-white" />
             ) : (
-              <Play className="w-8 h-8 text-white fill-white ml-1" />
+              <Play className="w-6 h-6 md:w-10 md:h-10 text-white fill-white ml-1" />
             )}
           </div>
         </button>
@@ -167,4 +186,3 @@ export function VideoPlayerCore() {
     </div>
   );
 }
-

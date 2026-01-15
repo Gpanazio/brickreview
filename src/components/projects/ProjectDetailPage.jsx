@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, memo, useCallback } from "react";
+import { useState, useEffect, useMemo, memo, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { VideoPlayer } from "../player/VideoPlayer";
@@ -72,6 +72,8 @@ export function ProjectDetailPage() {
   });
   const { token } = useAuth();
 
+  const dragCounter = useRef(0);
+
   const openConfirmDialog = ({
     title,
     message,
@@ -95,6 +97,146 @@ export function ProjectDetailPage() {
     setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
   };
 
+  const [selectedItems, setSelectedItems] = useState(new Set());
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionBox, setSelectionBox] = useState(null);
+  const containerRef = useRef(null);
+
+  const handleDownloadAll = async () => {
+    const toastId = toast.loading("Preparando downloads...");
+    let count = 0;
+
+    // Download Videos
+    for (const video of currentLevelVideos) {
+      if (video.parent_video_id) continue;
+      try {
+        const response = await fetch(`/api/videos/${video.id}/download?type=original`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const link = document.createElement("a");
+          link.href = data.url;
+          link.download = data.filename;
+          link.style.display = "none";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          count++;
+          await new Promise((resolve) => setTimeout(resolve, 800)); // Delay to avoid browser blocking
+        }
+      } catch (error) {
+        console.error("Erro ao baixar video:", video.title, error);
+      }
+    }
+
+    // Download Files
+    for (const file of currentLevelFiles) {
+      try {
+        // Files usually have direct R2 URL in r2_url
+        if (file.r2_url) {
+          const link = document.createElement("a");
+          link.href = file.r2_url;
+          link.download = file.name;
+          link.target = "_blank";
+          link.style.display = "none";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          count++;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        console.error("Erro ao baixar arquivo:", file.name, error);
+      }
+    }
+
+    toast.success(`${count} downloads iniciados`, { id: toastId });
+  };
+
+  const startSelection = (e) => {
+    if (e.target.closest("button") || e.target.closest(".context-menu-trigger")) return;
+    // Only left click
+    if (e.button !== 0) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left + container.scrollLeft;
+    const y = e.clientY - rect.top + container.scrollTop;
+
+    setIsSelecting(true);
+    setSelectionBox({ startX: x, startY: y, endX: x, endY: y });
+    setSelectedItems(new Set());
+  };
+
+  const updateSelection = (e) => {
+    if (!isSelecting || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left + container.scrollLeft;
+    const y = e.clientY - rect.top + container.scrollTop;
+
+    setSelectionBox((prev) => ({ ...prev, endX: x, endY: y }));
+  };
+
+  const endSelection = () => {
+    if (!isSelecting) return;
+    setIsSelecting(false);
+
+    // Calculate final selection
+    if (!selectionBox || !containerRef.current) return;
+
+    const left = Math.min(selectionBox.startX, selectionBox.endX);
+    const top = Math.min(selectionBox.startY, selectionBox.endY);
+    const width = Math.abs(selectionBox.startX - selectionBox.endX);
+    const height = Math.abs(selectionBox.startY - selectionBox.endY);
+
+    // If box is too small, treat as click and clear selection (unless shift key?)
+    if (width < 5 && height < 5) {
+      setSelectionBox(null);
+      return;
+    }
+
+    const newSelected = new Set();
+
+    // Check intersection with items
+    const items = containerRef.current.querySelectorAll("[data-selectable-id]");
+    items.forEach((item) => {
+      const itemRect = item.getBoundingClientRect();
+      const containerRect = containerRef.current.getBoundingClientRect();
+
+      // Relative item position
+      const itemLeft = itemRect.left - containerRect.left + containerRef.current.scrollLeft;
+      const itemTop = itemRect.top - containerRect.top + containerRef.current.scrollTop;
+
+      if (
+        left < itemLeft + itemRect.width &&
+        left + width > itemLeft &&
+        top < itemTop + itemRect.height &&
+        top + height > itemTop
+      ) {
+        newSelected.add(item.getAttribute("data-selectable-id"));
+      }
+    });
+
+    setSelectedItems(newSelected);
+    setSelectionBox(null);
+  };
+
+  useEffect(() => {
+    if (isSelecting) {
+      window.addEventListener("mousemove", updateSelection);
+      window.addEventListener("mouseup", endSelection);
+    }
+    return () => {
+      window.removeEventListener("mousemove", updateSelection);
+      window.removeEventListener("mouseup", endSelection);
+    };
+  }, [isSelecting]);
+
   const breadcrumbs = useMemo(() => {
     const path = [];
     let currentId = currentFolderId;
@@ -109,8 +251,6 @@ export function ProjectDetailPage() {
     }
     return path;
   }, [currentFolderId, folders]);
-
-
 
   const fetchProjectDetails = useCallback(async () => {
     try {
@@ -502,9 +642,10 @@ export function ProjectDetailPage() {
     if (e?.target) e.target.value = "";
   };
 
-  const handleDragOver = (e) => {
+  const handleDragEnter = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    dragCounter.current += 1;
     if (e.dataTransfer.types.includes("Files")) {
       setIsDraggingFile(true);
     }
@@ -513,16 +654,23 @@ export function ProjectDetailPage() {
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    // Só remove o estado se realmente saiu da área
-    if (e.currentTarget === e.target) {
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
       setIsDraggingFile(false);
+      dragCounter.current = 0;
     }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDraggingFile(false);
+    dragCounter.current = 0;
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
@@ -724,19 +872,21 @@ export function ProjectDetailPage() {
             <div className="flex bg-zinc-950/50 p-1 border border-zinc-800/50">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "grid"
-                  ? "bg-red-600 text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
+                className={`w-9 h-9 flex items-center justify-center transition-all ${
+                  viewMode === "grid"
+                    ? "bg-red-600 text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("folders")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "folders"
-                  ? "bg-red-600 text-white"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
+                className={`w-9 h-9 flex items-center justify-center transition-all ${
+                  viewMode === "folders"
+                    ? "bg-red-600 text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
               >
                 <FolderTree className="w-4 h-4" />
               </button>
@@ -767,10 +917,25 @@ export function ProjectDetailPage() {
       {/* Lista de Vídeos */}
       <div
         className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative"
+        onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onMouseDown={startSelection}
+        ref={containerRef}
       >
+        {/* Selection Box Overlay */}
+        {isSelecting && selectionBox && (
+          <div
+            className="absolute border border-blue-500 bg-blue-500/20 pointer-events-none z-50"
+            style={{
+              left: Math.min(selectionBox.startX, selectionBox.endX),
+              top: Math.min(selectionBox.startY, selectionBox.endY),
+              width: Math.abs(selectionBox.startX - selectionBox.endX),
+              height: Math.abs(selectionBox.startY - selectionBox.endY),
+            }}
+          />
+        )}
         {/* Drop Zone Overlay */}
         <AnimatePresence>
           {isDraggingFile && (
@@ -778,7 +943,7 @@ export function ProjectDetailPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm border-4 border-dashed border-red-600 flex items-center justify-center"
+              className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm border-4 border-dashed border-red-600 flex items-center justify-center pointer-events-none"
             >
               <div className="text-center">
                 <Upload className="w-16 h-16 text-red-600 mx-auto mb-4" />
@@ -797,7 +962,7 @@ export function ProjectDetailPage() {
             <div className="flex items-center gap-2 mb-6 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-zinc-500 overflow-x-auto no-scrollbar pb-2">
               <button
                 onClick={() => setCurrentFolderId(null)}
-                className={`hover:text-white transition-colors whitespace-nowrap ${!currentFolderId ? "text-white" : ""}`}
+                className={`hover:text-white transition-colors whitespace-nowrap cursor-pointer ${!currentFolderId ? "text-white" : ""}`}
               >
                 {project?.name || "Projeto"}
               </button>
@@ -806,7 +971,7 @@ export function ProjectDetailPage() {
                   <ChevronRight className="w-3 h-3 text-zinc-800" />
                   <button
                     onClick={() => setCurrentFolderId(folder.id)}
-                    className={`hover:text-white transition-colors whitespace-nowrap ${index === breadcrumbs.length - 1 ? "text-white" : ""}`}
+                    className={`hover:text-white transition-colors whitespace-nowrap cursor-pointer ${index === breadcrumbs.length - 1 ? "text-white" : ""}`}
                   >
                     {folder.name}
                   </button>
@@ -847,10 +1012,10 @@ export function ProjectDetailPage() {
                   exit={{ opacity: 0 }}
                 >
                   {currentLevelFolders.length === 0 &&
-                    currentLevelVideos.length === 0 &&
-                    currentLevelFiles.length === 0 &&
-                    uploadQueue.length === 0 &&
-                    !currentFolderId ? (
+                  currentLevelVideos.length === 0 &&
+                  currentLevelFiles.length === 0 &&
+                  uploadQueue.length === 0 &&
+                  !currentFolderId ? (
                     <div className="flex flex-col items-center justify-center h-80 border border-dashed border-zinc-800 bg-zinc-950/10">
                       <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
                         <FileVideo className="w-8 h-8 text-zinc-700" />
@@ -871,10 +1036,18 @@ export function ProjectDetailPage() {
                           key={`folder-card-${folder.id}`}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
+                          data-selectable-id={`folder-${folder.id}`}
                         >
                           <FolderCard
                             folder={folder}
-                            onClick={() => setCurrentFolderId(folder.id)}
+                            isSelected={selectedItems.has(`folder-${folder.id}`)}
+                            onClick={() => {
+                              if (selectedItems.size > 0) {
+                                // Handle selection click behavior if needed
+                                // For now, normal navigation overrides selection unless shift/ctrl logic added
+                              }
+                              setCurrentFolderId(folder.id);
+                            }}
                             onGenerateShare={() => handleGenerateFolderShare(folder.id)}
                             onMoveVideo={handleMoveVideo}
                             onMoveFolder={handleMoveFolder}
@@ -1013,10 +1186,12 @@ export function ProjectDetailPage() {
                               key={video.id}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
+                              data-selectable-id={`video-${video.id}`}
                             >
                               <VideoCard
                                 video={video}
                                 versions={versions}
+                                isSelected={selectedItems.has(`video-${video.id}`)}
                                 onClick={() => setSelectedVideo(video)}
                                 onCreateVersion={handleCreateVersion}
                                 onDelete={(videoId) => handleDeleteVideo(videoId)}
@@ -1034,9 +1209,11 @@ export function ProjectDetailPage() {
                           key={`file-${file.id}`}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
+                          data-selectable-id={`file-${file.id}`}
                         >
                           <FileCard
                             file={file}
+                            isSelected={selectedItems.has(`file-${file.id}`)}
                             onDelete={() => {
                               openConfirmDialog({
                                 title: "Excluir arquivo",
@@ -1098,6 +1275,13 @@ export function ProjectDetailPage() {
                 Gerar Link de Compartilhamento
               </ContextMenuItem>
             )}
+            <ContextMenuItem
+              className="focus:bg-red-600 focus:text-white cursor-pointer"
+              onClick={handleDownloadAll}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Baixar Tudo
+            </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
       </div>
@@ -1165,7 +1349,7 @@ const formatFileSize = (bytes) => {
 };
 
 const FolderCard = memo(
-  ({ folder, onClick, onGenerateShare, onDelete, onMoveVideo, onMoveFolder }) => {
+  ({ folder, onClick, onGenerateShare, onDelete, onMoveVideo, onMoveFolder, isSelected }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const previews = folder.previews || [];
     const hasPreviews = previews.length > 0;
@@ -1218,7 +1402,7 @@ const FolderCard = memo(
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragOver ? "ring-2 ring-blue-500 scale-105" : ""}`}
+            className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragOver ? "ring-2 ring-blue-500 scale-105" : ""} ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
             onClick={onClick}
             draggable
             onDragStart={handleDragStart}
@@ -1246,8 +1430,9 @@ const FolderCard = memo(
               ) : (
                 <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px] bg-zinc-950">
                   <div
-                    className={`relative bg-zinc-900 overflow-hidden ${previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
-                      }`}
+                    className={`relative bg-zinc-900 overflow-hidden ${
+                      previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
+                    }`}
                   >
                     <img
                       src={previews[0]}
@@ -1350,7 +1535,7 @@ const FolderCard = memo(
   }
 );
 
-const FileCard = memo(({ file, onDelete }) => {
+const FileCard = memo(({ file, onDelete, isSelected }) => {
   const isImage = file.file_type === "image";
 
   const getFileTypeLabel = (type) => {
@@ -1383,7 +1568,7 @@ const FileCard = memo(({ file, onDelete }) => {
     <ContextMenu>
       <ContextMenuTrigger>
         <div
-          className="glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer"
+          className={`glass-card border-none rounded-none overflow-hidden h-full flex flex-col relative group cursor-pointer ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
           onClick={() => window.open(file.r2_url, "_blank")}
         >
           <div className="aspect-video bg-zinc-900 relative overflow-hidden flex-shrink-0">
@@ -1480,6 +1665,7 @@ const VideoCard = memo(
     onArchive,
     onGenerateShare,
     onDownload,
+    isSelected,
   }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [isDropTarget, setIsDropTarget] = useState(false);
@@ -1599,9 +1785,11 @@ const VideoCard = memo(
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragging ? "opacity-50 scale-95" : ""
-                } ${isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
-                }`}
+              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
+                isDragging ? "opacity-50 scale-95" : ""
+              } ${
+                isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
+              } ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
               style={{ zIndex: 1 }}
             >
               {/* Indicador de Drop para criar versão */}
