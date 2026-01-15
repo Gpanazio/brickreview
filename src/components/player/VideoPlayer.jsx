@@ -57,6 +57,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { VideoComparison } from "./VideoComparison";
+import { CommentSidebar } from "./subcomponents/CommentSidebar";
 
 const PLYR_OPTIONS = {
   controls: ["play-large"], // Mantém apenas o play central, os demais são customizados
@@ -133,6 +134,7 @@ export function VideoPlayer({
   const [drawings, setDrawings] = useState([]); // Desenhos salvos por timestamp
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
   const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
+  const [rangeStartTime, setRangeStartTime] = useState(null); // Início do range
   const [rangeEndTime, setRangeEndTime] = useState(null); // Fim do range (opcional)
   const [isRangeMode, setIsRangeMode] = useState(false); // Modo de seleção de range
   const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controla exibição do emoji picker
@@ -312,6 +314,15 @@ export function VideoPlayer({
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
+  };
+
+  const getResolutionLabel = (vid) => {
+    if (!vid || !vid.width) return "Original";
+    if (vid.width >= 3840) return "4K";
+    if (vid.width >= 2560) return "1440p";
+    if (vid.width >= 1920) return "1080p";
+    if (vid.width >= 1280) return "720p";
+    return `${vid.height}p`;
   };
 
   const compareCommentsByTimestamp = (a, b) => {
@@ -1192,11 +1203,10 @@ export function VideoPlayer({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${
-                        approvalStatus === "approved"
-                          ? "border-green-500/50 text-green-500 bg-green-500/10"
-                          : "border-zinc-700 text-zinc-400 bg-zinc-900"
-                      }`}
+                      className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${approvalStatus === "approved"
+                        ? "border-green-500/50 text-green-500 bg-green-500/10"
+                        : "border-zinc-700 text-zinc-400 bg-zinc-900"
+                        }`}
                     >
                       {approvalStatus === "approved" ? (
                         <CheckCircle className="w-3 h-3 mr-2" />
@@ -1297,11 +1307,10 @@ export function VideoPlayer({
                     variant="ghost"
                     size="sm"
                     onClick={handleToggleCompare}
-                    className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${
-                      isComparing
-                        ? "border-red-600 text-white bg-red-600"
-                        : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
-                    }`}
+                    className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${isComparing
+                      ? "border-red-600 text-white bg-red-600"
+                      : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
+                      }`}
                   >
                     <Columns2 className="w-3 h-3 mr-2" />
                     Comparar
@@ -1325,11 +1334,10 @@ export function VideoPlayer({
                           <DropdownMenuItem
                             key={v.id}
                             onClick={() => handleCompareVersionChange(v.id)}
-                            className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
-                              v.id === compareVersionId
-                                ? "text-red-500 bg-red-500/10"
-                                : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                            }`}
+                            className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${v.id === compareVersionId
+                              ? "text-red-500 bg-red-500/10"
+                              : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                              }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <span>Versão {v.version_number}</span>
@@ -1360,11 +1368,10 @@ export function VideoPlayer({
                       <DropdownMenuItem
                         key={v.id}
                         onClick={() => handleVersionChange(v.id)}
-                        className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
-                          v.id === currentVideoId
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                        }`}
+                        className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${v.id === currentVideoId
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                          }`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <span>Versão {v.version_number}</span>
@@ -1552,7 +1559,7 @@ export function VideoPlayer({
                       }}
                     />
                   )}
-                  <div className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 mt-1 brick-tech">
+                  <div className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 mt-1 brick-tech font-mono">
                     {formatTimecode(hoverTime)}
                   </div>
                 </div>
@@ -1566,11 +1573,36 @@ export function VideoPlayer({
                 }}
               />
 
-              {/* Comment Markers */}
+              {/* Range Markers (Rendered FIRST so they are behind single markers) */}
               {comments.map((comment) => {
+                const range = getCommentRange(comment);
+                if (!range || range.end === null || duration === 0) return null;
+
+                const startPct = Math.min(100, Math.max(0, (range.start / duration) * 100));
+                const endPct = Math.min(100, Math.max(0, (range.end / duration) * 100));
+                const width = Math.max(0.2, endPct - startPct);
+
+                return (
+                  <div
+                    key={`range-${comment.id}`}
+                    className="absolute top-0 h-full bg-red-600/30 border-l border-r border-red-500/50 z-10 pointer-events-none group/range"
+                    style={{ left: `${startPct}%`, width: `${width}%` }}
+                  >
+                    <div className="absolute inset-0 bg-red-600/10 group-hover/range:bg-red-600/20 transition-colors" />
+                  </div>
+                );
+              })}
+
+              {/* Single Markers & Range Handles */}
+              {comments.map((comment) => {
+                const range = getCommentRange(comment);
                 const ts = parseTimestampSeconds(comment.timestamp);
                 if (ts === null || duration === 0) return null;
+
+                // Se for range, desenha marcadores de início e fim se não forem muito grudados?
+                // Por simplicidade, desenhamos o marcador principal no start time sempre
                 const left = Math.min(100, (ts / duration) * 100);
+                const isRange = range && range.end !== null;
 
                 return (
                   <button
@@ -1581,41 +1613,38 @@ export function VideoPlayer({
                       seekTo(ts);
                       setHighlightedCommentId(comment.id);
                     }}
-                    className="absolute top-0 w-1 h-full bg-white hover:bg-zinc-200 hover:w-1.5 z-30 transition-all cursor-pointer group/marker shadow-[0_0_2px_rgba(0,0,0,0.5)]"
-                    style={{ left: `${left}%`, transform: "translateX(-50%)" }}
+                    className={`absolute top-1/2 -translate-y-1/2 h-3 w-3 z-30 transition-all cursor-pointer group/marker -ml-[6px] outline-none focus:outline-none`}
+                    style={{ left: `${left}%` }}
                   >
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-black border border-red-600 px-2 py-1 text-xs uppercase font-bold text-white opacity-0 group-hover/marker:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                      {comment.username}
+                    {/* Visual do Marcador */}
+                    <div className={`w-full h-full rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.5)] transform transition-transform group-hover/marker:scale-150 ${isRange ? 'bg-amber-400 border border-amber-200' : 'bg-white border border-zinc-200'
+                      }`} />
+
+                    {/* Linha conectora vertical (opcional, estilo DaVinci Resolve) */}
+                    <div className="absolute top-full left-1/2 w-px h-2 bg-white/50 -translate-x-1/2 group-hover/marker:h-4 transition-all" />
+
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 opacity-0 group-hover/marker:opacity-100 transition-opacity pointer-events-none z-50">
+                      <div className="bg-zinc-900 border border-zinc-700 px-2 py-1.5 rounded-sm shadow-xl flex items-center gap-2 whitespace-nowrap">
+                        <div className={`w-1.5 h-1.5 rounded-full ${isRange ? 'bg-amber-400' : 'bg-red-500'}`} />
+                        <span className="text-[10px] uppercase font-bold text-zinc-100 max-w-[150px] truncate">
+                          {comment.username}
+                        </span>
+                      </div>
+                      {/* Seta do tooltip */}
+                      <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-zinc-700 mx-auto -mt-px relative z-10" />
                     </div>
                   </button>
-                );
-              })}
-
-              {/* Range Markers (rendered behind simple markers to avoid overlapping issues, or on top with different style) */}
-              {comments.map((comment) => {
-                const range = getCommentRange(comment);
-                if (!range || range.end === null || duration === 0) return null;
-
-                const startPct = Math.min(100, Math.max(0, (range.start / duration) * 100));
-                const endPct = Math.min(100, Math.max(0, (range.end / duration) * 100));
-                const width = Math.max(0.5, endPct - startPct); // Mínimo visual
-
-                return (
-                  <div
-                    key={`range-${comment.id}`}
-                    className="absolute top-0 h-full bg-red-600/40 border-l border-r border-white/60 z-0 pointer-events-none"
-                    style={{ left: `${startPct}%`, width: `${width}%` }}
-                  />
                 );
               })}
 
               {/* Current Range Selection Preview */}
               {isRangeMode && hasTimestamp && rangeEndTime !== null && duration > 0 && (
                 <div
-                  className="absolute top-0 h-full bg-white/30 border-l border-r border-white/80 z-20 pointer-events-none"
+                  className="absolute top-0 h-full bg-white/50 border-x border-white z-20 pointer-events-none shadow-[0_0_10px_rgba(255,255,255,0.3)]"
                   style={{
-                    left: `${Math.min((currentTime / duration) * 100, (rangeEndTime / duration) * 100)}%`,
-                    width: `${Math.abs(((rangeEndTime - currentTime) / duration) * 100)}%`,
+                    left: `${Math.min((rangeStartTime / duration) * 100, (rangeEndTime / duration) * 100)}%`,
+                    width: `${Math.abs(((rangeEndTime - rangeStartTime) / duration) * 100)}%`,
                   }}
                 />
               )}
@@ -1669,11 +1698,10 @@ export function VideoPlayer({
                             playerRef.current.plyr.speed = speed;
                           }
                         }}
-                        className={`text-xs justify-center cursor-pointer font-bold ${
-                          playbackSpeed === speed
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                        }`}
+                        className={`text-xs justify-center cursor-pointer font-bold ${playbackSpeed === speed
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                          }`}
                       >
                         {speed}x
                       </DropdownMenuItem>
@@ -1689,11 +1717,10 @@ export function VideoPlayer({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`text-xs font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
-                        quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
-                      }`}
+                      className={`text-xs font-bold uppercase tracking-widest h-8 px-2 rounded-none ${quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
+                        }`}
                     >
-                      {quality === "original" ? "Original" : "720p"}
+                      {quality === "original" ? getResolutionLabel(currentVideo) : "720p"}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -1702,23 +1729,21 @@ export function VideoPlayer({
                   >
                     <DropdownMenuItem
                       onClick={() => setQuality("proxy")}
-                      className={`text-xs cursor-pointer font-bold ${
-                        quality === "proxy"
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                      }`}
+                      className={`text-xs cursor-pointer font-bold ${quality === "proxy"
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                     >
-                      Auto (720p)
+                      720p
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setQuality("original")}
-                      className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
-                        quality === "original"
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                      }`}
+                      className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${quality === "original"
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                     >
-                      Original (Máx)
+                      {getResolutionLabel(currentVideo)}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1738,10 +1763,10 @@ export function VideoPlayer({
                 </Button>
 
                 <div className="flex flex-col items-center min-w-[80px] lg:min-w-[100px]">
-                  <div className="brick-tech text-white font-bold text-sm lg:text-lg tabular-nums tracking-tight leading-none">
+                  <div className="brick-tech font-mono text-white font-bold text-sm lg:text-lg tabular-nums tracking-tight leading-none">
                     {formatTimecode(currentTime)}
                   </div>
-                  <div className="text-xs text-zinc-600 font-medium uppercase tracking-widest mt-0.5">
+                  <div className="text-xs text-zinc-600 font-medium uppercase tracking-widest mt-0.5 brick-tech font-mono">
                     {formatTimecode(duration)}
                   </div>
                 </div>
@@ -1810,657 +1835,36 @@ export function VideoPlayer({
           </div>
         </div>
 
-        {/* Barra Lateral de Comentários / Histórico */}
-        <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 h-auto min-h-0 lg:h-full flex-1 lg:flex-none overflow-hidden">
-          <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
-            <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
-              {showHistory ? (
-                <>
-                  <History className="w-4 h-4 text-red-600" /> Histórico
-                </>
-              ) : (
-                <>
-                  <MessageSquare className="w-4 h-4 text-red-600" /> Comentários ({comments.length})
-                </>
-              )}
-            </h3>
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="text-xs font-black uppercase tracking-tighter text-zinc-500 hover:text-white transition-colors"
-            >
-              {showHistory ? "Ver Comentários" : "Ver Histórico"}
-            </button>
-          </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar min-h-0">
-            {showHistory ? (
-              history.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
-                  Nenhum histórico registrado ainda.
-                </div>
-              ) : (
-                history.map((item) => (
-                  <div key={item.id} className="glass-card p-4 border-l-2 border-l-zinc-800">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${
-                          item.status === "approved" ? "bg-green-500" : "bg-zinc-500"
-                        }`}
-                      />
-                      <span
-                        className={`text-xs font-black uppercase tracking-widest ${
-                          item.status === "approved" ? "text-green-500" : "text-zinc-400"
-                        }`}
-                      >
-                        {item.status === "approved" ? "Aprovado" : "Em aprovação"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-white font-medium mb-1">{item.notes}</p>
-                    <div className="flex items-center justify-between text-xs text-zinc-500 uppercase font-bold tracking-widest">
-                      <span>{item.username}</span>
-                      <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))
-              )
-            ) : comments.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
-                Nenhum comentário ainda. Vá para um frame específico e comece a discussão.
-              </div>
-            ) : (
-              organizeComments().map((comment, index, all) => {
-                const isGeneral = parseTimestampSeconds(comment.timestamp) === null;
-                const isFirstGeneral = isGeneral && index === 0;
-                const isFirstTimed =
-                  !isGeneral &&
-                  (index === 0 || parseTimestampSeconds(all[index - 1]?.timestamp) === null);
-
-                return (
-                  <div key={comment.id} className="space-y-4">
-                    {isFirstGeneral && (
-                      <div className="flex items-center gap-2 px-1 text-xs font-black uppercase tracking-[0.2em] text-zinc-600 mb-2">
-                        <div className="w-1.5 h-1.5 bg-red-600" />
-                        Feedback Geral
-                      </div>
-                    )}
-                    {isFirstTimed && (
-                      <div className="flex items-center gap-2 px-1 text-xs font-black uppercase tracking-[0.2em] text-zinc-600 mt-6 mb-2">
-                        <Clock className="w-3 h-3" />
-                        Review Timeline
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      {/* Comentário Principal */}
-                      <div
-                        ref={(el) => (commentRefs.current[comment.id] = el)}
-                        className={`group glass-card p-3 border-l-2 transition-all cursor-pointer duration-300 ${
-                          highlightedCommentId === comment.id
-                            ? "border-l-red-600 bg-red-600/10 shadow-[inset_0_0_20px_rgba(220,38,38,0.1)]"
-                            : isGeneral
-                              ? "border-l-red-600 bg-red-600/5 shadow-[inset_0_0_20px_rgba(220,38,38,0.05)]"
-                              : "border-l-transparent hover:border-l-red-600"
-                        }`}
-                        onClick={(e) => {
-                          const target = e.target;
-                          if (target?.closest?.("[data-comment-actions]")) return;
-                          if (target?.closest?.("button, a, input, textarea, form, label")) return;
-
-                          const ts = parseTimestampSeconds(comment.timestamp);
-                          // const endTs = parseTimestampSeconds(comment.timestamp_end); // Reserved for future use
-
-                          if (ts !== null) {
-                            seekTo(ts);
-                            // Opcional: se tiver range, poderia tocar o range ou dar highlight
-                          }
-                        }}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span
-                              className={`text-xs font-black uppercase tracking-tighter ${isGeneral ? "text-zinc-400" : "text-red-600"}`}
-                            >
-                              {parseTimestampSeconds(comment.timestamp) !== null
-                                ? comment.timestamp_end
-                                  ? `${formatTime(parseTimestampSeconds(comment.timestamp))} - ${formatTime(parseTimestampSeconds(comment.timestamp_end))}`
-                                  : formatTime(parseTimestampSeconds(comment.timestamp))
-                                : "GERAL / PINS"}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-                                {comment.username}
-                              </span>
-                              {(canEditComment(comment) || canDeleteComment(comment)) && (
-                                <div className="flex items-center gap-1">
-                                  {canEditComment(comment) && (
-                                    <button
-                                      type="button"
-                                      data-comment-actions
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingComment(
-                                          editingComment === comment.id ? null : comment.id
-                                        );
-                                      }}
-                                      className="text-zinc-600 hover:text-blue-500 transition-colors"
-                                      title="Editar comentário"
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                  {canDeleteComment(comment) && (
-                                    <button
-                                      type="button"
-                                      data-comment-actions
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteComment(comment.id);
-                                      }}
-                                      className="text-zinc-600 hover:text-red-500 transition-colors"
-                                      title="Excluir comentário"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {editingComment === comment.id ? (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                const editContent = e.target.elements.editContent.value;
-                                if (editContent.trim()) {
-                                  handleEditComment(comment.id, editContent.trim());
-                                }
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="mt-2"
-                            >
-                              <textarea
-                                name="editContent"
-                                defaultValue={comment.content}
-                                autoFocus
-                                rows={3}
-                                className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-blue-600 transition-colors resize-none"
-                              />
-                              <div className="flex gap-2 mt-2">
-                                <button
-                                  type="submit"
-                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest py-2 transition-colors"
-                                >
-                                  Salvar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingComment(null);
-                                  }}
-                                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-black uppercase tracking-widest py-2 transition-colors"
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            </form>
-                          ) : (
-                            <p className="text-sm text-zinc-300 leading-relaxed">
-                              {comment.content}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Botão de Responder - disponível para todos */}
-                        {canComment && (
-                          <div data-comment-actions onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setReplyingTo(replyingTo === comment.id ? null : comment.id);
-                              }}
-                              className="mt-2 flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors cursor-pointer"
-                            >
-                              <Reply className="w-3 h-3" />
-                              {replyingTo === comment.id ? "Cancelar" : "Responder"}
-                            </button>
-
-                            {replyingTo === comment.id && (
-                              <form
-                                onSubmit={addReply}
-                                onClick={(e) => e.stopPropagation()}
-                                className="mt-3 space-y-2"
-                              >
-                                {/* Guest name input for replies */}
-                                {isGuest && canComment && (
-                                  <input
-                                    type="text"
-                                    value={visitorName}
-                                    onChange={(e) => setVisitorName(e.target.value)}
-                                    placeholder="Seu nome"
-                                    className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
-                                    required={isGuest}
-                                  />
-                                )}
-                                <textarea
-                                  value={replyText}
-                                  onChange={(e) => setReplyText(e.target.value)}
-                                  onFocus={() => {
-                                    if (drawingMode) setDrawingMode(false);
-                                  }}
-                                  placeholder="Escreva sua resposta..."
-                                  className="w-full bg-[#0a0a0a] border border-zinc-800 p-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-16"
-                                  autoFocus
-                                />
-                                <button
-                                  type="submit"
-                                  disabled={!replyText.trim()}
-                                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-widest py-2 transition-colors"
-                                >
-                                  Enviar Resposta
-                                </button>
-                              </form>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Respostas */}
-                      {comment.replies && comment.replies.length > 0 && (
-                        <div className="ml-4 space-y-2 border-l-2 border-zinc-800/50 pl-3">
-                          {comment.replies.map((reply) => (
-                            <div
-                              key={reply.id}
-                              className="glass-card p-3 bg-zinc-900/30"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center gap-2 mb-2">
-                                <CornerDownRight className="w-3 h-3 text-zinc-600" />
-                                <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-                                  {reply.username}
-                                </span>
-
-                                <div className="ml-auto flex items-center gap-2">
-                                  <span className="text-xs text-zinc-600">
-                                    {new Date(reply.created_at).toLocaleString("pt-BR", {
-                                      day: "2-digit",
-                                      month: "short",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </span>
-                                  {(canEditComment(reply) || canDeleteComment(reply)) && (
-                                    <div className="flex items-center gap-1">
-                                      {canEditComment(reply) && (
-                                        <button
-                                          type="button"
-                                          data-comment-actions
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setEditingComment(
-                                              editingComment === reply.id ? null : reply.id
-                                            );
-                                          }}
-                                          className="text-zinc-600 hover:text-blue-500 transition-colors"
-                                          title="Editar comentário"
-                                        >
-                                          <Pencil className="w-3 h-3" />
-                                        </button>
-                                      )}
-                                      {canDeleteComment(reply) && (
-                                        <button
-                                          type="button"
-                                          data-comment-actions
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteComment(reply.id);
-                                          }}
-                                          className="text-zinc-600 hover:text-red-500 transition-colors"
-                                          title="Excluir comentário"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              {editingComment === reply.id ? (
-                                <form
-                                  onSubmit={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const editContent = e.target.elements.editContent.value;
-                                    if (editContent.trim()) {
-                                      handleEditComment(reply.id, editContent.trim());
-                                    }
-                                  }}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="mt-2"
-                                >
-                                  <textarea
-                                    name="editContent"
-                                    defaultValue={reply.content}
-                                    autoFocus
-                                    rows={2}
-                                    className="w-full bg-zinc-900 border border-zinc-800 px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-blue-600 transition-colors resize-none"
-                                  />
-                                  <div className="flex gap-2 mt-2">
-                                    <button
-                                      type="submit"
-                                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest py-2 transition-colors"
-                                    >
-                                      Salvar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingComment(null);
-                                      }}
-                                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs font-black uppercase tracking-widest py-2 transition-colors"
-                                    >
-                                      Cancelar
-                                    </button>
-                                  </div>
-                                </form>
-                              ) : (
-                                <p className="text-sm text-zinc-400 leading-relaxed">
-                                  {reply.content}
-                                </p>
-                              )}
-
-                              {/* Botão de responder também nas respostas */}
-                              {canComment && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setReplyingTo(replyingTo === comment.id ? null : comment.id);
-                                    setReplyText(`@${reply.username} `);
-                                  }}
-                                  className="mt-2 flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-zinc-600 hover:text-red-500 transition-colors"
-                                >
-                                  <Reply className="w-3 h-3" />
-                                  Responder
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Input de Novo Comentário */}
-          {!showHistory && (
-            <div className="p-4 border-t border-zinc-800/50 bg-white/5">
-              <form onSubmit={addComment} className="flex flex-col gap-3">
-                <div className="text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-between">
-                  {hasTimestamp ? (
-                    <div className="flex items-center gap-2 text-zinc-500">
-                      <Clock className="w-3 h-3" />
-                      <span className="text-red-500">{formatTimecode(currentTime)}</span>
-                      {isRangeMode && (
-                        <>
-                          <span className="text-zinc-600 mx-1">à</span>
-                          <span
-                            className={`cursor-pointer hover:text-white ${rangeEndTime !== null ? "text-red-500" : "text-zinc-500"}`}
-                            onClick={() => {
-                              // Se clicar no tempo final, ele reseta ou foca
-                              if (rangeEndTime !== null) {
-                                seekTo(rangeEndTime);
-                              }
-                            }}
-                          >
-                            {rangeEndTime !== null ? formatTimecode(rangeEndTime) : "--:--:--"}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-zinc-500">Comentário geral (sem timestamp)</div>
-                  )}
-                  <span className="text-zinc-600">Deixe seu comentário...</span>
-                </div>
-
-                {/* Guest name input - discreto e inline */}
-                {isGuest && canComment && (
-                  <input
-                    type="text"
-                    value={visitorName}
-                    onChange={(e) => setVisitorName(e.target.value)}
-                    placeholder="Seu nome"
-                    className="w-full bg-[#0a0a0a] border border-zinc-800 px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-red-600/50 transition-colors"
-                    required={isGuest}
-                  />
-                )}
-
-                <div className="relative">
-                  {attachedFile && (
-                    <div className="absolute bottom-full left-0 mb-2 flex items-center gap-2 bg-red-600/10 border border-red-600/20 px-2 py-1">
-                      <Paperclip className="w-3 h-3 text-red-500" />
-                      <span className="text-xs text-zinc-300 truncate max-w-[150px]">
-                        {attachedFile.name}
-                      </span>
-                      <button
-                        onClick={() => setAttachedFile(null)}
-                        className="text-zinc-500 hover:text-white"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                  <textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onFocus={() => {
-                      // Fecha o modo desenho ao focar no campo de texto para limpar a UI
-                      if (drawingMode) setDrawingMode(false);
-                    }}
-                    placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
-                    className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 pb-12 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
-                    disabled={isGuest && !canComment}
-                  />
-
-                  {/* Toolbar de ações */}
-                  <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      {/* Timestamp Toggle */}
-                      <button
-                        type="button"
-                        className={`p-2 rounded-sm transition-colors ${
-                          hasTimestamp
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
-                        onClick={() => setHasTimestamp(!hasTimestamp)}
-                        title={hasTimestamp ? "Remover timestamp" : "Vincular ao tempo atual"}
-                      >
-                        <Clock className="w-4 h-4" />
-                      </button>
-
-                      {/* Range/Duration Controls */}
-                      {hasTimestamp && (
-                        <div className="flex items-center h-8 bg-zinc-900 rounded-sm border border-zinc-800 overflow-hidden mr-2">
-                          {/* Start Time (IN) */}
-                          <div
-                            className="px-2 text-xs font-mono font-bold text-zinc-400 border-r border-zinc-800 flex items-center h-full bg-black/20 cursor-default"
-                            title="Tempo de início (IN)"
-                          >
-                            {formatTimecode(currentTime)}
-                          </div>
-
-                          {/* Range Actions */}
-                          {!isRangeMode ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsRangeMode(true);
-                                setRangeEndTime(currentTime + 5); // Default 5s duration
-                              }}
-                              className="px-3 h-full text-xs font-bold uppercase hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors flex items-center group"
-                              title="Adicionar duração (Range)"
-                            >
-                              <span className="group-hover:text-red-500 transition-colors">
-                                + Duração
-                              </span>
-                            </button>
-                          ) : (
-                            <>
-                              {/* End Time (OUT) */}
-                              <button
-                                type="button"
-                                onClick={() => setRangeEndTime(currentTime)}
-                                className="px-2 h-full text-xs font-mono font-bold text-red-500 hover:bg-red-500/10 transition-colors flex items-center border-r border-zinc-800 min-w-[60px] justify-center"
-                                title="Clique para definir o final do range na posição atual do vídeo"
-                              >
-                                {rangeEndTime !== null && rangeEndTime > currentTime
-                                  ? formatTimecode(rangeEndTime)
-                                  : "DEFINIR SAÍDA"}
-                              </button>
-                              {/* Clear Range */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setIsRangeMode(false);
-                                  setRangeEndTime(null);
-                                }}
-                                className="px-2 h-full text-zinc-500 hover:text-white hover:bg-red-600 transition-colors flex items-center"
-                                title="Remover duração"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="w-[1px] h-4 bg-zinc-800 mx-1" />
-
-                      {/* Attachment */}
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={(e) => setAttachedFile(e.target.files[0])}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`p-2 rounded-sm transition-colors ${
-                          attachedFile
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
-                        title="Anexar arquivo"
-                      >
-                        <Paperclip className="w-4 h-4" />
-                      </button>
-
-                      {/* Emoji picker */}
-                      <div className="relative">
-                        <button
-                          type="button"
-                          className={`p-2 rounded-sm transition-colors ${
-                            showEmojiPicker
-                              ? "text-yellow-500 bg-yellow-500/10"
-                              : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                          }`}
-                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                          title="Adicionar emoji"
-                        >
-                          <Smile className="w-4 h-4" />
-                        </button>
-
-                        {showEmojiPicker && (
-                          <div className="absolute bottom-full left-0 mb-2 z-50">
-                            <EmojiPicker
-                              onEmojiClick={(emojiData) => {
-                                setNewComment(newComment + emojiData.emoji);
-                                setShowEmojiPicker(false);
-                              }}
-                              theme="dark"
-                              width={300}
-                              height={400}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Drawing tool */}
-                      <button
-                        type="button"
-                        className={`p-2 rounded-sm transition-colors ${
-                          drawingMode
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
-                        onClick={() => {
-                          if (!isComparing) setDrawingMode(!drawingMode);
-                        }}
-                        title="Desenhar no frame"
-                        disabled={isComparing}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-
-                      {/* Color picker - only when drawing mode is active */}
-                      {drawingMode && (
-                        <>
-                          {["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"].map(
-                            (color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                className={`w-6 h-6 rounded-sm border transition-all ${
-                                  drawColor === color
-                                    ? "border-white scale-110"
-                                    : "border-zinc-700 hover:border-zinc-500"
-                                }`}
-                                style={{ backgroundColor: color }}
-                                onClick={() => setDrawColor(color)}
-                                title={`Cor: ${color}`}
-                              />
-                            )
-                          )}
-
-                          <button
-                            type="button"
-                            className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1"
-                            onClick={clearDrawing}
-                            title="Limpar desenho"
-                          >
-                            <Eraser className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Send button */}
-                    <button
-                      type="submit"
-                      disabled={!newComment.trim() || (isGuest && !canComment)}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-bold uppercase tracking-widest rounded-sm transition-colors"
-                    >
-                      Enviar
-                    </button>
-                  </div>
-                </div>
-
-                {isGuest && !canComment && (
-                  <p className="text-xs text-zinc-600 italic">
-                    Este compartilhamento é somente visualização.
-                  </p>
-                )}
-              </form>
-            </div>
-          )}
-        </div>
+        {/* Barra Lateral de Comentarios / Historico - Usando componente refatorado */}
+        <CommentSidebar
+          showHistory={showHistory}
+          setShowHistory={setShowHistory}
+          history={history}
+          propCurrentVideo={currentVideo}
+          propCurrentTime={currentTime}
+          propComments={comments}
+          propSetComments={setComments}
+          propIsDrawingMode={drawingMode}
+          propSetIsDrawingMode={setDrawingMode}
+          propSeekTo={seekTo}
+          propVisitorName={visitorName}
+          propSetVisitorName={setVisitorName}
+          propDrawings={drawings}
+          propSetDrawings={setDrawings}
+          propShareToken={shareToken}
+          propSharePassword={sharePassword}
+          propIsPublic={isPublic}
+          propIsComparing={isComparing}
+          propIsRangeMode={isRangeMode}
+          propSetIsRangeMode={setIsRangeMode}
+          propRangeStartTime={rangeStartTime}
+          propSetRangeStartTime={setRangeStartTime}
+          propRangeEndTime={rangeEndTime}
+          propSetRangeEndTime={setRangeEndTime}
+          propHasTimestamp={hasTimestamp}
+          propSetHasTimestamp={setHasTimestamp}
+        />
 
         {/* Share Link Dialog Fallback */}
         <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>

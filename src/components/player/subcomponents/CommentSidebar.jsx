@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useAuth } from "../../../hooks/useAuth";
 import { useVideo } from "../../../context/VideoContext";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,30 @@ import { toast } from "sonner";
 import EmojiPicker from "emoji-picker-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+
+const CollapsibleText = ({ text, className, limit = 280 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!text) return null;
+  if (text.length <= limit) return <p className={className}>{text}</p>;
+
+  return (
+    <div>
+      <p className={className}>
+        {isExpanded ? text : `${text.slice(0, limit)}...`}
+      </p>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded(!isExpanded);
+        }}
+        className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white mt-1 transition-colors"
+      >
+        {isExpanded ? "Ler menos" : "Ler mais"}
+      </button>
+    </div>
+  );
+};
 
 // CommentItemInline - Direct props version (no react-window itemData destructuring)
 const CommentItemInline = ({
@@ -62,10 +86,14 @@ const CommentItemInline = ({
       >
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-black text-red-600 uppercase tracking-tighter">
-              {parseTimestampSeconds(comment.timestamp) !== null
-                ? formatTime(parseTimestampSeconds(comment.timestamp))
-                : "—"}
+            <span className="text-xs font-bold text-red-600 uppercase tracking-tighter brick-tech font-mono">
+              {parseTimestampSeconds(comment.timestamp) !== null ? (
+                comment.timestamp_end && parseTimestampSeconds(comment.timestamp_end) !== null ? (
+                  `${formatTime(parseTimestampSeconds(comment.timestamp))} - ${formatTime(parseTimestampSeconds(comment.timestamp_end))}`
+                ) : (
+                  formatTime(parseTimestampSeconds(comment.timestamp))
+                )
+              ) : "—"}
             </span>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
@@ -141,7 +169,10 @@ const CommentItemInline = ({
               </div>
             </form>
           ) : (
-            <p className="text-sm text-zinc-300 leading-relaxed">{comment.content}</p>
+            <CollapsibleText
+              text={comment.content}
+              className="text-sm text-zinc-300 leading-relaxed"
+            />
           )}
         </div>
 
@@ -187,9 +218,10 @@ const CommentItemInline = ({
                 <button
                   type="submit"
                   disabled={!replyText.trim()}
-                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-widest py-2 transition-colors"
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-widest py-2.5 shadow-md hover:shadow-red-900/20 transition-all flex items-center justify-center gap-2 group"
                 >
-                  Enviar Resposta
+                  <span>Enviar Resposta</span>
+                  <Reply className="w-3 h-3 group-hover:-scale-x-100 transition-transform duration-300" />
                 </button>
               </form>
             )}
@@ -212,7 +244,7 @@ const CommentItemInline = ({
                 </span>
 
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="text-xs text-zinc-600">
+                  <span className="text-[10px] text-zinc-600 brick-tech font-mono">
                     {new Date(reply.created_at).toLocaleString("pt-BR", {
                       day: "2-digit",
                       month: "short",
@@ -294,7 +326,11 @@ const CommentItemInline = ({
                   </div>
                 </form>
               ) : (
-                <p className="text-xs text-zinc-400 leading-relaxed">{reply.content}</p>
+                <CollapsibleText
+                  text={reply.content}
+                  className="text-xs text-zinc-400 leading-relaxed"
+                  limit={200}
+                />
               )}
             </div>
           ))}
@@ -304,42 +340,83 @@ const CommentItemInline = ({
   );
 };
 
-export function CommentSidebar({ showHistory, setShowHistory, history }) {
-  const {
-    currentVideo,
-    currentTime,
-    comments,
-    setComments,
-    isDrawingMode,
-    setIsDrawingMode,
-    selectedColor,
-    setSelectedColor,
-    isComparing,
-    seekTo,
-    visitorName,
-    setVisitorName,
-    drawings,
-    setDrawings,
-    shareToken,
-    sharePassword,
-    isPublic,
-    activeRange,
-    setActiveRange,
-  } = useVideo();
+export function CommentSidebar({
+  showHistory,
+  setShowHistory,
+  history,
+  // Props opcionais - se fornecidas, usam elas; senão, usam o contexto
+  propCurrentVideo,
+  propCurrentTime,
+  propComments,
+  propSetComments,
+  propIsDrawingMode,
+  propSetIsDrawingMode,
+  propSeekTo,
+  propVisitorName,
+  propSetVisitorName,
+  propDrawings,
+  propSetDrawings,
+  propShareToken,
+  propSharePassword,
+  propIsPublic,
+  propIsComparing,
+  propIsRangeMode,
+  propSetIsRangeMode,
+  propRangeStartTime,
+  propSetRangeStartTime,
+  propRangeEndTime,
+  propSetRangeEndTime,
+  propHasTimestamp,
+  propSetHasTimestamp,
+}) {
+  // Tenta usar o contexto, com fallback para props
+  let contextValues = {};
+  try {
+    contextValues = useVideo();
+  } catch (e) {
+    // Contexto não disponível, usaremos as props
+  }
+
+  const currentVideo = propCurrentVideo || contextValues.currentVideo;
+  const currentTime = propCurrentTime ?? contextValues.currentTime ?? 0;
+  const comments = propComments || contextValues.comments || [];
+  const setComments = propSetComments || contextValues.setComments || (() => { });
+  const isDrawingMode = propIsDrawingMode ?? contextValues.isDrawingMode ?? false;
+  const setIsDrawingMode = propSetIsDrawingMode || contextValues.setIsDrawingMode || (() => { });
+  const selectedColor = contextValues.selectedColor || "#ff0000";
+  const setSelectedColor = contextValues.setSelectedColor || (() => { });
+  const isComparing = propIsComparing ?? contextValues.isComparing ?? false;
+  const seekTo = propSeekTo || contextValues.seekTo || (() => { });
+  const visitorName = propVisitorName ?? contextValues.visitorName ?? "";
+  const setVisitorName = propSetVisitorName || contextValues.setVisitorName || (() => { });
+  const drawings = propDrawings || contextValues.drawings || [];
+  const setDrawings = propSetDrawings || contextValues.setDrawings || (() => { });
+  const shareToken = propShareToken ?? contextValues.shareToken;
+  const sharePassword = propSharePassword ?? contextValues.sharePassword;
+  const isPublic = propIsPublic ?? contextValues.isPublic ?? false;
+  const activeRange = contextValues.activeRange;
+  const setActiveRange = contextValues.setActiveRange || (() => { });
+
+  // Range States Mapping (Props -> Context)
+  const isRangeMode = propIsRangeMode ?? false;
+  const setIsRangeMode = propSetIsRangeMode || (() => { });
+  const rangeStartTime = propRangeStartTime ?? null;
+  const setRangeStartTime = propSetRangeStartTime || (() => { });
+  const rangeEndTime = propRangeEndTime ?? null;
+  const setRangeEndTime = propSetRangeEndTime || (() => { });
+  const hasTimestamp = propHasTimestamp ?? true;
+  const setHasTimestamp = propSetHasTimestamp || (() => { });
 
   const { token } = useAuth();
   const isGuest = isPublic || !token;
   const canComment = true; // Logic can be refined
-  const currentVideoId = currentVideo.id;
+  const currentVideoId = currentVideo?.id;
 
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [editingComment, setEditingComment] = useState(null);
   const [attachedFile, setAttachedFile] = useState(null);
-  const [hasTimestamp, setHasTimestamp] = useState(true);
-  const [rangeEndTime, setRangeEndTime] = useState(null);
-  const [isRangeMode, setIsRangeMode] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const [confirmDialog, setConfirmDialog] = useState({
@@ -350,6 +427,89 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   });
 
   const fileInputRef = useRef(null);
+
+  // Hook para scrubber de timecode (drag horizontal para ajustar tempo)
+  const useTimecodeScrubber = (initialValue, onChange, minValue = 0, maxValue = Infinity) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartX = useRef(0);
+    const dragStartValue = useRef(0);
+
+    const handleMouseDown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(true);
+      dragStartX.current = e.clientX;
+      dragStartValue.current = initialValue;
+      document.body.style.cursor = 'ew-resize';
+    };
+
+    const handleTouchStart = (e) => {
+      e.preventDefault(); // Prevents scrolling while dragging
+      e.stopPropagation();
+      setIsDragging(true);
+      dragStartX.current = e.touches[0].clientX;
+      dragStartValue.current = initialValue;
+    };
+
+    useEffect(() => {
+      if (!isDragging) return;
+
+      const mouseSensitivity = 0.2;
+
+      const handleMouseMove = (e) => {
+        const deltaX = e.clientX - dragStartX.current;
+        const newValue = Math.max(minValue, Math.min(maxValue,
+          dragStartValue.current + (deltaX * mouseSensitivity)
+        ));
+        onChange(newValue);
+      };
+
+      const handleTouchMove = (e) => {
+        const deltaX = e.touches[0].clientX - dragStartX.current;
+        const newValue = Math.max(minValue, Math.min(maxValue,
+          dragStartValue.current + (deltaX * mouseSensitivity)
+        ));
+        onChange(newValue);
+      };
+
+      const handleEnd = () => {
+        setIsDragging(false);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+
+      document.body.style.userSelect = 'none';
+
+      // Add both listeners to handle whichever input method started validly
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleEnd);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleEnd);
+
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleEnd);
+        document.removeEventListener('touchmove', handleTouchMove);
+        document.removeEventListener('touchend', handleEnd);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }, [isDragging, onChange, minValue, maxValue]);
+
+    return { handleMouseDown, handleTouchStart, isDragging };
+  };
+
+  // Aplicar scrubber ao range OUT
+  const outScrubber = useTimecodeScrubber(
+    rangeEndTime || currentTime,
+    (newTime) => {
+      setRangeEndTime(newTime);
+      setActiveRange({ start: rangeStartTime || currentTime, end: newTime });
+      seekTo(newTime);
+    },
+    0,
+    currentVideo?.duration || 9999
+  );
 
   // Helper functions
   const formatTime = (seconds) => {
@@ -436,11 +596,21 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       if (isGuest && sharePassword) headers["x-share-password"] = sharePassword;
       if (!isGuest) headers["Authorization"] = `Bearer ${token}`;
 
+      let finalStart = hasTimestamp ? (isRangeMode && rangeStartTime !== null ? rangeStartTime : currentTime) : null;
+      let finalEnd = hasTimestamp && isRangeMode && rangeEndTime !== null ? rangeEndTime : null;
+
+      // Inverter se o usuário marcou o range para trás
+      if (finalStart !== null && finalEnd !== null && finalEnd < finalStart) {
+        const temp = finalStart;
+        finalStart = finalEnd;
+        finalEnd = temp;
+      }
+
       const body = {
         video_id: currentVideoId,
         content: newComment,
-        timestamp: hasTimestamp ? currentTime : null,
-        timestamp_end: hasTimestamp && isRangeMode && rangeEndTime !== null ? rangeEndTime : null,
+        timestamp: finalStart,
+        timestamp_end: finalEnd,
       };
 
       if (isGuest) body.visitor_name = visitorName;
@@ -648,7 +818,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
             </>
           ) : (
             <>
-              <MessageSquare className="w-4 h-4 text-red-600" /> Comentários ({comments.length})
+              <MessageSquare className="w-4 h-4 text-red-600" /> Comentários <span className="brick-tech font-mono text-xs ml-1">({comments.length})</span>
             </>
           )}
         </h3>
@@ -732,7 +902,13 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
               {hasTimestamp ? (
                 <div className="flex items-center gap-2 text-zinc-500">
                   <Clock className="w-3 h-3" />
-                  <span className="text-red-500">{formatTimecode(currentTime)}</span>
+                  <span className="text-red-500 brick-tech font-mono">
+                    {isRangeMode && rangeEndTime !== null ? (
+                      `${formatTimecode(rangeStartTime || currentTime)} - ${formatTimecode(rangeEndTime)}`
+                    ) : (
+                      formatTimecode(currentTime)
+                    )}
+                  </span>
                 </div>
               ) : (
                 <div className="text-zinc-500">Comentário geral (sem timestamp)</div>
@@ -773,20 +949,19 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   if (isDrawingMode) setIsDrawingMode(false);
                 }}
                 placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
-                className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 pb-12 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
+                className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-20"
                 disabled={isGuest && !canComment}
               />
 
-              <div className="absolute bottom-0 left-0 right-0 bg-[#0a0a0a] p-2 flex flex-col gap-2">
+              <div className="bg-[#0a0a0a] border border-zinc-800 border-t-0 p-2 flex flex-col gap-2">
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-1">
                   <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
-                        hasTimestamp
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${hasTimestamp
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        }`}
                       onClick={() => setHasTimestamp(!hasTimestamp)}
                       title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
                     >
@@ -799,10 +974,14 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                         className={`p-2 rounded-sm transition-colors flex items-center gap-1 cursor-pointer ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
                         onClick={() => {
                           if (!isRangeMode) {
-                            const end = Math.min(currentVideo.duration || currentTime + 5, currentTime + 5);
+                            // Ao entrar no modo range, o ponto inicial (IN) fica fixo no tempo atual
+                            const start = currentTime;
+                            const end = Math.min(currentVideo.duration || start + 5, start + 5);
+                            setRangeStartTime(start);
                             setRangeEndTime(end);
-                            setActiveRange({ start: currentTime, end });
+                            setActiveRange({ start, end });
                           } else {
+                            setRangeStartTime(null);
                             setRangeEndTime(null);
                             setActiveRange(null);
                           }
@@ -816,51 +995,26 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                     )}
 
                     {hasTimestamp && isRangeMode && (
-                      <div className="flex items-center gap-1 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 shrink-0">
+                      <div className="flex items-center gap-2 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 shrink-0">
                         <span className="text-[9px] font-black opacity-50 uppercase text-zinc-400">OUT:</span>
-                        <input
-                          type="text"
-                          value={formatTime(rangeEndTime)}
-                          readOnly
-                          className="bg-transparent border-none text-white font-bold text-[10px] w-10 text-center focus:outline-none"
-                        />
-                        <div className="flex flex-col gap-0.5 ml-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newVal = Math.min(currentVideo.duration || rangeEndTime + 1, rangeEndTime + 1);
-                              setRangeEndTime(newVal);
-                              setActiveRange(prev => ({ ...prev, end: newVal }));
-                              seekTo(newVal);
-                            }}
-                            className="text-zinc-500 hover:text-white"
-                          >
-                            <span className="block h-2 flex items-center">▲</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newVal = Math.max(currentTime + 0.1, rangeEndTime - 1);
-                              setRangeEndTime(newVal);
-                              setActiveRange(prev => ({ ...prev, end: newVal }));
-                              seekTo(newVal);
-                            }}
-                            className="text-zinc-500 hover:text-white"
-                          >
-                            <span className="block h-2 flex items-center">▼</span>
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRangeEndTime(currentTime);
-                            setActiveRange(prev => ({ ...prev, end: currentTime }));
-                          }}
-                          className="ml-1 text-[9px] font-bold text-zinc-500 hover:text-red-500 uppercase px-1 border border-zinc-800 hover:border-red-500/50 rounded-sm"
-                          title="Marcar ponto de saída no tempo atual"
+
+                        {/* Timecode Scrubber - Arrastar horizontalmente para ajustar */}
+                        <div
+                          onMouseDown={outScrubber.handleMouseDown}
+                          onTouchStart={outScrubber.handleTouchStart}
+                          className={`
+                            px-2 py-0.5 rounded cursor-ew-resize select-none transition-all
+                            ${outScrubber.isDragging
+                              ? 'bg-red-600/30 text-red-300 scale-105'
+                              : 'hover:bg-zinc-800 text-white hover:text-red-400'
+                            }
+                          `}
+                          title="Arrastar ← → para ajustar tempo"
                         >
-                          SET
-                        </button>
+                          <span className="font-mono text-[11px] font-bold brick-tech">
+                            {formatTime(rangeEndTime)}
+                          </span>
+                        </div>
                       </div>
                     )}
 
@@ -873,11 +1027,10 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
-                        attachedFile
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${attachedFile
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        }`}
                       title="Anexar arquivo"
                     >
                       <Paperclip className="w-4 h-4" />
@@ -886,11 +1039,10 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                     <div className="relative">
                       <button
                         type="button"
-                        className={`p-2 rounded-sm transition-colors cursor-pointer ${
-                          showEmojiPicker
-                            ? "text-yellow-500 bg-yellow-500/10"
-                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
+                        className={`p-2 rounded-sm transition-colors cursor-pointer ${showEmojiPicker
+                          ? "text-yellow-500 bg-yellow-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                          }`}
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                         title="Adicionar emoji"
                       >
@@ -916,11 +1068,10 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
-                        isDrawingMode
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${isDrawingMode
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
                       onClick={() => {
                         if (!isComparing) setIsDrawingMode(!isDrawingMode);
                       }}
@@ -937,11 +1088,10 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                             <button
                               key={color}
                               type="button"
-                              className={`w-4 h-4 rounded-sm border transition-all cursor-pointer ${
-                                selectedColor === color
-                                  ? "border-white scale-110"
-                                  : "border-zinc-700 hover:border-zinc-500"
-                              }`}
+                              className={`w-4 h-4 rounded-sm border transition-all cursor-pointer ${selectedColor === color
+                                ? "border-white scale-110"
+                                : "border-zinc-700 hover:border-zinc-500"
+                                }`}
                               style={{ backgroundColor: color }}
                               onClick={() => setSelectedColor(color)}
                               title={`Cor: ${color}`}
@@ -963,10 +1113,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
                 <button
                   type="submit"
-                  disabled={!newComment.trim() || (isGuest && !canComment)}
-                  className="w-full py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm transition-all active:scale-[0.98] shadow-lg shadow-red-900/20 disabled:cursor-not-allowed"
+                  disabled={!newComment.trim() && !attachedFile && !isDrawingMode}
+                  className="w-full py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm transition-all active:scale-[0.98] shadow-lg hover:shadow-red-900/30 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
                 >
-                  Enviar Comentário
+                  <span>Enviar Comentário</span>
+                  <CornerDownRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </div>
             </div>
