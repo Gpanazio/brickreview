@@ -927,21 +927,7 @@ export function CommentSidebar({
               />
             )}
 
-            <div className="relative">
-              {attachedFile && (
-                <div className="absolute bottom-full left-0 mb-2 flex items-center gap-2 bg-red-600/10 border border-red-600/20 px-2 py-1">
-                  <Paperclip className="w-3 h-3 text-red-500" />
-                  <span className="text-xs text-zinc-300 truncate max-w-[150px]">
-                    {attachedFile.name}
-                  </span>
-                  <button
-                    onClick={() => setAttachedFile(null)}
-                    className="text-zinc-500 hover:text-white"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
+            <div>
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
@@ -954,8 +940,9 @@ export function CommentSidebar({
               />
 
               <div className="bg-[#0a0a0a] border border-zinc-800 border-t-0 p-2 flex flex-col gap-2">
+                {/* Toolbar Row 1: Main buttons */}
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-1">
-                  <div className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <button
                       type="button"
                       className={`p-2 rounded-sm transition-colors cursor-pointer ${hasTimestamp
@@ -974,7 +961,6 @@ export function CommentSidebar({
                         className={`p-2 rounded-sm transition-colors flex items-center gap-1 cursor-pointer ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
                         onClick={() => {
                           if (!isRangeMode) {
-                            // Ao entrar no modo range, o ponto inicial (IN) fica fixo no tempo atual
                             const start = currentTime;
                             const end = Math.min(currentVideo.duration || start + 5, start + 5);
                             setRangeStartTime(start);
@@ -997,18 +983,16 @@ export function CommentSidebar({
                     {hasTimestamp && isRangeMode && (
                       <div className="flex items-center gap-2 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 shrink-0">
                         <span className="text-[9px] font-black opacity-50 uppercase text-zinc-400">OUT:</span>
-
-                        {/* Timecode Scrubber - Arrastar horizontalmente para ajustar */}
                         <div
                           onMouseDown={outScrubber.handleMouseDown}
                           onTouchStart={outScrubber.handleTouchStart}
                           className={`
-                            px-2 py-0.5 rounded cursor-ew-resize select-none transition-all
-                            ${outScrubber.isDragging
+                              px-2 py-0.5 rounded cursor-ew-resize select-none transition-all
+                              ${outScrubber.isDragging
                               ? 'bg-red-600/30 text-red-300 scale-105'
                               : 'hover:bg-zinc-800 text-white hover:text-red-400'
                             }
-                          `}
+                            `}
                           title="Arrastar ← → para ajustar tempo"
                         >
                           <span className="font-mono text-[11px] font-bold brick-tech">
@@ -1048,22 +1032,6 @@ export function CommentSidebar({
                       >
                         <Smile className="w-4 h-4" />
                       </button>
-
-                      {showEmojiPicker && (
-                        <div className="absolute bottom-full left-0 mb-2 z-50">
-                          <ErrorBoundary>
-                            <EmojiPicker
-                              onEmojiClick={(emojiData) => {
-                                setNewComment(newComment + emojiData.emoji);
-                                setShowEmojiPicker(false);
-                              }}
-                              theme="dark"
-                              width={300}
-                              height={400}
-                            />
-                          </ErrorBoundary>
-                        </div>
-                      )}
                     </div>
 
                     <button
@@ -1080,36 +1048,55 @@ export function CommentSidebar({
                     >
                       <PencilIcon className="w-4 h-4" />
                     </button>
-
-                    {isDrawingMode && (
-                      <div className="flex items-center gap-1 ml-1 pl-1 border-l border-zinc-800">
-                        {["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"].map(
-                          (color) => (
-                            <button
-                              key={color}
-                              type="button"
-                              className={`w-4 h-4 rounded-sm border transition-all cursor-pointer ${selectedColor === color
-                                ? "border-white scale-110"
-                                : "border-zinc-700 hover:border-zinc-500"
-                                }`}
-                              style={{ backgroundColor: color }}
-                              onClick={() => setSelectedColor(color)}
-                              title={`Cor: ${color}`}
-                            />
-                          )
-                        )}
-                        <button
-                          type="button"
-                          className="p-1 rounded-sm text-zinc-500 hover:text-red-500 transition-colors cursor-pointer"
-                          onClick={clearDrawing}
-                          title="Limpar desenho"
-                        >
-                          <Eraser className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
+
+                {/* Toolbar Row 2: Drawing Colors (if active) */}
+                {isDrawingMode && (
+                  <div className="flex items-center gap-2 pb-2 border-b border-zinc-800">
+                    <span className="text-[9px] font-bold uppercase text-zinc-500">Cor:</span>
+                    {["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"].map(
+                      (color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          className={`w-5 h-5 rounded-sm border transition-all cursor-pointer ${selectedColor === color
+                            ? "border-white scale-110 ring-1 ring-white"
+                            : "border-zinc-700 hover:border-zinc-500"
+                            }`}
+                          style={{ backgroundColor: color }}
+                          onClick={() => setSelectedColor(color)}
+                          title={`Cor: ${color}`}
+                        />
+                      )
+                    )}
+                    <button
+                      type="button"
+                      className="p-1 rounded-sm text-zinc-500 hover:text-red-500 transition-colors cursor-pointer ml-auto"
+                      onClick={clearDrawing}
+                      title="Limpar desenho"
+                    >
+                      <Eraser className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Toolbar Row 3: Attached File Preview (if any) */}
+                {attachedFile && (
+                  <div className="flex items-center gap-2 bg-red-600/10 border border-red-600/20 px-2 py-1.5 rounded-sm">
+                    <Paperclip className="w-3 h-3 text-red-500 shrink-0" />
+                    <span className="text-xs text-zinc-300 truncate flex-1">
+                      {attachedFile.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedFile(null)}
+                      className="text-zinc-500 hover:text-white shrink-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -1128,6 +1115,32 @@ export function CommentSidebar({
               </p>
             )}
           </form>
+        </div>
+      )}
+
+      {/* Emoji Picker - Rendered as Portal-like overlay */}
+      {showEmojiPicker && (
+        <div className="absolute bottom-24 left-4 right-4 z-[100]">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(false)}
+              className="absolute -top-2 -right-2 z-10 w-6 h-6 bg-zinc-800 hover:bg-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+            <ErrorBoundary>
+              <EmojiPicker
+                onEmojiClick={(emojiData) => {
+                  setNewComment(newComment + emojiData.emoji);
+                  setShowEmojiPicker(false);
+                }}
+                theme="dark"
+                width="100%"
+                height={350}
+              />
+            </ErrorBoundary>
+          </div>
         </div>
       )}
 
