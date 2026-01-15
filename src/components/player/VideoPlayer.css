@@ -50,15 +50,25 @@
 .plyr__control--overlaid {
   background: rgba(10, 10, 10, 0.4) !important;
   backdrop-filter: blur(12px);
-  border-radius: 0;
+  border-radius: 2px !important; /* Slight rounding for monolith look */
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-  padding: 30px; /* Bigger square */
+  padding: 0 !important; /* Reset padding to use flex centering with explicit size */
+  width: 100px !important; /* Desktop default width */
+  height: 50px !important; /* Desktop default height (2:1 ratio) */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   transition:
     background 0.2s ease,
     transform 0.2s ease,
     border-color 0.2s ease;
   transform: translate(-50%, -50%);
+}
+
+.plyr__control--overlaid svg {
+  width: 24px !important;
+  height: 24px !important;
 }
 
 .plyr__control--overlaid:hover {
@@ -243,12 +253,14 @@ input[type="range"]:focus {
 
   /* Ajusta botões de controle do Plyr no mobile */
   .plyr__control--overlaid {
-    padding: 10px !important;
+    width: 60px !important;
+    height: 30px !important;
+    padding: 0 !important;
   }
 
   .plyr__control--overlaid svg {
-    width: 20px !important;
-    height: 20px !important;
+    width: 16px !important;
+    height: 16px !important;
   }
 
   /* Ajusta botões da barra de controle também */
@@ -282,12 +294,13 @@ input[type="range"]:focus {
   }
 
   .plyr__control--overlaid {
-    padding: 8px !important;
+    width: 50px !important;
+    height: 25px !important;
   }
 
   .plyr__control--overlaid svg {
-    width: 16px !important;
-    height: 16px !important;
+    width: 14px !important;
+    height: 14px !important;
   }
 }
 

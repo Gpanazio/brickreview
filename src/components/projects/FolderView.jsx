@@ -509,7 +509,7 @@ export function FolderView({
           )}
 
           <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
-            {(folder.videos_count || 0) + folderFiles.length} itens
+            {(folder.videos_count || 0) + (folder.subfolders_count || 0) + folderFiles.length} itens
           </span>
 
           <DropdownMenu>

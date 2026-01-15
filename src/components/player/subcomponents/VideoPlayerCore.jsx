@@ -174,11 +174,11 @@ export function VideoPlayerCore() {
           }`}
           aria-label={isPlaying ? "Pause" : "Play"}
         >
-          <div className="w-16 h-16 md:w-24 md:h-24 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 hover:bg-red-600 hover:border-red-500 hover:scale-105 shadow-2xl group">
+          <div className="w-24 h-12 md:w-40 md:h-20 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 hover:bg-red-600 hover:border-red-500 hover:scale-105 shadow-2xl group rounded-sm">
             {isPlaying ? (
-              <Pause className="w-6 h-6 md:w-10 md:h-10 text-white fill-white" />
+              <Pause className="w-5 h-5 md:w-8 md:h-8 text-white fill-white" />
             ) : (
-              <Play className="w-6 h-6 md:w-10 md:h-10 text-white fill-white ml-1" />
+              <Play className="w-5 h-5 md:w-8 md:h-8 text-white fill-white ml-1" />
             )}
           </div>
         </button>

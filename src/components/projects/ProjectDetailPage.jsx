@@ -1040,6 +1040,7 @@ export function ProjectDetailPage() {
                         >
                           <FolderCard
                             folder={folder}
+                            fileCount={files.filter((f) => f.folder_id === folder.id).length}
                             isSelected={selectedItems.has(`folder-${folder.id}`)}
                             onClick={() => {
                               if (selectedItems.size > 0) {
@@ -1349,7 +1350,16 @@ const formatFileSize = (bytes) => {
 };
 
 const FolderCard = memo(
-  ({ folder, onClick, onGenerateShare, onDelete, onMoveVideo, onMoveFolder, isSelected }) => {
+  ({
+    folder,
+    onClick,
+    onGenerateShare,
+    onDelete,
+    onMoveVideo,
+    onMoveFolder,
+    isSelected,
+    fileCount,
+  }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const previews = folder.previews || [];
     const hasPreviews = previews.length > 0;
@@ -1485,7 +1495,8 @@ const FolderCard = memo(
                     {folder.name}
                   </h3>
                   <p className="brick-manifesto text-[10px] text-zinc-500 truncate uppercase tracking-widest font-bold">
-                    {(folder.videos_count || 0) + (folder.subfolders_count || 0)} Itens no diretório
+                    {(folder.videos_count || 0) + (folder.subfolders_count || 0) + (fileCount || 0)}{" "}
+                    Itens no diretório
                   </p>
                 </div>
                 <button className="text-zinc-700 hover:text-white transition-colors">
