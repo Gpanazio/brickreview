@@ -218,7 +218,7 @@ const CommentItemInline = ({
                 <button
                   type="submit"
                   disabled={!replyText.trim()}
-                  className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-widest py-2.5 shadow-md hover:shadow-red-900/20 transition-all flex items-center justify-center gap-2 group"
+                  className="w-full glass-button-primary disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-widest py-2.5 flex items-center justify-center gap-2 group"
                 >
                   <span>Enviar Resposta</span>
                   <Reply className="w-3 h-3 group-hover:-scale-x-100 transition-transform duration-300" />
@@ -1114,7 +1114,7 @@ export function CommentSidebar({
                 <button
                   type="submit"
                   disabled={!newComment.trim() && !attachedFile && !isDrawingMode}
-                  className="w-full py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm transition-all active:scale-[0.98] shadow-lg hover:shadow-red-900/30 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
+                  className="w-full py-3 glass-button-primary disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-xs font-black uppercase tracking-[0.2em] rounded-sm disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
                 >
                   <span>Enviar Comentário</span>
                   <CornerDownRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />

@@ -317,12 +317,15 @@ export function VideoPlayer({
   };
 
   const getResolutionLabel = (vid) => {
-    if (!vid || !vid.width) return "Original";
-    if (vid.width >= 3840) return "4K";
-    if (vid.width >= 2560) return "1440p";
-    if (vid.width >= 1920) return "1080p";
-    if (vid.width >= 1280) return "720p";
-    return `${vid.height}p`;
+    if (!vid || !vid.width || !vid.height) return "Original";
+    // Use the SHORTER dimension as the "p" value (handles vertical videos)
+    const shortSide = Math.min(vid.width, vid.height);
+    if (shortSide >= 2160) return "4K";
+    if (shortSide >= 1440) return "1440p";
+    if (shortSide >= 1080) return "1080p";
+    if (shortSide >= 720) return "720p";
+    if (shortSide >= 480) return "480p";
+    return `${shortSide}p`;
   };
 
   const compareCommentsByTimestamp = (a, b) => {
