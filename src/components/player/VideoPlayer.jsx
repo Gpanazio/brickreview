@@ -281,39 +281,52 @@ function VideoPlayerContent({
     if (currentVideo?.duration) {
       setDuration(currentVideo.duration);
     }
-    const fetchComments = async () => {
-      try {
-        const endpoint = isGuest
-          ? `/api/shares/${shareToken}/comments/video/${currentVideoId}`
-          : `/api/comments/video/${currentVideoId}`;
+  }, [currentVideo.duration, setDuration]);
 
-        const headers = isGuest
-          ? sharePassword
-            ? { "x-share-password": sharePassword }
-            : {}
-          : { Authorization: `Bearer ${token}` };
+  const fetchComments = useCallback(async () => {
+    if (!currentVideoId) return;
 
-        const response = await fetch(endpoint, { headers });
-        if (response.ok) {
-          const data = await response.json();
-          setComments([...data].sort(compareCommentsByTimestamp));
-        }
-      } catch (error) {
-        console.error("Erro ao carregar comentários:", error);
+    try {
+      const endpoint = isGuest
+        ? `/api/shares/${shareToken}/comments/video/${currentVideoId}`
+        : `/api/comments/video/${currentVideoId}`;
+
+      const headers = isGuest
+        ? sharePassword
+          ? { "x-share-password": sharePassword }
+          : {}
+        : { Authorization: `Bearer ${token}` };
+
+      const response = await fetch(endpoint, { headers });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        setComments((prevComments) => {
+          if (prevComments.length !== data.length) {
+            return [...data].sort(compareCommentsByTimestamp);
+          }
+
+          const isDifferent = JSON.stringify(prevComments) !== JSON.stringify(data);
+          return isDifferent ? [...data].sort(compareCommentsByTimestamp) : prevComments;
+        });
       }
-    };
+    } catch (error) {
+      console.error("Erro ao carregar comentários:", error);
+    }
+  }, [currentVideoId, token, isGuest, shareToken, sharePassword, setComments]);
 
+  useEffect(() => {
     fetchComments();
-  }, [
-    currentVideoId,
-    token,
-    isGuest,
-    shareToken,
-    setDuration,
-    sharePassword,
-    setComments,
-    currentVideo.duration,
-  ]);
+
+    const intervalId = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchComments();
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [fetchComments]);
 
   const handleDownload = async (type) => {
     try {

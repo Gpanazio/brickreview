@@ -390,43 +390,54 @@ router.get("/:id", authenticateToken, async (req, res) => {
 
 /**
  * @route PATCH /api/videos/:id/move
- * @desc Move video to a different folder
+ * @desc Move video to a different folder or project
  */
 router.patch("/:id/move", authenticateToken, async (req, res) => {
   try {
-    const { folder_id } = req.body;
+    const { folder_id, project_id } = req.body;
     const videoId = Number(req.params.id);
 
     if (!Number.isInteger(videoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
 
-    const projectId = await requireProjectAccessFromVideo(req, res, videoId);
-    if (!projectId) return;
+    const currentProjectId = await requireProjectAccessFromVideo(req, res, videoId);
+    if (!currentProjectId) return;
 
-    const folderId = folder_id ? Number(folder_id) : null;
-    if (folder_id && !Number.isInteger(folderId)) {
-      return res.status(400).json({ error: "folder_id inválido" });
+    if (project_id && Number(project_id) !== currentProjectId) {
+      const hasAccess = await requireProjectAccess(req, res, Number(project_id));
+      if (!hasAccess) return;
     }
 
-    if (folderId) {
-      const folderCheck = await query(
-        "SELECT 1 FROM brickreview_folders WHERE id = $1 AND project_id = $2",
-        [folderId, projectId]
-      );
+    const targetProjectId = project_id ? Number(project_id) : currentProjectId;
+    const targetFolderId = folder_id ? Number(folder_id) : null;
+
+    if (targetFolderId) {
+      const folderCheck = await query("SELECT project_id FROM brickreview_folders WHERE id = $1", [
+        targetFolderId,
+      ]);
       if (folderCheck.rows.length === 0) {
-        return res.status(400).json({ error: "folder_id não pertence ao projeto" });
+        return res.status(400).json({ error: "Pasta de destino não encontrada" });
+      }
+      if (folderCheck.rows[0].project_id !== targetProjectId) {
+        return res.status(400).json({ error: "Pasta não pertence ao projeto de destino" });
       }
     }
 
-    // Atualiza o folder_id do vídeo (null significa sem pasta)
     const result = await query(
-      "UPDATE brickreview_videos SET folder_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
-      [folderId || null, videoId]
+      "UPDATE brickreview_videos SET folder_id = $1, project_id = $2, updated_at = NOW() WHERE id = $3 RETURNING *",
+      [targetFolderId, targetProjectId, videoId]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Vídeo não encontrado" });
+    }
+
+    if (result.rows[0].parent_video_id === null) {
+      await query(
+        "UPDATE brickreview_videos SET folder_id = $1, project_id = $2 WHERE parent_video_id = $3",
+        [targetFolderId, targetProjectId, videoId]
+      );
     }
 
     res.json(result.rows[0]);

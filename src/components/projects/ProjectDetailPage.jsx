@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, memo, useCallback, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useUpload } from "../../context/UploadContext";
 import { VideoPlayer } from "../player/VideoPlayer";
@@ -47,9 +47,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { CreateFolderDialog } from "./CreateFolderDialog";
+import { MoveItemDialog } from "./MoveItemDialog";
 
 export function ProjectDetailPage() {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState(null);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
@@ -58,11 +60,28 @@ export function ProjectDetailPage() {
   // const [uploading, setUploading] = useState(false); // Removed local state
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'folders'
-  const [currentFolderId, setCurrentFolderId] = useState(null);
+
+  const currentFolderId = searchParams.get("folder") ? Number(searchParams.get("folder")) : null;
+  const setCurrentFolderId = (folderId) => {
+    if (folderId) {
+      setSearchParams({ folder: folderId });
+    } else {
+      setSearchParams({});
+    }
+  };
+
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+
+  const [moveDialog, setMoveDialog] = useState({
+    isOpen: false,
+    itemType: null,
+    itemId: null,
+    currentProjectId: null,
+  });
+
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
     title: "Confirmar ação",
@@ -366,6 +385,23 @@ export function ProjectDetailPage() {
     } catch (_error) {
       console.error("Error", _error);
     }
+  };
+
+  const openMoveDialog = (type, itemId) => {
+    setMoveDialog({
+      isOpen: true,
+      itemType: type,
+      itemId: itemId,
+      currentProjectId: parseInt(id),
+    });
+  };
+
+  const handleMoveItemSuccess = () => {
+    setMoveDialog({ ...moveDialog, isOpen: false });
+    toast.success("Item movido com sucesso!");
+    fetchProjectDetails();
+    fetchFolders();
+    fetchFiles();
   };
 
   const handleGenerateFolderShare = async (folderId) => {
@@ -1017,6 +1053,7 @@ export function ProjectDetailPage() {
                             onGenerateShare={() => handleGenerateFolderShare(folder.id)}
                             onMoveVideo={handleMoveVideo}
                             onMoveFolder={handleMoveFolder}
+                            onMove={() => openMoveDialog("folder", folder.id)}
                             onDelete={() => {
                               openConfirmDialog({
                                 title: "Excluir pasta",
@@ -1164,6 +1201,7 @@ export function ProjectDetailPage() {
                                 onArchive={(videoId) => handleArchiveVideo(videoId)}
                                 onGenerateShare={(videoId) => handleGenerateVideoShare(videoId)}
                                 onDownload={(type) => handleDownloadVideo(video.id, type)}
+                                onMove={() => openMoveDialog("video", video.id)}
                               />
                             </motion.div>
                           );
@@ -1180,6 +1218,7 @@ export function ProjectDetailPage() {
                           <FileCard
                             file={file}
                             isSelected={selectedItems.has(`file-${file.id}`)}
+                            onMove={() => openMoveDialog("file", file.id)}
                             onDelete={() => {
                               openConfirmDialog({
                                 title: "Excluir arquivo",
@@ -1302,6 +1341,16 @@ export function ProjectDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <MoveItemDialog
+        isOpen={moveDialog.isOpen}
+        onClose={() => setMoveDialog({ ...moveDialog, isOpen: false })}
+        itemType={moveDialog.itemType}
+        itemId={moveDialog.itemId}
+        currentProjectId={moveDialog.currentProjectId}
+        onSuccess={handleMoveItemSuccess}
+        token={token}
+      />
     </div>
   );
 }
@@ -1315,7 +1364,16 @@ const formatFileSize = (bytes) => {
 };
 
 const FolderCard = memo(
-  ({ folder, onClick, onGenerateShare, onDelete, onMoveVideo, onMoveFolder, isSelected }) => {
+  ({
+    folder,
+    onClick,
+    onGenerateShare,
+    onDelete,
+    onMoveVideo,
+    onMoveFolder,
+    onMove,
+    isSelected,
+  }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const previews = folder.previews || [];
     const hasPreviews = previews.length > 0;
@@ -1504,6 +1562,17 @@ const FolderCard = memo(
           <ContextMenuItem
             onClick={(e) => {
               e.stopPropagation();
+              onMove?.();
+            }}
+            className="focus:bg-red-600 focus:text-white cursor-pointer"
+          >
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Mover para...
+          </ContextMenuItem>
+
+          <ContextMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
               onDelete?.();
             }}
             className="focus:bg-red-600 focus:text-white cursor-pointer text-red-400"
@@ -1517,7 +1586,7 @@ const FolderCard = memo(
   }
 );
 
-const FileCard = memo(({ file, onDelete, isSelected }) => {
+const FileCard = memo(({ file, onDelete, onMove, isSelected }) => {
   const isImage = file.file_type === "image";
 
   const getFileTypeLabel = (type) => {
@@ -1624,6 +1693,17 @@ const FileCard = memo(({ file, onDelete, isSelected }) => {
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
+            onMove?.();
+          }}
+          className="focus:bg-red-600 focus:text-white cursor-pointer"
+        >
+          <FolderOpen className="w-4 h-4 mr-2" />
+          Mover para...
+        </ContextMenuItem>
+
+        <ContextMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
             onDelete?.();
           }}
           className="focus:bg-red-600 focus:text-white cursor-pointer text-red-400"
@@ -1641,7 +1721,7 @@ const VideoCard = memo(
     video,
     versions = [],
     onClick,
-    onMove: _onMove,
+    onMove,
     onCreateVersion,
     onDelete,
     onArchive,
@@ -1890,6 +1970,17 @@ const VideoCard = memo(
           >
             <Share2 className="w-4 h-4 mr-2" />
             Gerar Link de Revisão
+          </ContextMenuItem>
+
+          <ContextMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onMove?.();
+            }}
+            className="focus:bg-red-600 focus:text-white cursor-pointer"
+          >
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Mover para...
           </ContextMenuItem>
 
           <ContextMenuItem
