@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useVideo } from "../../../context/VideoContext";
 import { Play, Pause } from "lucide-react";
+import { toast } from "sonner";
 
 export function VideoPlayerCore() {
   const {
@@ -51,6 +52,17 @@ export function VideoPlayerCore() {
     const handleWaiting = () => setIsLoading(true);
     const handleCanPlay = () => setIsLoading(false);
 
+    // Novo handler de erro
+    const handleError = () => {
+      const err = elementRef.current?.error;
+      const errorMessage = err?.message || "Erro desconhecido ao carregar vídeo";
+      console.error("[VideoPlayerCore] Erro de reprodução:", err);
+      setIsLoading(false);
+      toast.error("Erro ao reproduzir vídeo", {
+        description: errorMessage,
+      });
+    };
+
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
     video.addEventListener("timeupdate", handleTimeUpdate);
@@ -60,6 +72,7 @@ export function VideoPlayerCore() {
     video.addEventListener("loadeddata", handleLoadedData);
     video.addEventListener("waiting", handleWaiting);
     video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("error", handleError);
 
     // Expose video element to Context (compatible with existing playerRef usage)
     playerRef.current = {
@@ -113,6 +126,7 @@ export function VideoPlayerCore() {
       video.removeEventListener("loadeddata", handleLoadedData);
       video.removeEventListener("waiting", handleWaiting);
       video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("error", handleError);
       playerRef.current = null;
     };
   }, [

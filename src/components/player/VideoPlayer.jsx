@@ -11,6 +11,7 @@ const isMobile = () => {
     window.innerWidth < 768
   );
 };
+
 import { Button } from "@/components/ui/button";
 import {
   ChevronLeft,
@@ -129,15 +130,14 @@ export function VideoPlayer({
   );
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawingMode, setDrawingMode] = useState(false); // Se está no modo desenho
-  const [attachedFile, setAttachedFile] = useState(null);
-  const [drawColor, setDrawColor] = useState("#FF0000");
+
   const [drawings, setDrawings] = useState([]); // Desenhos salvos por timestamp
   const [currentDrawing, setCurrentDrawing] = useState([]); // Pontos do desenho atual
   const [hasTimestamp, setHasTimestamp] = useState(true); // Se o comentário tem timestamp
   const [rangeStartTime, setRangeStartTime] = useState(null); // Início do range
   const [rangeEndTime, setRangeEndTime] = useState(null); // Fim do range (opcional)
   const [isRangeMode, setIsRangeMode] = useState(false); // Modo de seleção de range
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false); // Controla exibição do emoji picker
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -148,7 +148,6 @@ export function VideoPlayer({
   });
   const [duration, setDuration] = useState(latestVersion.duration || 0);
   const [isMuted, setIsMuted] = useState(false);
-  const [editingComment, setEditingComment] = useState(null);
 
   const [isLoadingVideo, setIsLoadingVideo] = useState(false); // Loading ao trocar versão
   const [highlightedCommentId, setHighlightedCommentId] = useState(null);
@@ -182,13 +181,13 @@ export function VideoPlayer({
   const pendingSeekTimeRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const fileInputRef = useRef(null);
+
   const videoContainerRef = useRef(null);
   const { token } = useAuth();
 
   // Guest mode: no token, use visitor name for identification
   const isGuest = isPublic || !token;
-  const canComment = true;
+
   const canApprove = !isGuest;
 
   const getGuestCommentIds = () => {
@@ -210,18 +209,9 @@ export function VideoPlayer({
     localStorage.setItem("brickreview_guest_comment_ids", JSON.stringify(ids));
   };
 
-  const canDeleteComment = (comment) => {
-    if (!isGuest) return true;
-    return getGuestCommentIds().includes(comment.id);
-  };
-
-  const canEditComment = (comment) => {
-    if (!isGuest) return true;
-    return getGuestCommentIds().includes(comment.id);
-  };
-
   const canShare = !isGuest;
   const canDownload = true;
+}
 
   // Pause video when entering drawing mode
   useEffect(() => {
@@ -251,667 +241,6 @@ export function VideoPlayer({
   }, [compareOptions, compareVersionId, isComparing]);
 
   useEffect(() => {
-    if (isComparing) {
-      setQuality("proxy");
-      if (drawingMode) setDrawingMode(false);
-    }
-  }, [isComparing, drawingMode]);
-
-  // Helper para cópia robusta para clipboard
-  const copyToClipboard = async (text) => {
-    // Tenta API moderna
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch (err) {
-      console.warn("Clipboard API falhou, tentando fallback", err);
-    }
-
-    // Fallback para execCommand
-    try {
-      const textArea = document.createElement("textarea");
-      textArea.value = text;
-      textArea.style.position = "fixed";
-      textArea.style.left = "-9999px";
-      textArea.style.top = "0";
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      const successful = document.execCommand("copy");
-      document.body.removeChild(textArea);
-      return successful;
-    } catch (err) {
-      console.error("Fallback de cópia falhou", err);
-      return false;
-    }
-  };
-
-  // Use precise FPS from metadata, fallback to 30 if not available
-  const videoFPS = currentVideo.fps || 30;
-  const frameTime = 1 / videoFPS;
-
-  const videoSource = useMemo(() => {
-    if (!videoUrl) return null;
-    console.log("[VideoPlayer] Creating video source:", {
-      url: videoUrl,
-      mimeType: currentVideo.mime_type,
-    });
-    return {
-      type: "video",
-      preload: "auto",
-      sources: [
-        {
-          src: videoUrl,
-          type: currentVideo.mime_type || "video/mp4",
-        },
-      ],
-    };
-  }, [videoUrl, currentVideo.mime_type]);
-
-  const parseTimestampSeconds = (value) => {
-    if (value === null || value === undefined) return null;
-    const num = Number(value);
-    return Number.isFinite(num) ? num : null;
-  };
-
-  const getResolutionLabel = (vid) => {
-    if (!vid || !vid.width || !vid.height) return "Original";
-    // Use the SHORTER dimension as the "p" value (handles vertical videos)
-    const shortSide = Math.min(vid.width, vid.height);
-    if (shortSide >= 2160) return "4K";
-    if (shortSide >= 1440) return "1440p";
-    if (shortSide >= 1080) return "1080p";
-    if (shortSide >= 720) return "720p";
-    if (shortSide >= 480) return "480p";
-    return `${shortSide}p`;
-  };
-
-  const compareCommentsByTimestamp = (a, b) => {
-    const aTs = parseTimestampSeconds(a?.timestamp);
-    const bTs = parseTimestampSeconds(b?.timestamp);
-
-    if (aTs === null && bTs === null) {
-      return new Date(a.created_at) - new Date(b.created_at);
-    }
-    if (aTs === null) return -1;
-    if (bTs === null) return 1;
-    if (aTs !== bTs) return aTs - bTs;
-
-    return new Date(a.created_at) - new Date(b.created_at);
-  };
-
-  const addComment = async (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-
-    // Guests must provide a name
-    if (isGuest && !visitorName.trim()) {
-      toast.error("Por favor, informe seu nome");
-      return;
-    }
-
-    try {
-      // Save visitor name to localStorage for future visits
-      if (isGuest && visitorName.trim()) {
-        localStorage.setItem("brickreview_visitor_name", visitorName.trim());
-      }
-
-      // Use different endpoint for guest comments
-      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : "/api/comments";
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      if (isGuest && sharePassword) {
-        headers["x-share-password"] = sharePassword;
-      }
-
-      if (!isGuest) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const body = {
-        video_id: currentVideoId,
-        content: newComment,
-        timestamp: hasTimestamp ? currentTime : null,
-        timestamp_end: hasTimestamp && isRangeMode && rangeEndTime !== null ? rangeEndTime : null,
-      };
-
-      if (isGuest) {
-        body.visitor_name = visitorName;
-      }
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      if (response.ok) {
-        const comment = await response.json();
-        if (isGuest) {
-          addGuestCommentId(comment.id);
-        }
-        setComments((prev) => [...prev, comment].sort(compareCommentsByTimestamp));
-        setNewComment("");
-        setAttachedFile(null);
-        setDrawingMode(false);
-        setIsRangeMode(false);
-        setRangeEndTime(null);
-        toast.success("Comentário adicionado com sucesso!");
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || "Erro ao adicionar comentário");
-      }
-    } catch (error) {
-      console.error("Erro ao adicionar comentário:", error);
-      toast.error("Erro ao adicionar comentário");
-    }
-  };
-
-  const addReply = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!replyText.trim() || !replyingTo) return;
-
-    // Guests must provide a name
-    if (isGuest && !visitorName.trim()) {
-      toast.error("Por favor, informe seu nome");
-      return;
-    }
-
-    try {
-      // Save visitor name to localStorage for future visits
-      if (isGuest && visitorName.trim()) {
-        localStorage.setItem("brickreview_visitor_name", visitorName.trim());
-      }
-      // Use different endpoint for guest replies
-      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : "/api/comments";
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      if (isGuest && sharePassword) {
-        headers["x-share-password"] = sharePassword;
-      }
-
-      if (!isGuest) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const body = {
-        video_id: currentVideoId,
-        content: replyText,
-        timestamp: currentTime,
-        parent_comment_id: replyingTo,
-      };
-
-      if (isGuest) {
-        body.visitor_name = visitorName;
-      }
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      if (response.ok) {
-        const reply = await response.json();
-        if (isGuest) {
-          addGuestCommentId(reply.id);
-        }
-        setComments((prev) => [...prev, reply]);
-        setReplyText("");
-        setReplyingTo(null);
-        setDrawingMode(false);
-        toast.success("Resposta adicionada com sucesso!");
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || "Erro ao adicionar resposta");
-      }
-    } catch (error) {
-      console.error("Erro ao adicionar resposta:", error);
-      toast.error("Erro ao adicionar resposta");
-    }
-  };
-
-  // Organiza comentários em threads (pais e respostas)
-  const openConfirmDialog = ({
-    title,
-    message,
-    confirmText = "Confirmar",
-    cancelText = "Cancelar",
-    variant = "danger",
-    onConfirm,
-  }) => {
-    setConfirmDialog({
-      isOpen: true,
-      title,
-      message,
-      confirmText,
-      cancelText,
-      variant,
-      onConfirm,
-    });
-  };
-
-  const closeConfirmDialog = () => {
-    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-  };
-
-  const handleEditComment = async (commentId, newContent) => {
-    const endpoint = isGuest
-      ? `/api/shares/${shareToken}/comments/${commentId}`
-      : `/api/comments/${commentId}`;
-
-    const headers = {
-      "Content-Type": "application/json",
-    };
-
-    if (isGuest && sharePassword) {
-      headers["x-share-password"] = sharePassword;
-    }
-
-    if (!isGuest) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(endpoint, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ content: newContent }),
-    });
-
-    if (response.ok) {
-      const updatedComment = await response.json();
-      setComments((prev) => prev.map((c) => (c.id === commentId ? updatedComment : c)));
-      setEditingComment(null);
-      toast.success("Comentário atualizado!");
-    } else {
-      const data = await response.json().catch(() => ({}));
-      toast.error(data.error || "Erro ao atualizar comentário");
-    }
-  };
-
-  const handleDeleteComment = (commentId) => {
-    openConfirmDialog({
-      title: "Excluir comentário",
-      message:
-        "Tem certeza que deseja excluir este comentário? Respostas vinculadas também serão removidas.",
-      confirmText: "Excluir",
-      cancelText: "Cancelar",
-      variant: "danger",
-      onConfirm: async () => {
-        const deleteToast = toast.loading("Excluindo comentário...");
-        try {
-          const endpoint = isGuest
-            ? `/api/shares/${shareToken}/comments/${commentId}`
-            : `/api/comments/${commentId}`;
-
-          const headers = {
-            "Content-Type": "application/json",
-          };
-
-          if (isGuest && sharePassword) {
-            headers["x-share-password"] = sharePassword;
-          }
-
-          if (!isGuest) {
-            headers["Authorization"] = `Bearer ${token}`;
-          }
-
-          const response = await fetch(endpoint, {
-            method: "DELETE",
-            headers,
-          });
-
-          const data = await response.json().catch(() => ({}));
-
-          if (!response.ok) {
-            toast.error(data.error || "Erro ao excluir comentário", { id: deleteToast });
-            return;
-          }
-
-          if (isGuest) {
-            removeGuestCommentId(commentId);
-          }
-
-          toast.success("Comentário excluído", { id: deleteToast });
-          setComments((prev) =>
-            prev.filter(
-              (c) =>
-                String(c.id) !== String(commentId) &&
-                String(c.parent_comment_id) !== String(commentId)
-            )
-          );
-          if (String(replyingTo) === String(commentId)) {
-            setReplyingTo(null);
-            setReplyText("");
-          }
-        } catch (error) {
-          console.error("Erro ao excluir comentário:", error);
-          toast.error("Erro ao excluir comentário", { id: deleteToast });
-        }
-      },
-    });
-  };
-
-  const organizeComments = () => {
-    const parentComments = comments.filter((c) => c.parent_comment_id == null);
-    return parentComments.sort(compareCommentsByTimestamp).map((parent) => ({
-      ...parent,
-      replies: comments
-        .filter(
-          (c) => c.parent_comment_id != null && String(c.parent_comment_id) === String(parent.id)
-        )
-        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
-    }));
-  };
-
-  const seekTo = (time) => {
-    const targetTime = parseTimestampSeconds(time);
-    if (targetTime === null) return;
-
-    pendingSeekTimeRef.current = targetTime;
-
-    const plyr = playerRef.current?.plyr;
-    const media = plyr?.media;
-    if (!plyr || !media) return;
-
-    const applyPendingSeek = () => {
-      const pending = pendingSeekTimeRef.current;
-      if (!Number.isFinite(pending)) return;
-      try {
-        plyr.currentTime = pending;
-        plyr.pause();
-        pendingSeekTimeRef.current = null;
-      } catch {
-        // ignore; will retry on next media event
-      }
-    };
-
-    // If media isn't ready yet, schedule a retry when metadata is available.
-    if (typeof media.readyState === "number" && media.readyState < 1) {
-      media.addEventListener("loadedmetadata", applyPendingSeek, { once: true });
-      media.addEventListener("canplay", applyPendingSeek, { once: true });
-      return;
-    }
-
-    applyPendingSeek();
-  };
-
-  const formatTime = (seconds) => {
-    if (isNaN(seconds) || seconds === null) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const formatTimecode = (seconds) => {
-    const fpsInt = Math.max(1, Math.round(videoFPS || 30));
-    const safeSeconds = Number(seconds);
-    if (!Number.isFinite(safeSeconds) || safeSeconds < 0) return `0:00:00`;
-
-    const totalFrames = Math.floor(safeSeconds * fpsInt);
-    const mins = Math.floor(totalFrames / (fpsInt * 60));
-    const secs = Math.floor(totalFrames / fpsInt) % 60;
-    const frames = totalFrames % fpsInt;
-
-    return `${mins}:${secs.toString().padStart(2, "0")}:${frames.toString().padStart(2, "0")}`;
-  };
-
-  const getCommentRange = (comment) => {
-    const start = parseTimestampSeconds(comment.timestamp);
-    const end = parseTimestampSeconds(comment.timestamp_end);
-    if (start === null) return null;
-    return { start, end };
-  };
-
-  const handleComparisonControllerReady = useCallback((controller) => {
-    comparisonControllerRef.current = controller;
-    playerRef.current = controller ? { plyr: controller } : null;
-  }, []);
-
-  const handleApproval = async (status) => {
-    setIsSubmittingApproval(true);
-    try {
-      const response = await fetch("/api/reviews", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          video_id: currentVideoId,
-          status,
-          notes:
-            status === "approved" ? "Aprovado pelo cliente" : "Ajustes solicitados pelo cliente",
-        }),
-      });
-
-      if (response.ok) {
-        setApprovalStatus(status);
-        fetchHistory();
-      }
-    } catch (error) {
-      console.error("Erro ao processar aprovação:", error);
-    } finally {
-      setIsSubmittingApproval(false);
-    }
-  };
-
-  const fetchHistory = async () => {
-    try {
-      const response = await fetch(`/api/reviews/${currentVideoId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      setHistory(data);
-    } catch (error) {
-      console.error("Erro ao buscar histórico:", error);
-    }
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (showHistory) fetchHistory();
-  }, [showHistory]);
-
-  // Função para trocar de versão
-  const handleVersionChange = (versionId) => {
-    if (versionId === currentVideoId) return;
-
-    setIsLoadingVideo(true);
-    setVideoUrl(null); // Limpa URL atual para forçar loading
-    setCurrentVideoId(versionId);
-    const selectedVersion = allVersions.find((v) => v.id === versionId);
-    if (selectedVersion) {
-      setCurrentVideo(selectedVersion);
-      setApprovalStatus(selectedVersion.latest_approval_status || "pending");
-
-      // Ajusta qualidade padrão para a nova versão
-      const mime = selectedVersion.mime_type || "";
-      setQuality(mime.includes("mp4") || mime.includes("h264") ? "original" : "proxy");
-    }
-  };
-
-  const handleToggleCompare = () => {
-    setIsComparing((prev) => !prev);
-  };
-
-  const handleCompareVersionChange = (versionId) => {
-    if (versionId === compareVersionId) return;
-    setCompareVersionId(versionId);
-  };
-
-  // Carrega comentários quando a versão muda
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (currentVideo?.duration) {
-      setDuration(currentVideo.duration);
-    }
-    const fetchComments = async () => {
-      try {
-        // Use endpoint público para guests, privado para usuários autenticados
-        const endpoint = isGuest
-          ? `/api/shares/${shareToken}/comments/video/${currentVideoId}`
-          : `/api/comments/video/${currentVideoId}`;
-
-        const headers = isGuest
-          ? sharePassword
-            ? { "x-share-password": sharePassword }
-            : {}
-          : { Authorization: `Bearer ${token}` };
-
-        const response = await fetch(endpoint, { headers });
-        if (response.ok) {
-          const data = await response.json();
-          setComments([...data].sort(compareCommentsByTimestamp));
-        }
-      } catch (error) {
-        console.error("Erro ao carregar comentários:", error);
-      }
-    };
-
-    fetchComments();
-  }, [currentVideoId, token, isGuest, shareToken]);
-
-  // Carrega desenhos quando a versão muda
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const fetchDrawings = async () => {
-      try {
-        // Use endpoint público para guests, privado para usuários autenticados
-        const endpoint = isGuest
-          ? `/api/shares/${shareToken}/drawings/video/${currentVideoId}`
-          : `/api/drawings/video/${currentVideoId}`;
-
-        const headers = isGuest
-          ? sharePassword
-            ? { "x-share-password": sharePassword }
-            : {}
-          : { Authorization: `Bearer ${token}` };
-
-        const response = await fetch(endpoint, { headers });
-        if (response.ok) {
-          const data = await response.json();
-          // Converte os dados do banco para o formato esperado
-          const formattedDrawings = data.map((d) => ({
-            id: d.id,
-            timestamp: parseFloat(d.timestamp),
-            points: d.drawing_data,
-            color: d.color,
-          }));
-          setDrawings(formattedDrawings);
-        }
-      } catch (error) {
-        console.error("Erro ao carregar desenhos:", error);
-      }
-    };
-
-    fetchDrawings();
-  }, [currentVideoId, token, isGuest, shareToken]);
-
-  // Função para fazer download do vídeo (proxy ou original)
-  const handleDownload = async (type) => {
-    try {
-      const headers = isGuest
-        ? sharePassword
-          ? { "x-share-password": sharePassword }
-          : {}
-        : { Authorization: `Bearer ${token}` };
-
-      const endpoint = isGuest
-        ? `/api/shares/${shareToken}/video/${currentVideoId}/download?type=${type}`
-        : `/api/videos/${currentVideoId}/download?type=${type}`;
-
-      const response = await fetch(endpoint, { headers });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        // Força download usando fetch + blob ao invés de link direto
-        const videoResponse = await fetch(data.url);
-        const blob = await videoResponse.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = data.filename || `${currentVideo.title}_${type}.mp4`;
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-
-        // Cleanup
-        setTimeout(() => {
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(blobUrl);
-        }, 100);
-      }
-    } catch (error) {
-      console.error("Erro ao fazer download:", error);
-    }
-  };
-
-  // Função para gerar link de compartilhamento do vídeo
-  const handleGenerateShare = async () => {
-    setIsGeneratingShare(true);
-    const shareToast = toast.loading("Gerando link de compartilhamento...");
-
-    try {
-      const response = await fetch("/api/shares", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          video_id: currentVideoId,
-          access_type: "comment", // Convidados podem comentar
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        toast.error(errorData.error || "Erro ao gerar link", { id: shareToast });
-        return;
-      }
-
-      const data = await response.json();
-
-      if (!data.token) {
-        toast.error("Token de compartilhamento não recebido", { id: shareToast });
-        return;
-      }
-
-      const fullUrl = `${window.location.origin}/share/${data.token}`;
-      setShareLink(fullUrl);
-
-      // Copia para clipboard usando o helper robusto
-      const copied = await copyToClipboard(fullUrl);
-
-      if (copied) {
-        toast.success("Link copiado!", {
-          id: shareToast,
-          description: "O link de revisão já está na sua área de transferência.",
-        });
-      } else {
-        // Se tudo falhar, abre o dialog customizado
-        toast.dismiss(shareToast);
-        setShowShareDialog(true);
-      }
-    } catch (error) {
-      console.error("Erro ao gerar link:", error);
-      toast.error("Erro ao gerar link de compartilhamento", { id: shareToast });
-    } finally {
-      setIsGeneratingShare(false);
-    }
-  };
-
-  useEffect(() => {
     const fetchStreamUrl = async () => {
       try {
         console.log(`[VideoPlayer] Fetching stream URL for video ${currentVideoId}, quality: ${quality}`);
@@ -920,22 +249,21 @@ export function VideoPlayer({
           ? `/api/shares/${shareToken}/video/${currentVideoId}/stream?quality=${quality}`
           : `/api/videos/${currentVideoId}/stream?quality=${quality}`;
 
-        const headers = isGuest
-          ? sharePassword
-            ? { "x-share-password": sharePassword }
-            : {}
-          : { Authorization: `Bearer ${token}` };
+        const headers = {};
+        if (!isGuest) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+        if (isGuest && sharePassword) {
+          headers["x-share-password"] = sharePassword;
+        }
 
         const response = await fetch(endpoint, { headers });
+
         if (response.ok) {
           const data = await response.json();
           console.log(`[VideoPlayer] Received stream URL:`, data);
           if (data.url) {
-            // Se mudou o vídeo ou qualidade, salvamos o tempo atual
-            // const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
             setVideoUrl(data.url);
-
-            // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
           }
         } else {
           const errorData = await response.json().catch(() => ({}));
@@ -1084,7 +412,7 @@ export function VideoPlayer({
         points: currentDrawing,
         color: drawColor,
         id: Date.now(),
-      };
+
       setDrawings([...drawings, newDrawing]);
 
       // Salva no backend (apenas para usuários autenticados)
@@ -1122,10 +450,7 @@ export function VideoPlayer({
     }
   };
 
-  const clearDrawing = () => {
-    setCurrentDrawing([]);
-    setDrawings(drawings.filter((d) => Math.abs(d.timestamp - currentTime) > 0.1));
-  };
+
 
   // Renderiza os desenhos no canvas
   useEffect(() => {
@@ -1206,10 +531,11 @@ export function VideoPlayer({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${approvalStatus === "approved"
-                        ? "border-green-500/50 text-green-500 bg-green-500/10"
-                        : "border-zinc-700 text-zinc-400 bg-zinc-900"
-                        }`}
+                      className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${
+                        approvalStatus === "approved"
+                          ? "border-green-500/50 text-green-500 bg-green-500/10"
+                          : "border-zinc-700 text-zinc-400 bg-zinc-900"
+                      }`}
                     >
                       {approvalStatus === "approved" ? (
                         <CheckCircle className="w-3 h-3 mr-2" />
@@ -1303,10 +629,11 @@ export function VideoPlayer({
                     variant="ghost"
                     size="sm"
                     onClick={handleToggleCompare}
-                    className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${isComparing
-                      ? "border-red-600 text-white bg-red-600"
-                      : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
-                      }`}
+                    className={`rounded-none border px-3 h-8 text-xs font-black uppercase tracking-widest transition-all ${
+                      isComparing
+                        ? "border-red-600 text-white bg-red-600"
+                        : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
+                    }`}
                   >
                     <Columns2 className="w-3 h-3 mr-2" />
                     Comparar
@@ -1321,8 +648,8 @@ export function VideoPlayer({
                           className="text-xs font-bold text-zinc-300 uppercase tracking-widest bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 h-8 flex items-center gap-2 rounded-none"
                         >
                           <History className="w-3 h-3" />v
-                          {compareOptions.find((opt) => opt.id === compareVersionId)?.version_number ??
-                            "--"}
+                          {compareOptions.find((opt) => opt.id === compareVersionId)
+                            ?.version_number ?? "--"}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="bg-zinc-950 border-zinc-800 rounded-none w-56">
@@ -1330,10 +657,11 @@ export function VideoPlayer({
                           <DropdownMenuItem
                             key={v.id}
                             onClick={() => handleCompareVersionChange(v.id)}
-                            className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${v.id === compareVersionId
-                              ? "text-red-500 bg-red-500/10"
-                              : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                              }`}
+                            className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                              v.id === compareVersionId
+                                ? "text-red-500 bg-red-500/10"
+                                : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                            }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <span>Versão {v.version_number}</span>
@@ -1364,10 +692,11 @@ export function VideoPlayer({
                       <DropdownMenuItem
                         key={v.id}
                         onClick={() => handleVersionChange(v.id)}
-                        className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${v.id === currentVideoId
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                          }`}
+                        className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                          v.id === currentVideoId
+                            ? "text-red-500 bg-red-500/10"
+                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <span>Versão {v.version_number}</span>
@@ -1508,7 +837,6 @@ export function VideoPlayer({
                       {/* Rotating border effect on hover */}
                       <div className="absolute inset-0 border-2 border-transparent group-hover:border-t-red-600/50 rounded-full animate-spin-slow"></div>
                     </div>
-
                   </div>
                 </div>
               )}
@@ -1613,8 +941,13 @@ export function VideoPlayer({
                     style={{ left: `${left}%` }}
                   >
                     {/* Visual do Marcador */}
-                    <div className={`w-full h-full rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.5)] transform transition-transform group-hover/marker:scale-150 ${isRange ? 'bg-amber-400 border border-amber-200' : 'bg-white border border-zinc-200'
-                      }`} />
+                    <div
+                      className={`w-full h-full rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.5)] transform transition-transform group-hover/marker:scale-150 ${
+                        isRange
+                          ? "bg-amber-400 border border-amber-200"
+                          : "bg-white border border-zinc-200"
+                      }`}
+                    />
 
                     {/* Linha conectora vertical (opcional, estilo DaVinci Resolve) */}
                     <div className="absolute top-full left-1/2 w-px h-2 bg-white/50 -translate-x-1/2 group-hover/marker:h-4 transition-all" />
@@ -1622,7 +955,9 @@ export function VideoPlayer({
                     {/* Tooltip */}
                     <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 opacity-0 group-hover/marker:opacity-100 transition-opacity pointer-events-none z-50">
                       <div className="bg-zinc-900 border border-zinc-700 px-2 py-1.5 rounded-sm shadow-xl flex items-center gap-2 whitespace-nowrap">
-                        <div className={`w-1.5 h-1.5 rounded-full ${isRange ? 'bg-amber-400' : 'bg-red-500'}`} />
+                        <div
+                          className={`w-1.5 h-1.5 rounded-full ${isRange ? "bg-amber-400" : "bg-red-500"}`}
+                        />
                         <span className="text-[10px] uppercase font-bold text-zinc-100 max-w-[150px] truncate">
                           {comment.username}
                         </span>
@@ -1694,10 +1029,11 @@ export function VideoPlayer({
                             playerRef.current.plyr.speed = speed;
                           }
                         }}
-                        className={`text-xs justify-center cursor-pointer font-bold ${playbackSpeed === speed
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                          }`}
+                        className={`text-xs justify-center cursor-pointer font-bold ${
+                          playbackSpeed === speed
+                            ? "text-red-500 bg-red-500/10"
+                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                       >
                         {speed}x
                       </DropdownMenuItem>
@@ -1713,8 +1049,9 @@ export function VideoPlayer({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`text-xs font-bold uppercase tracking-widest h-8 px-2 rounded-none ${quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
-                        }`}
+                      className={`text-xs font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
+                        quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
+                      }`}
                     >
                       {quality === "original" ? getResolutionLabel(currentVideo) : "720p"}
                     </Button>
@@ -1725,19 +1062,21 @@ export function VideoPlayer({
                   >
                     <DropdownMenuItem
                       onClick={() => setQuality("proxy")}
-                      className={`text-xs cursor-pointer font-bold ${quality === "proxy"
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                        }`}
+                      className={`text-xs cursor-pointer font-bold ${
+                        quality === "proxy"
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                      }`}
                     >
                       720p
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setQuality("original")}
-                      className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${quality === "original"
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                        }`}
+                      className={`rounded-none cursor-pointer font-bold text-xs uppercase tracking-widest ${
+                        quality === "original"
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                      }`}
                     >
                       {getResolutionLabel(currentVideo)}
                     </DropdownMenuItem>
@@ -1830,7 +1169,6 @@ export function VideoPlayer({
             </div>
           </div>
         </div>
-
 
         {/* Barra Lateral de Comentarios / Historico - Usando componente refatorado */}
         <CommentSidebar

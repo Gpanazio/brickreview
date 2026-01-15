@@ -29,9 +29,7 @@ const CollapsibleText = ({ text, className, limit = 280 }) => {
 
   return (
     <div>
-      <p className={className}>
-        {isExpanded ? text : `${text.slice(0, limit)}...`}
-      </p>
+      <p className={className}>{isExpanded ? text : `${text.slice(0, limit)}...`}</p>
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -87,13 +85,11 @@ const CommentItemInline = ({
         <div>
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-bold text-red-600 uppercase tracking-tighter brick-tech font-mono">
-              {parseTimestampSeconds(comment.timestamp) !== null ? (
-                comment.timestamp_end && parseTimestampSeconds(comment.timestamp_end) !== null ? (
-                  `${formatTime(parseTimestampSeconds(comment.timestamp))} - ${formatTime(parseTimestampSeconds(comment.timestamp_end))}`
-                ) : (
-                  formatTime(parseTimestampSeconds(comment.timestamp))
-                )
-              ) : "—"}
+              {parseTimestampSeconds(comment.timestamp) !== null
+                ? comment.timestamp_end && parseTimestampSeconds(comment.timestamp_end) !== null
+                  ? `${formatTime(parseTimestampSeconds(comment.timestamp))} - ${formatTime(parseTimestampSeconds(comment.timestamp_end))}`
+                  : formatTime(parseTimestampSeconds(comment.timestamp))
+                : "—"}
             </span>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
@@ -185,7 +181,7 @@ const CommentItemInline = ({
             >
               <Paperclip className="w-3 h-3 text-red-500" />
               <span className="text-[11px] text-zinc-400 group-hover/attach:text-zinc-200 truncate font-mono">
-                {comment.attachment_name || 'Anexo'}
+                {comment.attachment_name || "Anexo"}
               </span>
             </a>
           )}
@@ -356,71 +352,53 @@ const CommentItemInline = ({
 };
 
 export function CommentSidebar({
-  showHistory = false,
-  setShowHistory = () => { },
-  history = [],
-  // Props opcionais - se fornecidas, usam elas; senão, usam o contexto
+  // Props com valores padrão
   propCurrentVideo,
   propCurrentTime,
   propComments,
   propSetComments,
   propIsDrawingMode,
   propSetIsDrawingMode,
-  propSeekTo,
-  propVisitorName,
-  propSetVisitorName,
-  propDrawings,
-  propSetDrawings,
-  propShareToken,
-  propSharePassword,
   propIsPublic,
-  propIsComparing,
   propIsRangeMode,
   propSetIsRangeMode,
   propRangeStartTime,
   propSetRangeStartTime,
   propRangeEndTime,
   propSetRangeEndTime,
-  propHasTimestamp,
-  propSetHasTimestamp,
 }) {
-  // Tenta usar o contexto, com fallback para props
-  let contextValues = {};
-  try {
-    contextValues = useVideo();
-  } catch (e) {
-    // Contexto não disponível, usaremos as props
-  }
+  // Hook deve ser chamado incondicionalmente
+  const contextValues = useVideo();
 
   const currentVideo = propCurrentVideo || contextValues.currentVideo;
   const currentTime = propCurrentTime ?? contextValues.currentTime ?? 0;
   const comments = propComments || contextValues.comments || [];
-  const setComments = propSetComments || contextValues.setComments || (() => { });
+  const setComments = propSetComments || contextValues.setComments || (() => {});
   const isDrawingMode = propIsDrawingMode ?? contextValues.isDrawingMode ?? false;
-  const setIsDrawingMode = propSetIsDrawingMode || contextValues.setIsDrawingMode || (() => { });
+  const setIsDrawingMode = propSetIsDrawingMode || contextValues.setIsDrawingMode || (() => {});
   const selectedColor = contextValues.selectedColor || "#ff0000";
-  const setSelectedColor = contextValues.setSelectedColor || (() => { });
+  const setSelectedColor = contextValues.setSelectedColor || (() => {});
   const isComparing = propIsComparing ?? contextValues.isComparing ?? false;
-  const seekTo = propSeekTo || contextValues.seekTo || (() => { });
+  const seekTo = propSeekTo || contextValues.seekTo || (() => {});
   const visitorName = propVisitorName ?? contextValues.visitorName ?? "";
-  const setVisitorName = propSetVisitorName || contextValues.setVisitorName || (() => { });
+  const setVisitorName = propSetVisitorName || contextValues.setVisitorName || (() => {});
   const drawings = propDrawings || contextValues.drawings || [];
-  const setDrawings = propSetDrawings || contextValues.setDrawings || (() => { });
+  const setDrawings = propSetDrawings || contextValues.setDrawings || (() => {});
   const shareToken = propShareToken ?? contextValues.shareToken;
   const sharePassword = propSharePassword ?? contextValues.sharePassword;
   const isPublic = propIsPublic ?? contextValues.isPublic ?? false;
-  const activeRange = contextValues.activeRange;
-  const setActiveRange = contextValues.setActiveRange || (() => { });
+
+  const setActiveRange = contextValues.setActiveRange || (() => {});
 
   // Range States Mapping (Props -> Context)
   const isRangeMode = propIsRangeMode ?? false;
-  const setIsRangeMode = propSetIsRangeMode || (() => { });
+  const setIsRangeMode = propSetIsRangeMode || (() => {});
   const rangeStartTime = propRangeStartTime ?? null;
-  const setRangeStartTime = propSetRangeStartTime || (() => { });
+  const setRangeStartTime = propSetRangeStartTime || (() => {});
   const rangeEndTime = propRangeEndTime ?? null;
-  const setRangeEndTime = propSetRangeEndTime || (() => { });
+  const setRangeEndTime = propSetRangeEndTime || (() => {});
   const hasTimestamp = propHasTimestamp ?? true;
-  const setHasTimestamp = propSetHasTimestamp || (() => { });
+  const setHasTimestamp = propSetHasTimestamp || (() => {});
 
   const { token } = useAuth();
   const isGuest = isPublic || !token;
@@ -455,7 +433,7 @@ export function CommentSidebar({
       setIsDragging(true);
       dragStartX.current = e.clientX;
       dragStartValue.current = initialValue;
-      document.body.style.cursor = 'ew-resize';
+      document.body.style.cursor = "ew-resize";
     };
 
     const handleTouchStart = (e) => {
@@ -473,41 +451,43 @@ export function CommentSidebar({
 
       const handleMouseMove = (e) => {
         const deltaX = e.clientX - dragStartX.current;
-        const newValue = Math.max(minValue, Math.min(maxValue,
-          dragStartValue.current + (deltaX * mouseSensitivity)
-        ));
+        const newValue = Math.max(
+          minValue,
+          Math.min(maxValue, dragStartValue.current + deltaX * mouseSensitivity)
+        );
         onChange(newValue);
       };
 
       const handleTouchMove = (e) => {
         const deltaX = e.touches[0].clientX - dragStartX.current;
-        const newValue = Math.max(minValue, Math.min(maxValue,
-          dragStartValue.current + (deltaX * mouseSensitivity)
-        ));
+        const newValue = Math.max(
+          minValue,
+          Math.min(maxValue, dragStartValue.current + deltaX * mouseSensitivity)
+        );
         onChange(newValue);
       };
 
       const handleEnd = () => {
         setIsDragging(false);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
       };
 
-      document.body.style.userSelect = 'none';
+      document.body.style.userSelect = "none";
 
       // Add both listeners to handle whichever input method started validly
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleEnd);
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('touchend', handleEnd);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleEnd);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleEnd);
 
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleEnd);
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleEnd);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleEnd);
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleEnd);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
       };
     }, [isDragging, onChange, minValue, maxValue]);
 
@@ -611,7 +591,11 @@ export function CommentSidebar({
       if (isGuest && sharePassword) headers["x-share-password"] = sharePassword;
       if (!isGuest) headers["Authorization"] = `Bearer ${token}`;
 
-      let finalStart = hasTimestamp ? (isRangeMode && rangeStartTime !== null ? rangeStartTime : currentTime) : null;
+      let finalStart = hasTimestamp
+        ? isRangeMode && rangeStartTime !== null
+          ? rangeStartTime
+          : currentTime
+        : null;
       let finalEnd = hasTimestamp && isRangeMode && rangeEndTime !== null ? rangeEndTime : null;
 
       // Inverter se o usuário marcou o range para trás
@@ -832,7 +816,8 @@ export function CommentSidebar({
             </>
           ) : (
             <>
-              <MessageSquare className="w-4 h-4 text-red-600" /> Comentários <span className="brick-tech font-mono text-xs ml-1">({comments.length})</span>
+              <MessageSquare className="w-4 h-4 text-red-600" /> Comentários{" "}
+              <span className="brick-tech font-mono text-xs ml-1">({comments.length})</span>
             </>
           )}
         </h3>
@@ -846,7 +831,7 @@ export function CommentSidebar({
 
       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
         {showHistory ? (
-          (!history || history.length === 0) ? (
+          !history || history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-zinc-600 italic text-sm text-center px-8">
               Nenhum histórico registrado ainda.
             </div>
@@ -917,11 +902,9 @@ export function CommentSidebar({
                 <div className="flex items-center gap-2 text-zinc-500">
                   <Clock className="w-3 h-3" />
                   <span className="text-red-500 brick-tech font-mono">
-                    {isRangeMode && rangeEndTime !== null ? (
-                      `${formatTimecode(rangeStartTime || currentTime)} - ${formatTimecode(rangeEndTime)}`
-                    ) : (
-                      formatTimecode(currentTime)
-                    )}
+                    {isRangeMode && rangeEndTime !== null
+                      ? `${formatTimecode(rangeStartTime || currentTime)} - ${formatTimecode(rangeEndTime)}`
+                      : formatTimecode(currentTime)}
                   </span>
                 </div>
               ) : (
@@ -959,10 +942,11 @@ export function CommentSidebar({
                   <div className="flex items-center gap-1 flex-wrap">
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors cursor-pointer ${hasTimestamp
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                        hasTimestamp
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      }`}
                       onClick={() => setHasTimestamp(!hasTimestamp)}
                       title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
                     >
@@ -996,16 +980,19 @@ export function CommentSidebar({
 
                     {hasTimestamp && isRangeMode && (
                       <div className="flex items-center gap-2 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 shrink-0">
-                        <span className="text-[9px] font-black opacity-50 uppercase text-zinc-400">OUT:</span>
+                        <span className="text-[9px] font-black opacity-50 uppercase text-zinc-400">
+                          OUT:
+                        </span>
                         <div
                           onMouseDown={outScrubber.handleMouseDown}
                           onTouchStart={outScrubber.handleTouchStart}
                           className={`
                               px-2 py-0.5 rounded cursor-ew-resize select-none transition-all
-                              ${outScrubber.isDragging
-                              ? 'bg-red-600/30 text-red-300 scale-105'
-                              : 'hover:bg-zinc-800 text-white hover:text-red-400'
-                            }
+                              ${
+                                outScrubber.isDragging
+                                  ? "bg-red-600/30 text-red-300 scale-105"
+                                  : "hover:bg-zinc-800 text-white hover:text-red-400"
+                              }
                             `}
                           title="Arrastar ← → para ajustar tempo"
                         >
@@ -1025,10 +1012,11 @@ export function CommentSidebar({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className={`p-2 rounded-sm transition-colors cursor-pointer ${attachedFile
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                        attachedFile
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      }`}
                       title="Anexar arquivo"
                     >
                       <Paperclip className="w-4 h-4" />
@@ -1037,10 +1025,11 @@ export function CommentSidebar({
                     <div className="relative">
                       <button
                         type="button"
-                        className={`p-2 rounded-sm transition-colors cursor-pointer ${showEmojiPicker
-                          ? "text-yellow-500 bg-yellow-500/10"
-                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                          }`}
+                        className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                          showEmojiPicker
+                            ? "text-yellow-500 bg-yellow-500/10"
+                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        }`}
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                         title="Adicionar emoji"
                       >
@@ -1050,10 +1039,11 @@ export function CommentSidebar({
 
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors cursor-pointer ${isDrawingMode
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
+                      className={`p-2 rounded-sm transition-colors cursor-pointer ${
+                        isDrawingMode
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
                       onClick={() => {
                         if (!isComparing) setIsDrawingMode(!isDrawingMode);
                       }}
@@ -1074,10 +1064,11 @@ export function CommentSidebar({
                         <button
                           key={color}
                           type="button"
-                          className={`w-5 h-5 rounded-sm border transition-all cursor-pointer ${selectedColor === color
-                            ? "border-white scale-110 ring-1 ring-white"
-                            : "border-zinc-700 hover:border-zinc-500"
-                            }`}
+                          className={`w-5 h-5 rounded-sm border transition-all cursor-pointer ${
+                            selectedColor === color
+                              ? "border-white scale-110 ring-1 ring-white"
+                              : "border-zinc-700 hover:border-zinc-500"
+                          }`}
                           style={{ backgroundColor: color }}
                           onClick={() => setSelectedColor(color)}
                           title={`Cor: ${color}`}
