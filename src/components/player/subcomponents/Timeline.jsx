@@ -1,8 +1,14 @@
+import { useState, useRef } from "react";
 import { useVideo } from "../../../context/VideoContext";
 import { parseTimestampSeconds, formatTimecode } from "../../../utils/time";
+import { useVttThumbnails } from "../../../hooks/useVttThumbnails";
 
 export function Timeline() {
-  const { currentTime, duration, seekTo, comments, activeRange } = useVideo();
+  const { currentTime, duration, seekTo, comments, activeRange, currentVideo } = useVideo();
+  const thumbnails = useVttThumbnails(currentVideo?.sprite_vtt_url);
+
+  const [hoverData, setHoverData] = useState(null);
+  const timelineRef = useRef(null);
 
   const getCommentRange = (comment) => {
     if (!comment || comment.timestamp === null) return null;
@@ -21,11 +27,73 @@ export function Timeline() {
     }
   };
 
+  const handleMouseMove = (e) => {
+    if (!timelineRef.current || duration <= 0) return;
+
+    const rect = timelineRef.current.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const percent = Math.max(0, Math.min(1, offsetX / rect.width));
+    const time = percent * duration;
+
+    const thumb = thumbnails.find((t) => time >= t.start && time < t.end);
+
+    setHoverData({
+      x: offsetX,
+      time,
+      thumb,
+      containerWidth: rect.width,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setHoverData(null);
+  };
+
   return (
-    <div className="w-full flex flex-col relative group select-none bg-black border-t border-white/5">
+    <div className="w-full flex flex-col relative group select-none bg-black border-t border-white/5 pt-1">
+      {hoverData && (
+        <div
+          className="absolute bottom-full mb-4 pointer-events-none z-50 flex flex-col items-center"
+          style={{
+            left: hoverData.x,
+            transform: "translateX(-50%)",
+          }}
+        >
+          <div className="bg-zinc-900 border border-zinc-700 shadow-[0_0_20px_rgba(0,0,0,0.8)] rounded-sm overflow-hidden p-1">
+            {hoverData.thumb ? (
+              <div
+                style={{
+                  width: hoverData.thumb.w,
+                  height: hoverData.thumb.h,
+                  backgroundImage: `url(${hoverData.thumb.url})`,
+                  backgroundPosition: `-${hoverData.thumb.x}px -${hoverData.thumb.y}px`,
+                  backgroundSize: "auto",
+                }}
+                className="bg-black"
+              />
+            ) : (
+              <div className="w-32 h-20 bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs">
+                Sem preview
+              </div>
+            )}
+
+            <div className="bg-zinc-950 text-center py-1 mt-1 border-t border-zinc-800">
+              <span className="text-white text-xs font-mono font-bold tracking-wider">
+                {formatTimecode(hoverData.time)}
+              </span>
+            </div>
+          </div>
+
+          <div className="w-3 h-3 bg-zinc-900 border-r border-b border-zinc-700 transform rotate-45 -mt-1.5 z-10"></div>
+        </div>
+      )}
+
       <div
-        className="w-full h-1.5 hover:h-2.5 bg-zinc-800 cursor-pointer relative overflow-hidden transition-all duration-200 ease-out z-20"
+        ref={timelineRef}
+        className="w-full h-2 hover:h-3 bg-zinc-800 cursor-pointer relative transition-all duration-200 ease-out z-20 group/redline"
         onClick={handleSeek}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       >
         <div className="absolute inset-0 bg-zinc-900" />
 
@@ -38,7 +106,12 @@ export function Timeline() {
           <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.4)]" />
         </div>
 
-        <div className="absolute top-0 h-full w-[1px] bg-white/30 opacity-0 group-hover:opacity-100 pointer-events-none mix-blend-overlay transition-opacity" />
+        {hoverData && (
+          <div
+            className="absolute top-0 h-full w-[1px] bg-white/50 pointer-events-none mix-blend-screen z-30"
+            style={{ left: hoverData.x }}
+          />
+        )}
       </div>
 
       <div
