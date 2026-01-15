@@ -1,6 +1,6 @@
 # BrickReview
 
-> 🚧 **Nota de Desenvolvimento (v0.6.0-dev):** Este projeto está passando por refatoração arquitetural. O sistema está funcional, mas o código está em processo de limpeza, padronização e desacoplamento de componentes. Consulte [CLEANUP_PLAN.md](CLEANUP_PLAN.md) para detalhes do processo em andamento.
+> ✅ **Nota de Desenvolvimento (v0.7.1):** Projeto em produção estável. Principais problemas de infraestrutura foram resolvidos. Consulte [INFRA_V0.7.1_PLAN.md](INFRA_V0.7.1_PLAN.md) para detalhes da implementação atual.
 
 Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (preto/vermelho/branco).
 
@@ -23,23 +23,28 @@ Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (pret
 ## 🚀 Stack Tecnológica
 
 **Frontend:**
+
 - React 19 + Vite 7
 - Tailwind CSS 4
 - Radix UI + shadcn/ui
-- Plyr.js (video player) - wrapper customizado (NÃO usando plyr-react)
+- Native HTML5 Video Player customizado (desacoplado)
 - React Router 7
 - Lucide React
 - emoji-picker-react (emojis em comentários)
 - Framer Motion (animações)
+- Sonner (toast notifications)
 
 **Backend:**
+
 - Node.js + Express
 - PostgreSQL (Railway)
+- BullMQ + Redis (background jobs)
 - JWT Authentication
 - Multer (upload)
 - FFmpeg (thumbnails)
 - Cloudflare R2 (storage)
 - Resend (emails)
+- ssrf-req-filter (SSRF protection)
 
 ## ⚙️ Setup Inicial
 
@@ -123,31 +128,38 @@ brickreview/
 ├── src/
 │   ├── components/
 │   │   ├── ui/              # shadcn/ui (60+ componentes)
-│   │   ├── player/          # Video player + sub-componentes (pós-refatoração)
+│   │   ├── player/          # Video player customizado (desacoplado)
 │   │   │   ├── VideoPlayer.jsx
-│   │   │   ├── VideoComparison.jsx
-│   │   │   ├── VideoPlayer.css
-│   │   │   └── internal/   # [NOVO] Componentes desacoplados
+│   │   │   ├── subcomponents/
+│   │   │   │   ├── VideoPlayerCore.jsx
+│   │   │   │   ├── CommentSidebar.jsx
+│   │   │   │   └── TimelineControls.jsx
+│   │   │   ├── context/      # VideoContext
+│   │   │   └── VideoComparison.jsx
 │   │   ├── projects/        # Gestão de projetos
 │   │   ├── viewer/          # Visualizador de arquivos
-│   │   └── ui/             # Componentes reutilizáveis
+│   │   └── shared/         # Componentes compartilhados
 │   ├── hooks/              # Custom hooks
-│   ├── constants/          # [NOVO] Constantes (cores, configs)
 │   ├── lib/                # Utilitários
+│   ├── context/            # Contexts (VideoContext)
 │   └── App.jsx
 ├── server/
 │   ├── routes/             # API routes
 │   ├── middleware/         # Auth, upload, etc
-│   ├── utils/              # R2, email, FFmpeg
+│   ├── utils/              # R2, email, FFmpeg, logger
+│   ├── config/             # Configurações (features.js)
+│   ├── queue/              # BullMQ (background jobs)
 │   ├── db.js               # PostgreSQL connection
 │   └── index.js            # Express app
-├── scripts/                # [NOVO] Scripts utilitários
+├── scripts/                # Scripts utilitários
 │   ├── cleanup-r2.js       # Remove arquivos órfãos do R2
 │   ├── cleanup-trash.js     # Limpa lixeira do DB
 │   ├── process-video-metadata.js  # Recalcula metadados
 │   └── diagnose-ffmpeg.js  # Diagnóstico FFmpeg
 ├── temp-uploads/           # Temporário (não versionado)
-└── .prettierrc             # [NOVO] Config Prettier
+├── .prettierrc             # Config Prettier
+├── nixpacks.toml          # Config Railway build
+└── railway-start.sh        # Script de inicialização Railway
 ```
 
 ## 🗄️ Banco de Dados (Railway)
@@ -166,25 +178,36 @@ brickreview/
 10. **brickreview_temp_guest_users** - Usuários temporários para guests
 11. **master_users** - Usuários (compartilhada com outros sistemas BRICK)
 
+### Infraestrutura de Background Jobs
+
+- **BullMQ** - Sistema de filas para processamento assíncrono
+- **Redis** - Store de filas e jobs
+- **Filas principais:**
+  - `video-processing` - Processamento de vídeos e geração de thumbnails
+  - `email-sending` - Envio de emails assíncronos
+  - `notifications` - Processamento de notificações
+
 ## 🎨 Tema BRICK
 
 ### Cores
+
 - Background: `#000000` (preto puro)
 - Primary: `#DC2626` (vermelho)
 - Text: `#FFFFFF`, `#A1A1AA`, `#71717A`
 - Borders: `#27272A`, `#18181B`
 
 ### Tipografia
+
 ```css
 .brick-title {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: 900;
   letter-spacing: -0.05em;
   text-transform: uppercase;
 }
 
 .brick-tech {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 ```
 
@@ -193,6 +216,7 @@ brickreview/
 O sistema permite que visitantes sem conta comentem em vídeos através de links de compartilhamento:
 
 ### Como funciona
+
 1. Admin/owner gera link de compartilhamento com access type "comment"
 2. Visitante acessa via `/share/:token`
 3. Visitante fornece nome (salvo em localStorage)
@@ -200,6 +224,7 @@ O sistema permite que visitantes sem conta comentem em vídeos através de links
 5. Sistema cria usuário temporário via hash do nome
 
 ### Database
+
 - `brickreview_comments.visitor_name` - Nome do visitante
 - `brickreview_comments.user_id` - Nullable (guests não têm user_id)
 - Constraint CHECK: `user_id IS NOT NULL OR visitor_name IS NOT NULL`
@@ -209,6 +234,7 @@ O sistema permite que visitantes sem conta comentem em vídeos através de links
 Ferramenta de desenho que permite marcar áreas específicas do vídeo em timestamps:
 
 ### Recursos
+
 - Canvas overlay sobre o player
 - 6 cores disponíveis (vermelho, laranja, amarelo, verde, azul, branco)
 - Persistência em `brickreview_drawings`
@@ -216,6 +242,7 @@ Ferramenta de desenho que permite marcar áreas específicas do vídeo em timest
 - Visível para guests em share links
 
 ### Como usar
+
 1. Pause o vídeo no frame desejado
 2. Clique no botão de pincel
 3. Escolha uma cor
@@ -225,66 +252,81 @@ Ferramenta de desenho que permite marcar áreas específicas do vídeo em timest
 ## 🔗 Sistema de Compartilhamento
 
 ### Tipos de compartilhamento
+
 - **Video**: Compartilha um vídeo (+ todas as versões)
 - **Folder**: Compartilha todos os vídeos de uma pasta
 - **Project**: Compartilha todos os vídeos de um projeto
 
 ### Access Types
+
 - **view**: Apenas visualização
 - **comment**: Visualização + comentários + desenhos
 
 ### Clipboard Fallback
+
 Implementação robusta em 3 camadas:
+
 1. Modern Clipboard API (`navigator.clipboard`)
 2. Legacy `execCommand('copy')`
 3. Manual `prompt()` como último recurso
 
 ## 📋 Roadmap
 
+### ✅ v0.7.1 - Infraestrutura Estável (CONCLUÍDO)
+
+- [x] Fix de crashes do video player
+- [x] Desacoplamento do VideoPlayer em componentes menores
+- [x] Implementação de VideoContext para gerenciamento de estado
+- [x] Sistema de filas com BullMQ + Redis
+- [x] Processamento assíncrono de vídeos
+- [x] Script de inicialização Railway com FFmpeg
+- [x] Sistema de logs centralizado (logger)
+- [x] Feature flags para controle de funcionalidades
+- [x] Proteção SSRF em endpoints
+
 ### ✅ Fase 1-8: CONCLUÍDAS
+
 - [x] Repositório e setup inicial
 - [x] Backend core (Express + PostgreSQL)
 - [x] Upload system (FFmpeg + R2)
-- [x] Video player (Plyr.js customizado)
+- [x] Video player customizado (HTML5 Video)
 - [x] Comments system (threads + replies)
 - [x] Drawing annotations
 - [x] Guest access (visitor comments)
 - [x] Share system (links públicos)
 
-### 🚧 v0.6.0 - Refatoração & Infraestrutura (Em Andamento)
+### 🚧 v0.8.0 - Performance & Mobile (Planejado)
 
-#### Etapa 1: Code Cleanup (FASE ATUAL)
-- [ ] Linting & correção de erros (13 erros, 11 warnings)
-- [ ] Configuração de Prettier
-- [ ] Remoção de dependências extraneous
-- [ ] Padronização de código
+#### Etapa 1: Mobile Responsiveness
 
-#### Etapa 2: Refatoração de Componentes
-- [ ] Desacoplamento de VideoPlayer.jsx
-- [ ] Criação de ReviewCanvas.jsx
-- [ ] Criação de CommentSidebar.jsx
-- [ ] Implementação de VideoContext/Zustand
+- [ ] Adaptar video player para mobile
+- [ ] Touch-friendly controls
+- [ ] Responsive layouts
 
-#### Etapa 3: Infraestrutura
-- [ ] Setup de filas (BullMQ + Redis)
-- [ ] Migração para processamento assíncrono
-- [ ] Streaming HLS adaptativo
+#### Etapa 2: Performance Optimization
 
-### 🚧 Próximas fases (pós-v0.6.0)
-- [ ] Mobile responsiveness
-- [ ] Performance optimization
+- [ ] Code splitting (lazy loading)
+- [ ] Image optimization
+- [ ] Virtual scrolling em listas longas
+
+### 🚧 Próximas fases (pós-v0.8.0)
+
 - [ ] Integração com NLEs (DaVinci, Premiere)
+- [ ] Streaming HLS adaptativo
 - [ ] Analytics dashboard
+- [ ] Offline support (PWA)
 
 ## 🚀 Deploy
 
 ### Railway (Recomendado)
 
 **Database:**
+
 1. Create PostgreSQL service
 2. Copy DATABASE_URL
 
 **API:**
+
 1. Connect GitHub repo
 2. Environment variables (ver seção abaixo)
 3. Build: `npm install && npm run build`
@@ -329,24 +371,28 @@ NODE_ENV=production
 Quando você usa Nixpacks (padrão do Railway), o FFmpeg fica em `/nix/store` com um caminho dinâmico que muda a cada build. O código já detecta automaticamente usando `which ffmpeg`.
 
 **Apenas defina FFMPEG_PATH/FFPROBE_PATH se:**
+
 - Estiver usando um Dockerfile customizado (não Nixpacks)
 - O FFmpeg estiver em um caminho não-padrão
 
 **Como verificar se FFmpeg está funcionando:**
 
 Nos logs do Railway, você deve ver:
+
 ```
 ✅ ffmpeg encontrado via which: /nix/store/xxxxx-ffmpeg-6.x/bin/ffmpeg
 ✅ ffprobe encontrado via which: /nix/store/xxxxx-ffmpeg-6.x/bin/ffprobe
 ```
 
 Ou em caminhos comuns:
+
 ```
 ✅ ffmpeg encontrado em caminho comum: /usr/bin/ffmpeg
 ✅ ffprobe encontrado em caminho comum: /usr/bin/ffprobe
 ```
 
 Ao fazer upload de vídeo:
+
 ```
 📊 Obtendo metadados do vídeo: temp-uploads/video-123.mp4
 ✅ Metadados obtidos: { duration: 120, width: 1920, height: 1080, fps: 30 }
@@ -366,18 +412,26 @@ Ao fazer upload de vídeo:
 
 ## 📚 Documentação
 
-- [ACTION_PLAN.md](ACTION_PLAN.md) - Plano estratégico v0.6+
-- [CLEANUP_PLAN.md](CLEANUP_PLAN.md) - Plano de limpeza v2.0
+- [INFRA_V0.7.1_PLAN.md](INFRA_V0.7.1_PLAN.md) - Plano de infraestrutura v0.7.1
 - [FEATURES.md](FEATURES.md) - Guia completo de funcionalidades
 - [API_REFERENCE.md](API_REFERENCE.md) - Documentação da API
 - [STATUS.md](STATUS.md) - Progresso do projeto
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Guia para desenvolvedores
 - [RAILWAY_FFMPEG_FIX.md](RAILWAY_FFMPEG_FIX.md) - Fix para FFmpeg no Railway
-- [GITHUB_SETUP.md](GITHUB_SETUP.md) - Setup de GitHub e Railway
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Documentação de arquitetura
 
 ## 🔧 Scripts Utilitários
 
+### Worker (Background Jobs)
+
+Roda worker BullMQ para processamento assíncrono:
+
+```bash
+npm run worker
+```
+
 ### Cleanup R2
+
 Remove arquivos órfãos do Cloudflare R2:
 
 ```bash
@@ -385,6 +439,7 @@ node scripts/cleanup-r2.js
 ```
 
 ### Cleanup Trash
+
 Remove permanentemente itens da lixeira (7 dias ou mais):
 
 ```bash
@@ -392,6 +447,7 @@ node scripts/cleanup-trash.js
 ```
 
 ### Process Video Metadata
+
 Recalcula metadados de vídeos existentes:
 
 ```bash
@@ -399,6 +455,31 @@ node scripts/process-video-metadata.js
 ```
 
 ### Diagnóstico FFmpeg
+
+Diagnostica instalação do FFmpeg (útil para Railway):
+
+```bash
+node scripts/diagnose-ffmpeg.js
+```
+
+### Cleanup Trash
+
+Remove permanentemente itens da lixeira (7 dias ou mais):
+
+```bash
+node scripts/cleanup-trash.js
+```
+
+### Process Video Metadata
+
+Recalcula metadados de vídeos existentes:
+
+```bash
+node scripts/process-video-metadata.js
+```
+
+### Diagnóstico FFmpeg
+
 Diagnostica instalação do FFmpeg (útil para Railway):
 
 ```bash
@@ -418,6 +499,7 @@ node scripts/diagnose-ffmpeg.js
 Usa a tabela `master_users` compartilhada com outros sistemas BRICK (brickprojects, BrickAI).
 
 **Roles:**
+
 - `admin` - Equipe interna (full access)
 - `client` - Clientes externos (restricted)
 
@@ -425,7 +507,7 @@ Usa a tabela `master_users` compartilhada com outros sistemas BRICK (brickprojec
 
 1. Admin cria projeto e adiciona membros
 2. Upload de vídeo via drag-drop
-3. Vídeo é processado (FFmpeg) e enviado para R2
+3. Vídeo é processado (FFmpeg) via BullMQ (background job) e enviado para R2
 4. Cliente/Admin revisa e adiciona comentários em timestamps
 5. Comentários geram notificações (in-app + email)
 6. Cliente aprova ou solicita mudanças
@@ -434,14 +516,16 @@ Usa a tabela `master_users` compartilhada com outros sistemas BRICK (brickprojec
 
 ---
 
-**Status:** ✅ Em produção (refatoração em andamento)
-**Versão:** 0.6.0-RC1
+**Status:** ✅ Em produção estável
+**Versão:** 0.7.1
 **Licença:** Privado (BRICK Produtora)
 
 ---
 
 Para mais detalhes, consulte:
+
 - [FEATURES.md](FEATURES.md) - Guia completo de funcionalidades
 - [API_REFERENCE.md](API_REFERENCE.md) - Documentação da API
 - [STATUS.md](STATUS.md) - Progresso do projeto
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Guia para desenvolvedores
+- [INFRA_V0.7.1_PLAN.md](INFRA_V0.7.1_PLAN.md) - Plano de infraestrutura v0.7.1
