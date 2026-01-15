@@ -900,6 +900,7 @@ export function VideoPlayer({
   useEffect(() => {
     const fetchStreamUrl = async () => {
       try {
+        console.log(`[VideoPlayer] Fetching stream URL for video ${currentVideoId}, quality: ${quality}`);
         // Use endpoint público para guests, privado para usuários autenticados
         const endpoint = isGuest
           ? `/api/shares/${shareToken}/video/${currentVideoId}/stream?quality=${quality}`
@@ -914,6 +915,7 @@ export function VideoPlayer({
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
           const data = await response.json();
+          console.log(`[VideoPlayer] Received stream URL:`, data);
           if (data.url) {
             // Se mudou o vídeo ou qualidade, salvamos o tempo atual
             // const savedTime = playerRef.current?.plyr?.currentTime || currentTime;
@@ -921,9 +923,13 @@ export function VideoPlayer({
 
             // Após o loading (em outro useEffect), o plyr vai inicializar e podemos tentar dar seek
           }
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(`[VideoPlayer] Failed to fetch stream URL:`, errorData);
+          toast.error("Erro ao carregar vídeo: " + (errorData.error || "Falha na conexão"));
         }
-      } catch (_) {
-        // Erro silencioso em produção
+      } catch (err) {
+        console.error(`[VideoPlayer] Critical error fetching stream URL:`, err);
       } finally {
         setIsLoadingVideo(false);
       }

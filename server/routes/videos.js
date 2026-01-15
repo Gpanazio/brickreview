@@ -200,12 +200,31 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       }
       isOriginal = true;
     } else {
-      streamKey = proxy_r2_key || streaming_high_r2_key || r2_key;
-      streamUrl = proxy_url || streaming_high_url || r2_url;
-      isOriginal = !proxy_url;
+      // Para qualidade 'proxy' (default)
+      // Tenta: Proxy -> Streaming High -> Original
+      if (proxy_url) {
+        streamKey = proxy_r2_key;
+        streamUrl = proxy_url;
+        isOriginal = false;
+      } else if (streaming_high_url) {
+        streamKey = streaming_high_r2_key;
+        streamUrl = streaming_high_url;
+        isOriginal = true; // High quality is close to original
+      } else {
+        streamKey = r2_key;
+        streamUrl = r2_url;
+        isOriginal = true;
+      }
     }
 
+    console.log(`📡 Resolved stream for video ${req.params.id}:`, {
+      streamUrl,
+      isOriginal,
+      quality,
+    });
+
     if (process.env.R2_PUBLIC_URL && streamUrl && streamUrl.includes(process.env.R2_PUBLIC_URL)) {
+      console.log(`🔗 Returning public R2 URL`);
       return res.json({
         url: streamUrl,
         mime: isOriginal ? mime_type || "video/mp4" : "video/mp4",
