@@ -1,3 +1,5 @@
+// Main entry point for the BrickReview server
+// Last update: 2026-01-16T19:40:00
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
