@@ -544,3 +544,6 @@ Para mais detalhes, consulte:
 - [STATUS.md](STATUS.md) - Progresso do projeto
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Guia para desenvolvedores
 - [INFRA_V0.7.1_PLAN.md](INFRA_V0.7.1_PLAN.md) - Plano de infraestrutura v0.7.1
+
+<!-- Trigger deploy: 2026-01-16T19:17:00-03:00 -->
+
