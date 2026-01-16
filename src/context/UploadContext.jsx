@@ -9,6 +9,7 @@ export function UploadProvider({ children }) {
     const { token } = useAuth();
     // Ref to track if uploads are active for beforeUnload warning if needed
     const activeUploadsCount = useRef(0);
+    const refreshCallbacksRef = useRef(new Set());
 
     const addToQueue = useCallback((items) => {
         setUploadQueue((prev) => [...prev, ...items]);
@@ -23,6 +24,9 @@ export function UploadProvider({ children }) {
             activeUploadsCount.current = Math.max(0, activeUploadsCount.current - 1);
             // Remove from queue after delay if success
             if (status === "success") {
+                // Trigger all refresh callbacks when upload succeeds
+                refreshCallbacksRef.current.forEach(callback => callback());
+
                 setTimeout(() => {
                     setUploadQueue((prev) => prev.filter((u) => u.id !== id));
                 }, 1500);
@@ -88,10 +92,19 @@ export function UploadProvider({ children }) {
         }
     }, [token, addToQueue, updateUploadStatus]);
 
+    const registerRefreshCallback = useCallback((callback) => {
+        refreshCallbacksRef.current.add(callback);
+        // Return unregister function
+        return () => {
+            refreshCallbacksRef.current.delete(callback);
+        };
+    }, []);
+
     const value = {
         uploadQueue,
         uploadFiles,
-        isUploading: uploadQueue.some(u => u.status === "uploading")
+        isUploading: uploadQueue.some(u => u.status === "uploading"),
+        registerRefreshCallback
     };
 
     return (
