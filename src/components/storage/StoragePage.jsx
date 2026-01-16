@@ -15,6 +15,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  Grid,
+  List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -26,6 +28,7 @@ export function StoragePage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
+  const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -212,48 +215,53 @@ export function StoragePage() {
             </div>
           </div>
 
-          <Button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="glass-button-primary border-none rounded-none px-6 h-10 font-black uppercase tracking-widest text-xs"
-          >
-            <Upload className="w-4 h-4 mr-3" />
-            Fazer Upload
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setViewMode("list")}
+              className={`w-10 h-10 p-0 border rounded-none transition-colors ${
+                viewMode === "list"
+                  ? "bg-red-600 border-red-600 text-white"
+                  : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
+              }`}
+            >
+              <List className="w-5 h-5" />
+            </Button>
+            <Button
+              onClick={() => setViewMode("grid")}
+              className={`w-10 h-10 p-0 border rounded-none transition-colors ${
+                viewMode === "grid"
+                  ? "bg-red-600 border-red-600 text-white"
+                  : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
+              }`}
+            >
+              <Grid className="w-5 h-5" />
+            </Button>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="glass-button-primary border-none rounded-none px-6 h-10 font-black uppercase tracking-widest text-xs ml-2"
+            >
+              <Upload className="w-4 h-4 mr-3" />
+              Fazer Upload
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
         </div>
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+      <div
+        className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar"
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+      >
         <div className="max-w-6xl mx-auto space-y-8">
-          {/* Upload Area */}
-          <div
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            className="glass-panel border-2 border-dashed border-zinc-800/50 hover:border-red-600/50 rounded-none p-12 transition-all cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <div className="flex flex-col items-center justify-center gap-4 text-center">
-              <div className="w-16 h-16 bg-red-600/20 flex items-center justify-center">
-                <Upload className="w-8 h-8 text-red-500" />
-              </div>
-              <div>
-                <h3 className="brick-title text-lg text-white mb-2">
-                  Arraste arquivos aqui ou clique para selecionar
-                </h3>
-                <p className="brick-tech text-[10px] text-zinc-500 uppercase tracking-widest">
-                  Todos os arquivos vão direto para o Google Drive
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* Upload Progress */}
           {Object.keys(uploadProgress).length > 0 && (
@@ -295,7 +303,7 @@ export function StoragePage() {
               </span>
             </div>
 
-            {files.length === 0 ? (
+{files.length === 0 ? (
               <div className="glass-panel border border-zinc-800/30 rounded-none p-12 text-center">
                 <div className="w-16 h-16 bg-zinc-900/50 flex items-center justify-center mx-auto mb-4">
                   <File className="w-8 h-8 text-zinc-600" />
@@ -304,7 +312,7 @@ export function StoragePage() {
                   Nenhum arquivo encontrado
                 </p>
               </div>
-            ) : (
+            ) : viewMode === "list" ? (
               <div className="space-y-2">
                 {files.map((file, index) => {
                   const FileIcon = getFileIcon(file.mimeType);
@@ -356,14 +364,62 @@ export function StoragePage() {
                   );
                 })}
               </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {files.map((file, index) => {
+                  const FileIcon = getFileIcon(file.mimeType);
+                  return (
+                    <motion.div
+                      key={file.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="glass-panel border border-zinc-800/30 rounded-none p-4 hover:border-red-600/30 transition-all group"
+                    >
+                      <div className="flex flex-col gap-3">
+                        <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center">
+                          {file.thumbnailLink ? (
+                            <img
+                              src={file.thumbnailLink}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <FileIcon className="w-12 h-12 text-zinc-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="brick-title text-xs text-white truncate mb-2">
+                            {file.name}
+                          </h4>
+                          <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest block">
+                            {formatFileSize(file.size)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pt-2 border-t border-zinc-800/30">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => window.open(file.webViewLink, "_blank")}
+                            className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800 flex-1"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDelete(file.id, file.name)}
+                            className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 flex-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
             )}
-          </div>
-
-          {/* Info Footer */}
-          <div className="bg-zinc-950/30 border border-zinc-800/30 rounded-none p-4">
-            <p className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest text-center">
-              Armazenamento direto no Google Drive • Sem passar pelo R2 • Backup automático em nuvem
-            </p>
           </div>
         </div>
       </div>
