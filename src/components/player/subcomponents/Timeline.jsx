@@ -11,7 +11,7 @@ export function Timeline() {
   const timelineRef = useRef(null);
 
   // Check if video is being processed
-  const isProcessing = currentVideo && (currentVideo.status === "pending" || currentVideo.status === "processing");
+  const isProcessing = currentVideo && ["pending", "processing"].includes(currentVideo.status);
   const hasSprites = currentVideo?.sprite_vtt_url;
 
   const getCommentRange = (comment) => {
