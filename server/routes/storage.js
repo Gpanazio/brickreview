@@ -1,17 +1,19 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import r2Manager from '../utils/r2-manager.js';
+import hybridStorageManager from '../utils/hybrid-storage.js';
+import pool from '../database.js';
 
 const router = express.Router();
 
 /**
  * @route GET /api/storage/stats
- * @desc Get storage statistics for all R2 buckets
+ * @desc Get storage statistics for all storage (R2 + Google Drive)
  * @access Private (requires authentication)
  */
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    const stats = await r2Manager.getAllBucketsUsage();
+    const stats = await hybridStorageManager.getAllStorageStats();
 
     // Format the response with human-readable sizes
     const formatBytes = (bytes) => {
@@ -27,13 +29,29 @@ router.get('/stats', authenticateToken, async (req, res) => {
     };
 
     const formattedStats = {
-      buckets: stats.buckets.map(bucket => ({
-        ...bucket,
-        usedFormatted: formatBytes(bucket.used),
-        limitFormatted: formatBytes(bucket.limit),
-        availableFormatted: formatBytes(bucket.available),
-        usedPercentage: parseFloat(bucket.usedPercentage.toFixed(2)),
-      })),
+      r2: {
+        buckets: stats.r2.buckets.map(bucket => ({
+          ...bucket,
+          usedFormatted: formatBytes(bucket.used),
+          limitFormatted: formatBytes(bucket.limit),
+          availableFormatted: formatBytes(bucket.available),
+          usedPercentage: parseFloat(bucket.usedPercentage.toFixed(2)),
+        })),
+        total: {
+          ...stats.r2.total,
+          usedFormatted: formatBytes(stats.r2.total.used),
+          limitFormatted: formatBytes(stats.r2.total.limit),
+          availableFormatted: formatBytes(stats.r2.total.available),
+          usedPercentage: parseFloat(stats.r2.total.usedPercentage.toFixed(2)),
+        },
+      },
+      drive: {
+        ...stats.drive,
+        usedFormatted: formatBytes(stats.drive.used),
+        limitFormatted: formatBytes(stats.drive.limit),
+        availableFormatted: formatBytes(stats.drive.available),
+        usedPercentage: parseFloat(stats.drive.usedPercentage.toFixed(2)),
+      },
       total: {
         ...stats.total,
         usedFormatted: formatBytes(stats.total.used),
