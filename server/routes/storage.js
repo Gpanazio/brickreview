@@ -1,10 +1,13 @@
 import express from 'express';
+import multer from 'multer';
 import { authenticateToken } from '../middleware/auth.js';
 import r2Manager from '../utils/r2-manager.js';
 import hybridStorageManager from '../utils/hybrid-storage.js';
+import googleDriveManager from '../utils/google-drive.js';
 import pool from '../database.js';
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 /**
  * @route GET /api/storage/stats
@@ -239,6 +242,116 @@ router.get('/eligible-for-cleanup', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching eligible videos:', error);
     res.status(500).json({ error: 'Failed to fetch eligible videos' });
+  }
+});
+
+/**
+ * @route POST /api/storage/upload-to-drive
+ * @desc Upload file directly to Google Drive (bypasses R2)
+ * @access Private
+ */
+router.post('/upload-to-drive', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    const { originalname, buffer, mimetype } = req.file;
+
+    // Upload directly to Google Drive
+    const driveFile = await googleDriveManager.uploadFile(
+      originalname,
+      buffer,
+      mimetype
+    );
+
+    res.json({
+      success: true,
+      message: 'File uploaded to Google Drive successfully',
+      file: {
+        id: driveFile.id,
+        name: driveFile.name,
+        size: driveFile.size,
+        webViewLink: driveFile.webViewLink,
+        webContentLink: driveFile.webContentLink,
+      },
+    });
+  } catch (error) {
+    console.error('Upload to Drive error:', error);
+    res.status(500).json({ error: error.message || 'Failed to upload file to Google Drive' });
+  }
+});
+
+/**
+ * @route GET /api/storage/drive-files
+ * @desc List all files in Google Drive
+ * @access Private
+ */
+router.get('/drive-files', authenticateToken, async (req, res) => {
+  try {
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    const { pageSize = 100, pageToken } = req.query;
+
+    const result = await googleDriveManager.listFiles(
+      parseInt(pageSize),
+      pageToken
+    );
+
+    // Add webViewLink to each file
+    const filesWithLinks = await Promise.all(
+      result.files.map(async (file) => {
+        try {
+          const metadata = await googleDriveManager.getFileMetadata(file.id);
+          return {
+            ...file,
+            webViewLink: metadata.webViewLink,
+          };
+        } catch (error) {
+          console.error(`Error getting metadata for ${file.id}:`, error);
+          return file;
+        }
+      })
+    );
+
+    res.json({
+      files: filesWithLinks,
+      nextPageToken: result.nextPageToken,
+    });
+  } catch (error) {
+    console.error('List Drive files error:', error);
+    res.status(500).json({ error: error.message || 'Failed to list files from Google Drive' });
+  }
+});
+
+/**
+ * @route DELETE /api/storage/drive-files/:fileId
+ * @desc Delete a file from Google Drive
+ * @access Private
+ */
+router.delete('/drive-files/:fileId', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    await googleDriveManager.deleteFile(fileId);
+
+    res.json({
+      success: true,
+      message: 'File deleted from Google Drive successfully',
+    });
+  } catch (error) {
+    console.error('Delete from Drive error:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete file from Google Drive' });
   }
 });
 

@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  HardDrive,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ import { ProjectSettingsModal } from "./components/projects/ProjectSettingsModal
 import { ProjectListItem } from "./components/projects/ProjectListItem";
 import { ShareViewPage } from "./components/projects/ShareViewPage";
 import { SettingsPage } from "./components/settings/SettingsPage";
+import { StoragePage } from "./components/storage/StoragePage";
 import { Toaster } from "./components/ui/sonner";
 import { ProjectCoverPlaceholder } from "./components/ui/ProjectCoverPlaceholder";
 
@@ -152,6 +154,7 @@ function AppContent() {
                   <Route path="/" element={<ProjectsPage />} />
                   <Route path="/project/:id" element={<ProjectDetailPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/storage" element={<StoragePage />} />
                   <Route path="/recent" element={<RecentPage />} />
                   <Route path="/starred" element={<StarredPage />} />
                   <Route path="/archived" element={<ArchivedPage />} />
@@ -177,6 +180,7 @@ function Sidebar({ collapsed, setCollapsed }) {
     { icon: Clock, label: "Recentes", path: "/recent" },
     { icon: Star, label: "Favoritos", path: "/starred" },
     { icon: Archive, label: "Arquivados", path: "/archived" },
+    { icon: HardDrive, label: "Storage", path: "/storage" },
     { icon: Settings, label: "Configurações", path: "/settings" },
   ];
 
