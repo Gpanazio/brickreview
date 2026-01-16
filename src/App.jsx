@@ -50,6 +50,7 @@ import { ProjectDetailPage } from "./components/projects/ProjectDetailPage";
 import { ProjectSettingsModal } from "./components/projects/ProjectSettingsModal";
 import { ProjectListItem } from "./components/projects/ProjectListItem";
 import { ShareViewPage } from "./components/projects/ShareViewPage";
+import { SettingsPage } from "./components/settings/SettingsPage";
 import { Toaster } from "./components/ui/sonner";
 import { ProjectCoverPlaceholder } from "./components/ui/ProjectCoverPlaceholder";
 
@@ -150,6 +151,7 @@ function AppContent() {
                 <Routes location={location}>
                   <Route path="/" element={<ProjectsPage />} />
                   <Route path="/project/:id" element={<ProjectDetailPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/recent" element={<RecentPage />} />
                   <Route path="/starred" element={<StarredPage />} />
                   <Route path="/archived" element={<ArchivedPage />} />
@@ -175,6 +177,7 @@ function Sidebar({ collapsed, setCollapsed }) {
     { icon: Clock, label: "Recentes", path: "/recent" },
     { icon: Star, label: "Favoritos", path: "/starred" },
     { icon: Archive, label: "Arquivados", path: "/archived" },
+    { icon: Settings, label: "Configurações", path: "/settings" },
   ];
 
   return (
