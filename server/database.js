@@ -41,6 +41,8 @@ export async function initDatabase() {
         "brickreview_videos_with_stats",
         "brickreview_comments_with_user",
         "brickreview_folders_with_stats",
+        "portfolio_videos_with_stats",
+        "portfolio_collections_with_stats",
       ];
 
       const schemaCheck = await query(
@@ -107,7 +109,21 @@ export async function initDatabase() {
           (SELECT EXISTS (
             SELECT 1 FROM information_schema.columns 
             WHERE table_name = 'brickreview_comments' AND column_name = 'attachment_url'
-          )) as "commentsHaveAttachments"
+          )) as "commentsHaveAttachments",
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'portfolio_videos' AND column_name = 'deleted_at'
+            )
+          ) as "portfolioVideosHaveDeletedAt",
+          (
+            SELECT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_name = 'portfolio_collections' AND column_name = 'deleted_at'
+            )
+          ) as "portfolioCollectionsHaveDeletedAt"
       `,
         [requiredViews]
       );
@@ -122,6 +138,8 @@ export async function initDatabase() {
         projectsViewHasDeletedAt,
         foldersViewHasDeletedAt,
         commentsHaveTimestampEnd,
+        portfolioVideosHaveDeletedAt,
+        portfolioCollectionsHaveDeletedAt,
       } = schemaCheck.rows[0];
 
       const existingViews = new Set(existingViewNames || []);
@@ -134,7 +152,7 @@ export async function initDatabase() {
         projectsViewHasDeletedAt &&
         foldersViewHasDeletedAt;
 
-      if (shareTableExists && missingViews.length === 0 && softDeleteReady && commentsHaveTimestampEnd && schemaCheck.rows[0].commentsHaveAttachments) {
+      if (shareTableExists && missingViews.length === 0 && softDeleteReady && commentsHaveTimestampEnd && schemaCheck.rows[0].commentsHaveAttachments && portfolioVideosHaveDeletedAt && portfolioCollectionsHaveDeletedAt) {
         console.log("✅ Database schema already initialized. Skipping setup.");
         return;
       }
@@ -193,6 +211,8 @@ export async function initDatabase() {
         DROP VIEW IF EXISTS brickreview_videos_with_stats CASCADE;
         DROP VIEW IF EXISTS brickreview_comments_with_user CASCADE;
         DROP VIEW IF EXISTS brickreview_folders_with_stats CASCADE;
+        DROP VIEW IF EXISTS portfolio_videos_with_stats CASCADE;
+        DROP VIEW IF EXISTS portfolio_collections_with_stats CASCADE;
       `);
       console.log("🗑️  Dropped existing views to avoid conflicts");
     } catch (viewError) {
