@@ -56,6 +56,7 @@ const SettingsPage = lazy(() => import("./components/settings/SettingsPage").the
 const StoragePage = lazy(() => import("./components/storage/StoragePage").then(m => ({ default: m.StoragePage })));
 const SharedStoragePage = lazy(() => import("./components/storage/SharedStoragePage").then(m => ({ default: m.SharedStoragePage })));
 const PortfolioPage = lazy(() => import("./components/portfolio/PortfolioPage").then(m => ({ default: m.PortfolioPage })));
+const PortfolioPlayerPage = lazy(() => import("./components/portfolio/PortfolioPlayerPage").then(m => ({ default: m.PortfolioPlayerPage })));
 
 // Helper para identificar URLs padrão antigas
 const isDefaultUrl = (url) => {
@@ -72,6 +73,7 @@ function App() {
               {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
               <Route path="/share/:token" element={<ShareViewPage />} />
               <Route path="/storage/s/:id" element={<SharedStoragePage />} />
+              <Route path="/portfolio/player/:id" element={<PortfolioPlayerPage />} />
 
               {/* Rotas Principais do App */}
               <Route path="/*" element={<AppContent />} />

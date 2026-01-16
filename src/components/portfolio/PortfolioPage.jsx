@@ -667,18 +667,18 @@ export function PortfolioPage() {
                       <div className="flex items-center gap-2 mb-3">
                         <Code className="w-4 h-4 text-red-500" />
                         <h3 className="brick-title text-sm uppercase">
-                          Link Direto
+                          Link do Player
                         </h3>
                       </div>
                       <div className="relative">
                         <input
                           readOnly
-                          value={selectedVideo.direct_url}
+                          value={`${window.location.origin}/portfolio/player/${selectedVideo.id}`}
                           className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 pr-10"
                         />
                         <button
                           onClick={() =>
-                            handleCopyLink(selectedVideo.direct_url, "direct")
+                            handleCopyLink(`${window.location.origin}/portfolio/player/${selectedVideo.id}`, "direct")
                           }
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
                         >
@@ -701,12 +701,12 @@ export function PortfolioPage() {
                       <div className="relative">
                         <textarea
                           readOnly
-                          value={`<iframe src="${window.location.origin}/portfolio/embed/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
+                          value={`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
                           className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 h-24 resize-none pr-10"
                         />
                         <button
                           onClick={() =>
-                            handleCopyLink(`<iframe src="${window.location.origin}/portfolio/embed/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`, "embed")
+                            handleCopyLink(`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`, "embed")
                           }
                           className="absolute right-2 top-2 text-zinc-400 hover:text-white"
                         >
