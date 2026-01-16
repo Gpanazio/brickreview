@@ -7,9 +7,9 @@ const router = express.Router();
 /**
  * @route GET /api/drive/auth-url
  * @desc Get OAuth URL for Google Drive authorization
- * @access Private (Admin only)
+ * @access Private (Any authenticated user)
  */
-router.get('/auth-url', authenticateToken, requireAdmin, (req, res) => {
+router.get('/auth-url', authenticateToken, (req, res) => {
   try {
     const authUrl = googleDriveManager.getAuthUrl();
     res.json({ authUrl });
