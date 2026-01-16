@@ -702,7 +702,7 @@ export function StoragePage() {
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.05 }}
-                              className={`glass-panel border rounded-none p-4 transition-all group ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
+                              className={`glass-panel border rounded-none p-4 transition-all group cursor-pointer ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
                                 }`}
                               onClick={(e) => toggleSelection(e, file.id)}
                               draggable
@@ -727,7 +727,7 @@ export function StoragePage() {
                                     </span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -781,7 +781,7 @@ export function StoragePage() {
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ delay: index * 0.05 }}
-                              className={`glass-panel border rounded-none p-4 transition-all group ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
+                              className={`glass-panel border rounded-none p-4 transition-all group cursor-pointer ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
                                 }`}
                               onClick={(e) => toggleSelection(e, file.id)}
                               draggable
@@ -809,7 +809,7 @@ export function StoragePage() {
                                     {formatFileSize(file.size)}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pt-2 border-t border-zinc-800/30">
+                                <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity pt-2 border-t border-zinc-800/30">
                                   <Button
                                     size="sm"
                                     variant="ghost"
