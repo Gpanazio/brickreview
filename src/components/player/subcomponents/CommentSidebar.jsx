@@ -343,6 +343,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   const [rangeEndTime, setRangeEndTime] = useState(null);
   const [isRangeMode, setIsRangeMode] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const scrubRef = useRef({ startX: 0, startValue: 0 });
 
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -415,6 +417,53 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   const canEditComment = (comment) => {
     if (!isGuest) return true;
     return getGuestCommentIds().includes(comment.id);
+  };
+
+  // Scrubbing Logic
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isScrubbing) return;
+      e.preventDefault();
+      
+      const deltaX = e.clientX - scrubRef.current.startX;
+      const sensitivity = 0.1; // 10px = 1s
+      
+      const newValue = Math.max(
+        currentTime + 0.1, // Minimum is slightly after current time
+        scrubRef.current.startValue + deltaX * sensitivity
+      );
+      
+      setRangeEndTime(newValue);
+    };
+
+    const handleMouseUp = () => {
+      if (isScrubbing) {
+        setIsScrubbing(false);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    if (isScrubbing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isScrubbing, currentTime]);
+
+  const handleScrubStart = (e) => {
+    e.preventDefault();
+    setIsScrubbing(true);
+    scrubRef.current = {
+      startX: e.clientX,
+      startValue: rangeEndTime || currentTime + 5,
+    };
   };
 
   // Actions
@@ -809,15 +858,15 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   )}
 
                   {hasTimestamp && isRangeMode && (
-                    <div className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800">
+                    <div 
+                      className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 cursor-ew-resize hover:border-zinc-700 hover:bg-zinc-800 transition-colors select-none"
+                      onMouseDown={handleScrubStart}
+                      title="Arraste para ajustar o tempo final"
+                    >
                       <span>Fim:</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="w-12 bg-transparent border-none focus:outline-none text-white font-bold"
-                        value={rangeEndTime !== null ? rangeEndTime.toFixed(1) : ""}
-                        onChange={(e) => setRangeEndTime(parseFloat(e.target.value))}
-                      />
+                      <span className="text-white font-bold min-w-[2.5em] text-center">
+                        {rangeEndTime !== null ? rangeEndTime.toFixed(1) : ""}
+                      </span>
                       <span className="text-zinc-600">s</span>
                     </div>
                   )}
