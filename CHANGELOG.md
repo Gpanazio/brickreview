@@ -9,6 +9,18 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### 🔧 Improvements v0.7.2 (2026-01-16)
+
+#### Bug Fixes
+- **FIXED**: Preview da Timeline não aparecia ("Sem preview")
+  - Causa: Caminho incorreto do `ffmpeg` no arquivo `.env` impedindo a geração de sprites VTT
+  - Solução: Corrigido caminho para `/opt/homebrew/bin/ffmpeg` e regenerados todos os sprites
+
+#### UX / UI
+- **NEW**: Funcionalidade de "Scrubbing" no campo de Range
+  - Permite ajustar a duração do comentário arrastando o mouse sobre o valor numérico
+  - Cursor muda para `ew-resize` para indicar interatividade
+
 ### 🔧 Critical Fixes v0.7.1 (2026-01-14)
 
 #### Bug Fixes

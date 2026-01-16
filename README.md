@@ -1,6 +1,6 @@
 # BrickReview
 
-> ✅ **Nota de Desenvolvimento (v0.7.1):** Projeto em produção estável. Principais problemas de infraestrutura foram resolvidos. Consulte [INFRA_V0.7.1_PLAN.md](INFRA_V0.7.1_PLAN.md) para detalhes da implementação atual.
+> ✅ **Nota de Desenvolvimento (v0.7.2):** Projeto em produção estável. Correções de visualização de timeline e UX implementadas. Consulte [CHANGELOG.md](CHANGELOG.md) para detalhes.
 
 Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (preto/vermelho/branco).
 
@@ -271,6 +271,12 @@ Implementação robusta em 3 camadas:
 3. Manual `prompt()` como último recurso
 
 ## 📋 Roadmap
+
+### ✅ v0.7.2 - Melhorias de UX e Correções (CONCLUÍDO)
+
+- [x] Preview de timeline (sprites VTT) corrigido e funcional
+- [x] Scrubbing control no input de Range (arrastar para ajustar)
+- [x] Correção de path do FFmpeg em ambientes macOS/Homebrew
 
 ### ✅ v0.7.1 - Infraestrutura Estável (CONCLUÍDO)
 
