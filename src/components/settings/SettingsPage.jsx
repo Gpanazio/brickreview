@@ -177,7 +177,9 @@ export function SettingsPage() {
                     <p className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest mb-1">
                       Buckets Ativos
                     </p>
-                    <p className="brick-title text-xl text-white">{storageStats.buckets.length}</p>
+                    <p className="brick-title text-xl text-white">
+                      {storageStats.r2.buckets.length}
+                    </p>
                   </div>
                   <div className="bg-zinc-950/50 p-4 border-l-2 border-l-purple-600">
                     <p className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest mb-1">
@@ -197,11 +199,11 @@ export function SettingsPage() {
             <div className="flex items-center gap-3 mb-2">
               <Database className="w-5 h-5 text-zinc-500" />
               <h3 className="brick-title text-md uppercase tracking-tighter text-white">
-                Buckets Individuais
+                Armazenamento R2
               </h3>
             </div>
 
-            {storageStats?.buckets.map((bucket, index) => (
+            {storageStats?.r2.buckets.map((bucket, index) => (
               <motion.div
                 key={bucket.bucketId}
                 initial={{ opacity: 0, y: 20 }}
@@ -278,11 +280,97 @@ export function SettingsPage() {
             ))}
           </div>
 
+          {/* Google Drive Storage */}
+          {storageStats?.drive.enabled && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <HardDrive className="w-5 h-5 text-zinc-500" />
+                <h3 className="brick-title text-md uppercase tracking-tighter text-white">
+                  Google Drive (Backup)
+                </h3>
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="glass-panel border border-zinc-800/30 rounded-none p-6"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h4 className="brick-title text-md text-white mb-1">
+                      {storageStats.drive.name || 'Google Drive'}
+                    </h4>
+                    <p className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest">
+                      Backup de Longo Prazo
+                    </p>
+                  </div>
+                  {storageStats.drive.error && (
+                    <div className="flex items-center gap-2 text-red-500">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-xs">Erro ao obter dados</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-zinc-400 uppercase tracking-wider font-bold">
+                        {formatSize(storageStats.drive.usedFormatted)} usado de{" "}
+                        {formatSize(storageStats.drive.limitFormatted)}
+                      </span>
+                      <span
+                        className={`text-xs font-bold ${getUsageTextColor(storageStats.drive.usedPercentage)}`}
+                      >
+                        {storageStats.drive.usedPercentage.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="w-full h-3 bg-zinc-900 overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${storageStats.drive.usedPercentage}%` }}
+                        transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+                        className={`h-full ${getUsageColor(storageStats.drive.usedPercentage)}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-zinc-950/30 p-3 border-l border-l-zinc-800">
+                      <p className="brick-tech text-[8px] text-zinc-600 uppercase tracking-widest mb-0.5">
+                        Disponível
+                      </p>
+                      <p className="text-sm text-zinc-300 font-bold">
+                        {formatSize(storageStats.drive.availableFormatted)}
+                      </p>
+                    </div>
+                    <div className="bg-zinc-950/30 p-3 border-l border-l-zinc-800">
+                      <p className="brick-tech text-[8px] text-zinc-600 uppercase tracking-widest mb-0.5">
+                        Arquivos
+                      </p>
+                      <p className="text-sm text-zinc-300 font-bold">
+                        {storageStats.drive.objectCount.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-zinc-950/30 p-3 border-l border-l-zinc-800">
+                      <p className="brick-tech text-[8px] text-zinc-600 uppercase tracking-widest mb-0.5">
+                        Tipo
+                      </p>
+                      <p className="text-sm text-zinc-300 font-bold">Backup</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
           {/* Info Footer */}
           <div className="bg-zinc-950/30 border border-zinc-800/30 rounded-none p-4">
             <p className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest text-center">
-              Cloudflare R2 Free Plan: 10GB por bucket • As estatísticas são atualizadas em tempo
-              real
+              {storageStats?.drive.enabled
+                ? "R2: Cache Rápido (20GB) • Drive: Backup Automático (30TB) • Estatísticas em tempo real"
+                : "Cloudflare R2 Free Plan: 10GB por bucket • As estatísticas são atualizadas em tempo real"}
             </p>
           </div>
         </div>

@@ -92,4 +92,154 @@ router.get('/buckets', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/storage/migrate/:videoId
+ * @desc Backup video to Google Drive (keeps in R2 unless removeFromR2=true)
+ * @access Private
+ */
+router.post('/migrate/:videoId', authenticateToken, async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const { removeFromR2 = false } = req.body;
+
+    // Get video details
+    const videoResult = await pool.query('SELECT * FROM videos WHERE id = $1', [videoId]);
+    if (videoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const video = videoResult.rows[0];
+
+    // Check if already backed up
+    if (video.drive_file_id && !removeFromR2) {
+      return res.json({
+        success: true,
+        message: 'Video already backed up to Google Drive',
+        driveFileId: video.drive_file_id,
+      });
+    }
+
+    // Migrate to Drive
+    const result = await hybridStorageManager.migrateToGoogleDrive(
+      video,
+      video.r2_bucket_id || 'primary'
+    );
+
+    // Update database
+    const updateQuery = removeFromR2
+      ? `UPDATE videos SET drive_file_id = $1, drive_backup_date = NOW(), storage_location = 'drive' WHERE id = $2`
+      : `UPDATE videos SET drive_file_id = $1, drive_backup_date = NOW(), storage_location = 'both' WHERE id = $2`;
+
+    await pool.query(updateQuery, [result.driveFileId, videoId]);
+
+    res.json({
+      success: true,
+      message: removeFromR2
+        ? 'Video migrated to Google Drive and removed from R2'
+        : 'Video backed up to Google Drive',
+      driveFileId: result.driveFileId,
+      driveUrl: result.driveUrl,
+    });
+  } catch (error) {
+    console.error('Migration error:', error);
+    res.status(500).json({ error: error.message || 'Failed to migrate video' });
+  }
+});
+
+/**
+ * @route POST /api/storage/cleanup-r2
+ * @desc Remove oldest videos from R2 when storage is full (keeps Drive backup)
+ * @access Private
+ */
+router.post('/cleanup-r2', authenticateToken, async (req, res) => {
+  try {
+    const { targetFreeSpace = 1073741824 } = req.body; // Default: free 1GB
+
+    const stats = await hybridStorageManager.getAllStorageStats();
+    const r2Stats = stats.r2.total;
+
+    if (r2Stats.available >= targetFreeSpace) {
+      return res.json({
+        success: true,
+        message: 'R2 storage has sufficient space',
+        available: r2Stats.available,
+      });
+    }
+
+    // Find oldest videos in R2 that have Drive backup
+    const oldestVideos = await pool.query(
+      `SELECT * FROM videos
+       WHERE storage_location IN ('r2', 'both')
+       AND drive_file_id IS NOT NULL
+       ORDER BY created_at ASC
+       LIMIT 20`
+    );
+
+    let freedSpace = 0;
+    const removedVideos = [];
+    const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+
+    for (const video of oldestVideos.rows) {
+      if (freedSpace >= (targetFreeSpace - r2Stats.available)) break;
+
+      try {
+        // Remove from R2 (but keep in Drive)
+        const bucket = r2Manager.getBucket(video.r2_bucket_id || 'primary');
+        if (bucket) {
+          const deleteCommand = new DeleteObjectCommand({
+            Bucket: bucket.bucketName,
+            Key: video.file_path,
+          });
+          await bucket.client.send(deleteCommand);
+
+          // Update database
+          await pool.query(
+            `UPDATE videos SET storage_location = 'drive' WHERE id = $1`,
+            [video.id]
+          );
+
+          freedSpace += video.file_size || 0;
+          removedVideos.push({ id: video.id, title: video.title });
+        }
+      } catch (err) {
+        console.error(`Failed to remove video ${video.id}:`, err);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Cleaned up R2 storage`,
+      freedSpace,
+      removedCount: removedVideos.length,
+      removedVideos,
+    });
+  } catch (error) {
+    console.error('Cleanup error:', error);
+    res.status(500).json({ error: 'Failed to cleanup R2 storage' });
+  }
+});
+
+/**
+ * @route GET /api/storage/eligible-for-cleanup
+ * @desc Get list of videos that can be safely removed from R2
+ * @access Private
+ */
+router.get('/eligible-for-cleanup', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, title, created_at, file_size, drive_file_id, storage_location
+       FROM videos
+       WHERE storage_location IN ('r2', 'both')
+       AND drive_file_id IS NOT NULL
+       ORDER BY created_at ASC
+       LIMIT 50`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching eligible videos:', error);
+    res.status(500).json({ error: 'Failed to fetch eligible videos' });
+  }
+});
+
 export default router;

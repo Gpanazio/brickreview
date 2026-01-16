@@ -14,6 +14,7 @@ import { addVideoJobSafe } from "../queue/index.js";
 import { FEATURES } from "../config/features.js";
 import { logger } from "../utils/logger.js";
 import { processVideo } from "../../scripts/process-video-metadata.js";
+import googleDriveManager from "../utils/google-drive.js";
 
 const router = express.Router();
 
@@ -130,7 +131,44 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
       video: video,
     });
 
-    // 4. Processamento Assíncrono: Queue ou Fallback Síncrono
+    // 4. Automatic Google Drive Backup (Non-blocking)
+    if (googleDriveManager.isEnabled()) {
+      console.log(`🔄 Starting automatic Drive backup for video ${video.id}`);
+
+      // Backup to Drive asynchronously
+      (async () => {
+        try {
+          const fileStream = fs.createReadStream(file.path);
+          const fileBuffer = await streamToBuffer(fileStream);
+
+          const driveFile = await googleDriveManager.uploadFile(
+            `${video.id}_${video.title}.mp4`,
+            fileBuffer,
+            file.mimetype
+          );
+
+          // Update database with Drive info
+          await query(
+            `UPDATE videos
+             SET drive_file_id = $1, drive_backup_date = NOW(), storage_location = 'both'
+             WHERE id = $2`,
+            [driveFile.id, video.id]
+          );
+
+          console.log(`✅ Video ${video.id} backed up to Drive: ${driveFile.id}`);
+        } catch (error) {
+          logger.error("DRIVE_BACKUP", `Failed to backup video ${video.id} to Drive`, {
+            videoId: video.id,
+            error: error.message,
+          });
+          // Continue without Drive backup - R2 upload was successful
+        }
+      })();
+    } else {
+      console.log(`ℹ️ Google Drive backup disabled for video ${video.id}`);
+    }
+
+    // 5. Processamento Assíncrono: Queue ou Fallback Síncrono
     const processData = { r2Key: fileKey, projectId: projectId };
 
     // Função de fallback para não duplicar código
@@ -587,5 +625,16 @@ router.post("/:id/restore", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Erro ao restaurar vídeo" });
   }
 });
+
+/**
+ * Helper: Convert stream to buffer
+ */
+async function streamToBuffer(stream) {
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
 
 export default router;
