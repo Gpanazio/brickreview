@@ -10,3 +10,7 @@ dist-ssr
 *.log
 coverage
 .nyc_output
+*.txt
+*.md
+!README.md
+!CHANGELOG.md
