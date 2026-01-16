@@ -261,12 +261,14 @@ router.post('/upload-to-drive', authenticateToken, upload.single('file'), async 
     }
 
     const { originalname, buffer, mimetype } = req.file;
+    const { parentId } = req.body;
 
     // Upload directly to Google Drive
     const driveFile = await googleDriveManager.uploadFile(
       originalname,
       buffer,
-      mimetype
+      mimetype,
+      parentId
     );
 
     res.json({
@@ -297,11 +299,12 @@ router.get('/drive-files', authenticateToken, async (req, res) => {
       return res.status(503).json({ error: 'Google Drive is not enabled' });
     }
 
-    const { pageSize = 100, pageToken } = req.query;
+    const { pageSize = 100, pageToken, folderId } = req.query;
 
     const result = await googleDriveManager.listFiles(
       parseInt(pageSize),
-      pageToken
+      pageToken,
+      folderId
     );
 
     // Add webViewLink to each file
@@ -350,8 +353,67 @@ router.delete('/drive-files/:fileId', authenticateToken, async (req, res) => {
       message: 'File deleted from Google Drive successfully',
     });
   } catch (error) {
-    console.error('Delete from Drive error:', error);
     res.status(500).json({ error: error.message || 'Failed to delete file from Google Drive' });
+  }
+});
+
+/**
+ * @route POST /api/storage/folders
+ * @desc Create a new folder in Google Drive
+ * @access Private
+ */
+router.post('/folders', authenticateToken, async (req, res) => {
+  try {
+    const { name, parentId } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Folder name is required' });
+    }
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    const folder = await googleDriveManager.createFolder(name, parentId);
+
+    res.json({
+      success: true,
+      message: 'Folder created successfully',
+      folder,
+    });
+  } catch (error) {
+    console.error('Create folder error:', error);
+    res.status(500).json({ error: error.message || 'Failed to create folder' });
+  }
+});
+
+/**
+ * @route PATCH /api/storage/move
+ * @desc Move a file or folder
+ * @access Private
+ */
+router.patch('/move', authenticateToken, async (req, res) => {
+  try {
+    const { fileId, destinationFolderId } = req.body;
+
+    if (!fileId || !destinationFolderId) {
+      return res.status(400).json({ error: 'File ID and destination folder ID are required' });
+    }
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    const result = await googleDriveManager.moveFile(fileId, destinationFolderId);
+
+    res.json({
+      success: true,
+      message: 'File moved successfully',
+      result,
+    });
+  } catch (error) {
+    console.error('Move file error:', error);
+    res.status(500).json({ error: error.message || 'Failed to move file' });
   }
 });
 

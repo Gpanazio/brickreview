@@ -49,7 +49,7 @@ class GoogleDriveManager {
   /**
    * Upload file to Google Drive
    */
-  async uploadFile(fileName, fileBuffer, mimeType) {
+  async uploadFile(fileName, fileBuffer, mimeType, parentId = null) {
     if (!this.isEnabled()) {
       throw new Error('Google Drive is not enabled');
     }
@@ -57,7 +57,7 @@ class GoogleDriveManager {
     try {
       const fileMetadata = {
         name: fileName,
-        parents: [this.folderId],
+        parents: [parentId || this.folderId],
       };
 
       const media = {
@@ -146,6 +146,65 @@ class GoogleDriveManager {
   }
 
   /**
+   * Create a folder in Google Drive
+   */
+  async createFolder(name, parentId = null) {
+    if (!this.isEnabled()) {
+      throw new Error('Google Drive is not enabled');
+    }
+
+    try {
+      const fileMetadata = {
+        name: name,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parentId || this.folderId],
+      };
+
+      const response = await this.drive.files.create({
+        resource: fileMetadata,
+        fields: 'id, name, size, mimeType, createdTime',
+      });
+
+      console.log(`✅ Created Folder: ${name} (${response.data.id})`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Failed to create folder in Google Drive:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Move a file or folder to a new parent folder
+   */
+  async moveFile(fileId, newParentId) {
+    if (!this.isEnabled()) {
+      throw new Error('Google Drive is not enabled');
+    }
+
+    try {
+      // Retrieve the existing parents to remove
+      const file = await this.drive.files.get({
+        fileId: fileId,
+        fields: 'parents',
+      });
+
+      const previousParents = file.data.parents.join(',');
+      const response = await this.drive.files.update({
+        fileId: fileId,
+        addParents: newParentId,
+        removeParents: previousParents,
+        fields: 'id, parents',
+      });
+
+      console.log(`✅ Moved file ${fileId} to ${newParentId}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Failed to move file in Google Drive:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get storage usage statistics
    */
   async getStorageStats() {
@@ -194,20 +253,21 @@ class GoogleDriveManager {
   }
 
   /**
-   * List files in the configured folder
+   * List files in the configured folder or subfolder
    */
-  async listFiles(pageSize = 100, pageToken = null) {
+  async listFiles(pageSize = 100, pageToken = null, folderId = null) {
     if (!this.isEnabled()) {
       throw new Error('Google Drive is not enabled');
     }
 
     try {
+      const parent = folderId || this.folderId;
       const response = await this.drive.files.list({
-        q: `'${this.folderId}' in parents and trashed=false`,
+        q: `'${parent}' in parents and trashed=false`,
         fields: 'nextPageToken, files(id, name, size, mimeType, createdTime, modifiedTime)',
         pageSize: pageSize,
         pageToken: pageToken,
-        orderBy: 'createdTime desc',
+        orderBy: 'folder, createdTime desc',
       });
 
       return {
