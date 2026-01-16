@@ -12,6 +12,8 @@ export function VideoPlayerCore() {
     setDuration,
     setIsPlaying,
     setPlaybackRate,
+    setVolume,
+    setIsMuted,
   } = useVideo();
 
   const elementRef = useRef(null);

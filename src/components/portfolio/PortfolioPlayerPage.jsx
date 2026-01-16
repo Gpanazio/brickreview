@@ -240,28 +240,48 @@ export function PortfolioPlayerPage() {
   return (
     <div className="min-h-screen bg-[#050505] flex flex-col">
       <style>{`
-        .portfolio-video-container {
+        .pp-video-container {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background: #000;
+          margin: 0 auto;
+        }
+        .pp-player-wrapper {
           width: 100%;
           height: 100%;
-          max-height: 85vh;
-          margin: 0 auto;
+          max-height: 75vh;
           display: flex;
-          align-items: center;
           justify-content: center;
         }
-        @media (min-width: 1440px) {
-          .portfolio-video-container {
-            max-height: 80vh;
-            padding: 20px;
-          }
+        .pp-player-wrapper .plyr {
+          width: 100%;
+          height: 100%;
+          max-height: 75vh;
         }
-        .portfolio-video-container .plyr__control--overlaid {
-          width: 80px !important;
-          height: 40px !important;
+        .pp-player-wrapper video {
+           object-fit: contain;
+           max-height: 75vh;
         }
-        .portfolio-video-container .plyr__control--overlaid svg {
-          width: 24px !important;
-          height: 24px !important;
+        /* Custom Plyr Theme for Portfolio */
+        .pp-player-wrapper .plyr--video .plyr__controls {
+           padding-left: 20px;
+           padding-right: 20px;
+        }
+        .pp-player-wrapper .plyr__control--overlaid {
+          background: rgba(220, 38, 38, 0.9);
+          width: 60px;
+          height: 60px;
+        }
+        .pp-player-wrapper .plyr__control--overlaid:hover {
+          background: #dc2626;
+        }
+        @media (max-width: 768px) {
+           .pp-player-wrapper .plyr__control--overlaid {
+              width: 40px;
+              height: 40px;
+           }
         }
       `}</style>
       {/* Header */}
@@ -304,25 +324,28 @@ export function PortfolioPlayerPage() {
             </div>
 
             {/* Video Player */}
-            <div
-              className="bg-black portfolio-video-container relative mx-auto"
-              style={{
-                aspectRatio: videoDimensions ? `${videoDimensions.width} / ${videoDimensions.height}` : "16 / 9",
-                maxHeight: "75vh"
-              }}
-            >
-              <video
-                ref={videoRef}
-                src={video.direct_url}
-                className="w-full h-full"
-                playsInline
-                onLoadedMetadata={(e) => {
-                  setVideoDimensions({
-                    width: e.target.videoWidth,
-                    height: e.target.videoHeight
-                  });
+            <div className="pp-video-container">
+              <div
+                className="pp-player-wrapper"
+                style={{
+                  aspectRatio: videoDimensions ? `${videoDimensions.width} / ${videoDimensions.height}` : "16 / 9",
+                  maxWidth: videoDimensions && (videoDimensions.height > videoDimensions.width) ? "50vh" : "100%"
                 }}
-              />
+              >
+                <video
+                  ref={videoRef}
+                  src={video.direct_url}
+                  className="w-full h-full"
+                  playsInline
+                  controls
+                  onLoadedMetadata={(e) => {
+                    setVideoDimensions({
+                      width: e.target.videoWidth,
+                      height: e.target.videoHeight
+                    });
+                  }}
+                />
+              </div>
             </div>
 
             {/* Video Stats */}

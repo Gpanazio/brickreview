@@ -162,9 +162,20 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
  */
 router.get('/videos', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT * FROM portfolio_videos_with_stats ORDER BY created_at DESC`
-    );
+    const { collection_id } = req.query;
+    let query = `SELECT * FROM portfolio_videos_with_stats`;
+    const params = [];
+
+    if (collection_id === 'null') {
+      query += ` WHERE collection_id IS NULL`;
+    } else if (collection_id) {
+      query += ` WHERE collection_id = $1`;
+      params.push(collection_id);
+    }
+
+    query += ` ORDER BY created_at DESC`;
+
+    const result = await pool.query(query, params);
 
     // Add thumbnail URLs
     const videos = result.rows.map(video => {

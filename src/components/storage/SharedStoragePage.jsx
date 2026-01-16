@@ -440,14 +440,6 @@ export function SharedStoragePage() {
                                 </span>
                             </div>
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setPreviewFile(null)}
-                            className="h-8 w-8 text-zinc-500 hover:text-white"
-                        >
-                            <X className="w-5 h-5" />
-                        </Button>
                     </DialogHeader>
 
                     <div className="bg-black aspect-video flex items-center justify-center relative group">
@@ -482,14 +474,6 @@ export function SharedStoragePage() {
                         </div>
                         <div className="flex items-center gap-3">
                             <Button
-                                variant="outline"
-                                onClick={() => window.open(previewFile?.webViewLink, "_blank")}
-                                className="border-zinc-800 rounded-none h-10 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white"
-                            >
-                                <ExternalLink className="w-3 h-3 mr-2 text-red-600" />
-                                Abrir no Drive
-                            </Button>
-                            <Button
                                 onClick={() => window.open(previewFile?.webContentLink || previewFile?.webViewLink, "_blank")}
                                 className="glass-button-primary border-none rounded-none h-10 px-8 text-[10px] font-black uppercase tracking-widest"
                             >
@@ -503,3 +487,4 @@ export function SharedStoragePage() {
         </div>
     );
 }
+
