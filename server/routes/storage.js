@@ -396,15 +396,17 @@ router.patch('/move', authenticateToken, async (req, res) => {
   try {
     const { fileId, destinationFolderId } = req.body;
 
-    if (!fileId || !destinationFolderId) {
-      return res.status(400).json({ error: 'File ID and destination folder ID are required' });
+    if (!fileId) {
+      return res.status(400).json({ error: 'File ID is required' });
     }
 
     if (!googleDriveManager.isEnabled()) {
       return res.status(503).json({ error: 'Google Drive is not enabled' });
     }
 
-    const result = await googleDriveManager.moveFile(fileId, destinationFolderId);
+    // If destinationFolderId is null/undefined, move to root folder
+    const targetFolderId = destinationFolderId || googleDriveManager.folderId;
+    const result = await googleDriveManager.moveFile(fileId, targetFolderId);
 
     res.json({
       success: true,
@@ -447,4 +449,36 @@ router.patch('/rename', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @route POST /api/storage/share
+ * @desc Generate a public share link for a file or folder
+ * @access Private
+ */
+router.post('/share', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.body;
+
+    if (!fileId) {
+      return res.status(400).json({ error: 'File ID is required' });
+    }
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    const result = await googleDriveManager.shareFile(fileId);
+
+    res.json({
+      success: true,
+      message: 'Share link generated successfully',
+      shareLink: result.shareLink,
+      name: result.name,
+    });
+  } catch (error) {
+    console.error('Share file error:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate share link' });
+  }
+});
+
 export default router;
+

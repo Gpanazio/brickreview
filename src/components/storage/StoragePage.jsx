@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
   HardDrive,
@@ -28,7 +28,7 @@ import {
 import { CreateFolderDialog } from "../projects/CreateFolderDialog"; // Reusing existing dialog
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Folder, FolderOpen, MoreVertical, Plus, CornerUpLeft, Pencil } from "lucide-react";
+import { Folder, FolderOpen, FolderPlus, MoreVertical, Plus, CornerUpLeft, Pencil, Share2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -58,6 +58,14 @@ export function StoragePage() {
   const [newName, setNewName] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [dragOverBreadcrumb, setDragOverBreadcrumb] = useState(null);
+
+  // Drop zone overlay state
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const dragCounter = useRef(0);
+
+  // Share link dialog state
+  const [shareLink, setShareLink] = useState("");
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -222,16 +230,67 @@ export function StoragePage() {
     }
   };
 
+  // Improved drag handlers for drop zone overlay
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.types.includes("Files")) {
+      setIsDraggingFile(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      setIsDraggingFile(false);
+      dragCounter.current = 0;
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFile(false);
+    dragCounter.current = 0;
+
     const droppedFiles = Array.from(e.dataTransfer.files);
     if (droppedFiles.length > 0) {
       uploadFiles(droppedFiles);
     }
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
+  // Share file/folder function
+  const handleShare = async (item) => {
+    try {
+      const response = await fetch("/api/storage/share", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ fileId: item.id }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setShareLink(data.shareLink);
+        setShowShareDialog(true);
+        toast.success("Link de compartilhamento gerado!");
+      } else {
+        toast.error("Erro ao gerar link de compartilhamento");
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      toast.error("Erro ao gerar link de compartilhamento");
+    }
   };
 
   const uploadFiles = async (filesToUpload) => {
@@ -423,346 +482,397 @@ export function StoragePage() {
 
       {/* Content */}
       <div
-        className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar"
+        className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
-        <div className="max-w-6xl mx-auto space-y-8">
-
-          {/* Breadcrumbs */}
-          <div className="flex items-center gap-2 text-sm text-zinc-400">
-            {breadcrumbs.length > 1 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNavigateUp}
-                className="h-8 w-8 mr-2 text-zinc-400 hover:text-white"
-              >
-                <CornerUpLeft className="w-4 h-4" />
-              </Button>
-            )}
-            {breadcrumbs.map((crumb, index) => (
-              <div
-                key={crumb.id || 'root'}
-                className="flex items-center"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (crumb.id !== currentFolder?.id) {
-                    setDragOverBreadcrumb(index);
-                  }
-                }}
-                onDragLeave={() => setDragOverBreadcrumb(null)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOverBreadcrumb(null);
-                  if (crumb.id === currentFolder?.id) return;
-
-                  const data = e.dataTransfer.getData("application/x-drive-item");
-                  if (data) {
-                    const item = JSON.parse(data);
-                    // Avoid moving folder into itself or its direct parent (if redundant)
-                    if (item.id !== crumb.id) {
-                      handleMoveItem(item.id, crumb.id);
-                    }
-                  }
-                }}
-              >
-                <span
-                  className={`cursor-pointer hover:text-white hover:underline transition-colors px-1 rounded ${index === breadcrumbs.length - 1 ? 'text-white font-medium' : ''} ${dragOverBreadcrumb === index ? 'bg-red-600/20 text-red-500' : ''}`}
-                  onClick={() => handleBreadcrumbClick(index)}
-                >
-                  {crumb.name}
-                </span>
-                {index < breadcrumbs.length - 1 && (
-                  <span className="mx-2 text-zinc-600">/</span>
-                )}
+        {/* Drop Zone Overlay */}
+        <AnimatePresence>
+          {isDraggingFile && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm border-4 border-dashed border-red-600 flex items-center justify-center pointer-events-none"
+            >
+              <div className="text-center">
+                <Upload className="w-16 h-16 text-red-600 mx-auto mb-4" />
+                <p className="brick-title text-2xl text-white mb-2">Solte os arquivos aqui</p>
+                <p className="brick-tech text-xs text-zinc-400 uppercase tracking-widest">
+                  Upload para {currentFolder?.name || "Meu Drive"}
+                </p>
               </div>
-            ))}
-          </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          {/* Upload Progress */}
-          {Object.keys(uploadProgress).length > 0 && (
-            <div className="glass-panel border border-zinc-800/30 rounded-none p-6">
-              <h3 className="brick-title text-md uppercase tracking-tighter text-white mb-4">
-                Uploads em Progresso
-              </h3>
-              <div className="space-y-3">
-                {Object.entries(uploadProgress).map(([id, file]) => (
-                  <div key={id} className="flex items-center gap-3">
-                    {file.status === "uploading" && (
-                      <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-                    )}
-                    {file.status === "success" && (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    )}
-                    {file.status === "error" && (
-                      <AlertCircle className="w-4 h-4 text-red-500" />
-                    )}
-                    <span className="text-sm text-zinc-400 flex-1">{file.name}</span>
-                    {file.error && (
-                      <span className="text-xs text-red-500">{file.error}</span>
+        <ContextMenu>
+          <ContextMenuTrigger className="min-h-full block">
+            <div className="max-w-6xl mx-auto space-y-8">
+
+              {/* Breadcrumbs */}
+              <div className="flex items-center gap-2 text-sm text-zinc-400">
+                {breadcrumbs.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleNavigateUp}
+                    className="h-8 w-8 mr-2 text-zinc-400 hover:text-white"
+                  >
+                    <CornerUpLeft className="w-4 h-4" />
+                  </Button>
+                )}
+                {breadcrumbs.map((crumb, index) => (
+                  <div
+                    key={crumb.id || 'root'}
+                    className="flex items-center"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (crumb.id !== currentFolder?.id) {
+                        setDragOverBreadcrumb(index);
+                      }
+                    }}
+                    onDragLeave={() => setDragOverBreadcrumb(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOverBreadcrumb(null);
+                      if (crumb.id === currentFolder?.id) return;
+
+                      const data = e.dataTransfer.getData("application/x-drive-item");
+                      if (data) {
+                        const item = JSON.parse(data);
+                        // Avoid moving folder into itself or its direct parent (if redundant)
+                        if (item.id !== crumb.id) {
+                          handleMoveItem(item.id, crumb.id);
+                        }
+                      }
+                    }}
+                  >
+                    <span
+                      className={`cursor-pointer hover:text-white hover:underline transition-colors px-1 rounded ${index === breadcrumbs.length - 1 ? 'text-white font-medium' : ''} ${dragOverBreadcrumb === index ? 'bg-red-600/20 text-red-500' : ''}`}
+                      onClick={() => handleBreadcrumbClick(index)}
+                    >
+                      {crumb.name}
+                    </span>
+                    {index < breadcrumbs.length - 1 && (
+                      <span className="mx-2 text-zinc-600">/</span>
                     )}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
 
-          {/* Folders Section */}
-          {folders.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="brick-title text-xs text-zinc-500 uppercase tracking-widest font-bold">
-                Pastas
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {folders.map((folder) => (
-                  <ContextMenu key={folder.id}>
-                    <ContextMenuTrigger>
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className={`glass-panel border rounded-none p-4 flex items-center gap-3 cursor-pointer transition-all group ${selectedIds.has(folder.id) ? 'bg-white/10 border-red-600' : 'hover:bg-zinc-900/50 border-zinc-800/30 hover:border-zinc-700'
-                          } ${dragOverFolder === folder.id ? 'border-red-600 bg-red-900/10' : ''}`}
-                        onClick={(e) => toggleSelection(e, folder.id)}
-                        onDoubleClick={() => handleFolderClick(folder)}
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: folder.id, type: 'folder' }));
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setDragOverFolder(folder.id);
-                        }}
-                        onDragLeave={(e) => {
-                          e.preventDefault();
-                          setDragOverFolder(null);
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setDragOverFolder(null);
-                          const data = e.dataTransfer.getData("application/x-drive-item");
-                          if (data) {
-                            const item = JSON.parse(data);
-                            if (item.id !== folder.id) { // Prevent dropping folder into itself
-                              handleMoveItem(item.id, folder.id);
-                            }
-                          }
-                        }}
-                      >
-                        <Folder className={`w-5 h-5 text-zinc-500 group-hover:text-white transition-colors ${dragOverFolder === folder.id ? 'text-red-500' : ''}`} />
-                        <span className="text-sm text-zinc-300 font-medium truncate group-hover:text-white">{folder.name}</span>
-                      </motion.div>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                      <ContextMenuItem onClick={() => handleFolderClick(folder)}>
-                        <FolderOpen className="mr-2 h-4 w-4" /> Abrir
-                      </ContextMenuItem>
-                      <ContextMenuItem onClick={() => openRenameDialog(folder)}>
-                        <Pencil className="mr-2 h-4 w-4" /> Renomear
-                      </ContextMenuItem>
-                      <ContextMenuSeparator className="bg-zinc-800" />
-                      <ContextMenuItem
-                        className="text-red-600 focus:text-red-500"
-                        onClick={() => handleDelete(folder.id, folder.name)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Files List */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <HardDrive className="w-5 h-5 text-zinc-500" />
-              <h3 className="brick-title text-md uppercase tracking-tighter text-white">
-                Arquivos
-              </h3>
-              <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest">
-                {files.length} arquivo{files.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-
-            {files.length === 0 && folders.length === 0 ? (
-              <div className="glass-panel border border-zinc-800/30 rounded-none p-12 text-center"
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setIsCreateFolderOpen(true);
-                }}
-              >
-                <div className="w-16 h-16 bg-zinc-900/50 flex items-center justify-center mx-auto mb-4">
-                  <File className="w-8 h-8 text-zinc-600" />
+              {/* Upload Progress */}
+              {Object.keys(uploadProgress).length > 0 && (
+                <div className="glass-panel border border-zinc-800/30 rounded-none p-6">
+                  <h3 className="brick-title text-md uppercase tracking-tighter text-white mb-4">
+                    Uploads em Progresso
+                  </h3>
+                  <div className="space-y-3">
+                    {Object.entries(uploadProgress).map(([id, file]) => (
+                      <div key={id} className="flex items-center gap-3">
+                        {file.status === "uploading" && (
+                          <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                        )}
+                        {file.status === "success" && (
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        )}
+                        {file.status === "error" && (
+                          <AlertCircle className="w-4 h-4 text-red-500" />
+                        )}
+                        <span className="text-sm text-zinc-400 flex-1">{file.name}</span>
+                        {file.error && (
+                          <span className="text-xs text-red-500">{file.error}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <p className="brick-tech text-[10px] text-zinc-500 uppercase tracking-widest mb-2">
-                  Esta pasta está vazia
-                </p>
-                <Button variant="link" onClick={() => setIsCreateFolderOpen(true)} className="text-red-500 p-0 h-auto text-xs">
-                  Criar uma pasta nova
-                </Button>
-              </div>
-            ) : viewMode === "list" ? (
-              <div className="space-y-2">
-                {files.map((file, index) => {
-                  const FileIcon = getFileIcon(file.mimeType);
-                  return (
-                    <ContextMenu key={file.id}>
-                      <ContextMenuTrigger>
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className={`glass-panel border rounded-none p-4 transition-all group ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
-                            }`}
-                          onClick={(e) => toggleSelection(e, file.id)}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
-                          }}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-zinc-900/50 flex items-center justify-center flex-shrink-0">
-                              <FileIcon className="w-5 h-5 text-zinc-500" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="brick-title text-sm text-white truncate">
-                                {file.name}
-                              </h4>
-                              <div className="flex items-center gap-4 mt-1">
-                                <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest">
-                                  {formatFileSize(file.size)}
-                                </span>
-                                <span className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest">
-                                  {new Date(file.createdTime).toLocaleDateString("pt-BR")}
-                                </span>
+              )}
+
+              {/* Folders Section */}
+              {folders.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="brick-title text-xs text-zinc-500 uppercase tracking-widest font-bold">
+                    Pastas
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {folders.map((folder) => (
+                      <ContextMenu key={folder.id}>
+                        <ContextMenuTrigger>
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className={`glass-panel border rounded-none p-4 flex items-center gap-3 cursor-pointer transition-all group ${selectedIds.has(folder.id) ? 'bg-white/10 border-red-600' : 'hover:bg-zinc-900/50 border-zinc-800/30 hover:border-zinc-700'
+                              } ${dragOverFolder === folder.id ? 'border-red-600 bg-red-900/10' : ''}`}
+                            onClick={(e) => toggleSelection(e, folder.id)}
+                            onDoubleClick={() => handleFolderClick(folder)}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: folder.id, type: 'folder' }));
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setDragOverFolder(folder.id);
+                            }}
+                            onDragLeave={(e) => {
+                              e.preventDefault();
+                              setDragOverFolder(null);
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setDragOverFolder(null);
+                              const data = e.dataTransfer.getData("application/x-drive-item");
+                              if (data) {
+                                const item = JSON.parse(data);
+                                if (item.id !== folder.id) { // Prevent dropping folder into itself
+                                  handleMoveItem(item.id, folder.id);
+                                }
+                              }
+                            }}
+                          >
+                            <Folder className={`w-5 h-5 text-zinc-500 group-hover:text-white transition-colors ${dragOverFolder === folder.id ? 'text-red-500' : ''}`} />
+                            <span className="text-sm text-zinc-300 font-medium truncate group-hover:text-white">{folder.name}</span>
+                          </motion.div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                          <ContextMenuItem onClick={() => handleFolderClick(folder)}>
+                            <FolderOpen className="mr-2 h-4 w-4" /> Abrir
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => handleShare(folder)}>
+                            <Share2 className="mr-2 h-4 w-4" /> Compartilhar
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => openRenameDialog(folder)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Renomear
+                          </ContextMenuItem>
+                          <ContextMenuSeparator className="bg-zinc-800" />
+                          <ContextMenuItem
+                            className="text-red-600 focus:text-red-500"
+                            onClick={() => handleDelete(folder.id, folder.name)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Files List */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <HardDrive className="w-5 h-5 text-zinc-500" />
+                  <h3 className="brick-title text-md uppercase tracking-tighter text-white">
+                    Arquivos
+                  </h3>
+                  <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest">
+                    {files.length} arquivo{files.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {files.length === 0 && folders.length === 0 ? (
+                  <div className="glass-panel border border-zinc-800/30 rounded-none p-12 text-center"
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setIsCreateFolderOpen(true);
+                    }}
+                  >
+                    <div className="w-16 h-16 bg-zinc-900/50 flex items-center justify-center mx-auto mb-4">
+                      <File className="w-8 h-8 text-zinc-600" />
+                    </div>
+                    <p className="brick-tech text-[10px] text-zinc-500 uppercase tracking-widest mb-2">
+                      Esta pasta está vazia
+                    </p>
+                    <Button variant="link" onClick={() => setIsCreateFolderOpen(true)} className="text-red-500 p-0 h-auto text-xs">
+                      Criar uma pasta nova
+                    </Button>
+                  </div>
+                ) : viewMode === "list" ? (
+                  <div className="space-y-2">
+                    {files.map((file, index) => {
+                      const FileIcon = getFileIcon(file.mimeType);
+                      return (
+                        <ContextMenu key={file.id}>
+                          <ContextMenuTrigger>
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.05 }}
+                              className={`glass-panel border rounded-none p-4 transition-all group ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
+                                }`}
+                              onClick={(e) => toggleSelection(e, file.id)}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
+                              }}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-zinc-900/50 flex items-center justify-center flex-shrink-0">
+                                  <FileIcon className="w-5 h-5 text-zinc-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="brick-title text-sm text-white truncate">
+                                    {file.name}
+                                  </h4>
+                                  <div className="flex items-center gap-4 mt-1">
+                                    <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest">
+                                      {formatFileSize(file.size)}
+                                    </span>
+                                    <span className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest">
+                                      {new Date(file.createdTime).toLocaleDateString("pt-BR")}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => { e.stopPropagation(); window.open(file.webViewLink, "_blank"); }}
+                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }}
+                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => { e.stopPropagation(); window.open(file.webViewLink, "_blank"); }}
-                                className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                              >
-                                <Download className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }}
-                                className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                        <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
-                          <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => openRenameDialog(file)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Renomear
-                        </ContextMenuItem>
-                        <ContextMenuSeparator className="bg-zinc-800" />
-                        <ContextMenuItem
-                          className="text-red-600 focus:text-red-500"
-                          onClick={() => handleDelete(file.id, file.name)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  );
-                })}
+                            </motion.div>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                            <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
+                              <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => handleShare(file)}>
+                              <Share2 className="mr-2 h-4 w-4" /> Compartilhar
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => openRenameDialog(file)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Renomear
+                            </ContextMenuItem>
+                            <ContextMenuSeparator className="bg-zinc-800" />
+                            <ContextMenuItem
+                              className="text-red-600 focus:text-red-500"
+                              onClick={() => handleDelete(file.id, file.name)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {files.map((file, index) => {
+                      const FileIcon = getFileIcon(file.mimeType);
+                      return (
+                        <ContextMenu key={file.id}>
+                          <ContextMenuTrigger>
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: index * 0.05 }}
+                              className={`glass-panel border rounded-none p-4 transition-all group ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
+                                }`}
+                              onClick={(e) => toggleSelection(e, file.id)}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
+                              }}
+                            >
+                              <div className="flex flex-col gap-3">
+                                <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center">
+                                  {file.thumbnailLink ? (
+                                    <img
+                                      src={file.thumbnailLink}
+                                      alt={file.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <FileIcon className="w-12 h-12 text-zinc-500" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="brick-title text-xs text-white truncate mb-2">
+                                    {file.name}
+                                  </h4>
+                                  <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest block">
+                                    {formatFileSize(file.size)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pt-2 border-t border-zinc-800/30">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => window.open(file.webViewLink, "_blank")}
+                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800 flex-1"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDelete(file.id, file.name)}
+                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 flex-1"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                            <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
+                              <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => handleShare(file)}>
+                              <Share2 className="mr-2 h-4 w-4" /> Compartilhar
+                            </ContextMenuItem>
+                            <ContextMenuItem onClick={() => openRenameDialog(file)}>
+                              <Pencil className="mr-2 h-4 w-4" /> Renomear
+                            </ContextMenuItem>
+                            <ContextMenuSeparator className="bg-zinc-800" />
+                            <ContextMenuItem
+                              className="text-red-600 focus:text-red-500"
+                              onClick={() => handleDelete(file.id, file.name)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {files.map((file, index) => {
-                  const FileIcon = getFileIcon(file.mimeType);
-                  return (
-                    <ContextMenu key={file.id}>
-                      <ContextMenuTrigger>
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: index * 0.05 }}
-                          className={`glass-panel border rounded-none p-4 transition-all group ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
-                            }`}
-                          onClick={(e) => toggleSelection(e, file.id)}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
-                          }}
-                        >
-                          <div className="flex flex-col gap-3">
-                            <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center">
-                              {file.thumbnailLink ? (
-                                <img
-                                  src={file.thumbnailLink}
-                                  alt={file.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <FileIcon className="w-12 h-12 text-zinc-500" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="brick-title text-xs text-white truncate mb-2">
-                                {file.name}
-                              </h4>
-                              <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest block">
-                                {formatFileSize(file.size)}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity pt-2 border-t border-zinc-800/30">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => window.open(file.webViewLink, "_blank")}
-                                className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800 flex-1"
-                              >
-                                <Download className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDelete(file.id, file.name)}
-                                className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 flex-1"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                        <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
-                          <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
-                        </ContextMenuItem>
-                        <ContextMenuItem onClick={() => openRenameDialog(file)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Renomear
-                        </ContextMenuItem>
-                        <ContextMenuSeparator className="bg-zinc-800" />
-                        <ContextMenuItem
-                          className="text-red-600 focus:text-red-500"
-                          onClick={() => handleDelete(file.id, file.name)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+            <ContextMenuItem
+              className="focus:bg-red-600 focus:text-white cursor-pointer"
+              onClick={() => setIsCreateFolderOpen(true)}
+            >
+              <FolderPlus className="w-4 h-4 mr-2" />
+              Nova Pasta
+            </ContextMenuItem>
+            <ContextMenuItem
+              className="focus:bg-red-600 focus:text-white cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Fazer Upload
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </div>
 
       {/* Create Folder Dialog */}
@@ -814,6 +924,41 @@ export function StoragePage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Share Link Dialog */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="brick-title text-xl uppercase tracking-tighter text-white">
+              Link de Compartilhamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold">
+              Link público criado! Copie o link abaixo:
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                readOnly
+                value={shareLink}
+                className="bg-zinc-900 border-zinc-800 rounded-none text-xs text-zinc-300 focus:ring-red-600 h-10"
+                onClick={(e) => e.target.select()}
+              />
+              <Button
+                variant="ghost"
+                className="bg-red-600 hover:bg-red-700 text-white rounded-none h-10 px-4 text-[10px] font-black uppercase tracking-widest"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareLink);
+                  toast.success("Link copiado!");
+                }}
+              >
+                Copiar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

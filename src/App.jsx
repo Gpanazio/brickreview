@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import {
   Home,
   Film,
-  Upload,
-  FolderOpen,
   Settings,
   User,
   Search,
@@ -23,9 +21,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,20 +39,22 @@ import { Label } from "@/components/ui/label";
 import "./App.css";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { UploadProvider } from "./context/UploadContext";
-
-const APP_VERSION = "1.1.1-flex-fix";
-console.log("BRICK Review Version:", APP_VERSION);
-
-import { LoginPage } from "./components/LoginPage";
-import { ProjectDetailPage } from "./components/projects/ProjectDetailPage";
-import { ProjectSettingsModal } from "./components/projects/ProjectSettingsModal";
-import { ProjectListItem } from "./components/projects/ProjectListItem";
-import { ShareViewPage } from "./components/projects/ShareViewPage";
-import { SettingsPage } from "./components/settings/SettingsPage";
-import { StoragePage } from "./components/storage/StoragePage";
-import { PortfolioPage } from "./components/portfolio/PortfolioPage";
 import { Toaster } from "./components/ui/sonner";
 import { ProjectCoverPlaceholder } from "./components/ui/ProjectCoverPlaceholder";
+import { ProjectSettingsModal } from "./components/projects/ProjectSettingsModal";
+import { ProjectListItem } from "./components/projects/ProjectListItem";
+import { PageLoader } from "./components/ui/PageLoader";
+
+const APP_VERSION = "1.2.0-perf";
+console.log("BRICK Review Version:", APP_VERSION);
+
+// Lazy loaded pages for code splitting
+const LoginPage = lazy(() => import("./components/LoginPage").then(m => ({ default: m.LoginPage })));
+const ProjectDetailPage = lazy(() => import("./components/projects/ProjectDetailPage").then(m => ({ default: m.ProjectDetailPage })));
+const ShareViewPage = lazy(() => import("./components/projects/ShareViewPage").then(m => ({ default: m.ShareViewPage })));
+const SettingsPage = lazy(() => import("./components/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const StoragePage = lazy(() => import("./components/storage/StoragePage").then(m => ({ default: m.StoragePage })));
+const PortfolioPage = lazy(() => import("./components/portfolio/PortfolioPage").then(m => ({ default: m.PortfolioPage })));
 
 // Helper para identificar URLs padrão antigas
 const isDefaultUrl = (url) => {
@@ -68,15 +66,16 @@ function App() {
     <AuthProvider>
       <UploadProvider>
         <BrowserRouter>
-          <Routes>
-            {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
-            <Route path="/share/:token" element={<ShareViewPage />} />
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
+              <Route path="/share/:token" element={<ShareViewPage />} />
 
-            {/* Rotas Principais do App */}
-            <Route path="/*" element={<AppContent />} />
-          </Routes>
+              {/* Rotas Principais do App */}
+              <Route path="/*" element={<AppContent />} />
+            </Routes>
+          </Suspense>
           <Toaster position="top-right" />
-
         </BrowserRouter>
       </UploadProvider>
     </AuthProvider>
@@ -101,57 +100,25 @@ function AppContent() {
   }
 
   return (
-    <AnimatePresence mode="wait">
+    <>
       {!user ? (
-        <motion.div
-          key="login"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <div className="animate-fade-in">
           <Routes location={location} key={location.pathname}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
-        </motion.div>
+        </div>
       ) : (
-        <motion.div
-          key="app"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex min-h-screen bg-[#0d0d0e] text-white relative overflow-hidden font-sans"
-        >
-          {/* Background Accents for Glassmorphism */}
-          <motion.div
-            animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.04, 0.06, 0.04],
-            }}
-            transition={{ duration: 12, repeat: Infinity }}
-            className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[180px] rounded-full pointer-events-none"
-          />
-          <motion.div
-            animate={{
-              scale: [1, 1.3, 1],
-              opacity: [0.03, 0.06, 0.03],
-            }}
-            transition={{ duration: 20, repeat: Infinity }}
-            className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full"
-          />
+        <div className="flex min-h-screen bg-[#0d0d0e] text-white relative overflow-hidden font-sans animate-fade-in">
+          {/* Background Accents for Glassmorphism - Static for performance */}
+          <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-red-600/10 blur-[180px] rounded-full pointer-events-none opacity-[0.05]" />
+          <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full opacity-[0.04]" />
 
           <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
           <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen bg-black/20 pb-20 md:pb-0">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
-                className="h-full"
-              >
+            <Suspense fallback={<PageLoader />}>
+              <div key={location.pathname} className="h-full animate-fade-in">
                 <Routes location={location}>
                   <Route path="/" element={<ProjectsPage />} />
                   <Route path="/project/:id" element={<ProjectDetailPage />} />
@@ -163,12 +130,12 @@ function AppContent() {
                   <Route path="/archived" element={<ArchivedPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            </Suspense>
           </main>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }
 
@@ -473,6 +440,7 @@ function ProjectsPage() {
                     <img
                       src={coverUrl}
                       alt={project.name}
+                      loading="lazy"
                       className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
                     />
                   ) : (
@@ -728,6 +696,7 @@ function ProjectCard({ project, onProjectUpdate }) {
               <img
                 src={coverUrl}
                 alt={project.name}
+                loading="lazy"
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
                 onError={() => setImageError(true)}
               />

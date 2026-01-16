@@ -48,6 +48,7 @@ class GoogleDriveManager {
 
   /**
    * Upload file to Google Drive
+   * If a file with the same name exists in the target folder, adds folder name suffix
    */
   async uploadFile(fileName, fileBuffer, mimeType, parentId = null) {
     if (!this.isEnabled()) {
@@ -55,9 +56,56 @@ class GoogleDriveManager {
     }
 
     try {
+      const targetFolder = parentId || this.folderId;
+
+      // Check for existing file with same name in target folder
+      const existingFiles = await this.drive.files.list({
+        q: `name='${fileName.replace(/'/g, "\\'")}' and '${targetFolder}' in parents and trashed=false`,
+        fields: 'files(id, name)',
+        pageSize: 1,
+      });
+
+      let finalFileName = fileName;
+
+      // If duplicate exists, add folder name suffix
+      if (existingFiles.data.files && existingFiles.data.files.length > 0) {
+        // Get folder name for suffix
+        let folderName = 'copy';
+        try {
+          const folderMetadata = await this.drive.files.get({
+            fileId: targetFolder,
+            fields: 'name',
+          });
+          folderName = folderMetadata.data.name || 'copy';
+        } catch (e) {
+          // Use default if can't get folder name
+        }
+
+        // Generate unique filename: name_FolderName.ext or name_FolderName_timestamp.ext
+        const ext = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '';
+        const baseName = ext ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
+        const sanitizedFolderName = folderName.replace(/[^a-zA-Z0-9]/g, '');
+
+        finalFileName = `${baseName}_${sanitizedFolderName}${ext}`;
+
+        // Check if this new name also exists
+        const checkNewName = await this.drive.files.list({
+          q: `name='${finalFileName.replace(/'/g, "\\'")}' and '${targetFolder}' in parents and trashed=false`,
+          fields: 'files(id)',
+          pageSize: 1,
+        });
+
+        // If still exists, add timestamp
+        if (checkNewName.data.files && checkNewName.data.files.length > 0) {
+          finalFileName = `${baseName}_${sanitizedFolderName}_${Date.now()}${ext}`;
+        }
+
+        console.log(`📁 Duplicate detected, renamed to: ${finalFileName}`);
+      }
+
       const fileMetadata = {
-        name: fileName,
-        parents: [parentId || this.folderId],
+        name: finalFileName,
+        parents: [targetFolder],
       };
 
       const media = {
@@ -71,7 +119,7 @@ class GoogleDriveManager {
         fields: 'id, name, size, webViewLink, webContentLink',
       });
 
-      console.log(`✅ Uploaded to Drive: ${fileName} (${response.data.id})`);
+      console.log(`✅ Uploaded to Drive: ${finalFileName} (${response.data.id})`);
       return response.data;
     } catch (error) {
       console.error('❌ Failed to upload to Google Drive:', error);
@@ -225,6 +273,42 @@ class GoogleDriveManager {
       return response.data;
     } catch (error) {
       console.error('❌ Failed to rename file in Google Drive:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Share a file or folder publicly and return the share link
+   */
+  async shareFile(fileId) {
+    if (!this.isEnabled()) {
+      throw new Error('Google Drive is not enabled');
+    }
+
+    try {
+      // Create public permission
+      await this.drive.permissions.create({
+        fileId: fileId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+      });
+
+      // Get the file metadata with webViewLink
+      const response = await this.drive.files.get({
+        fileId: fileId,
+        fields: 'id, name, webViewLink',
+      });
+
+      console.log(`✅ Shared file ${fileId} publicly`);
+      return {
+        id: response.data.id,
+        name: response.data.name,
+        shareLink: response.data.webViewLink,
+      };
+    } catch (error) {
+      console.error('❌ Failed to share file in Google Drive:', error);
       throw error;
     }
   }
