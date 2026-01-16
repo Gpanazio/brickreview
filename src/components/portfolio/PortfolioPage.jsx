@@ -110,7 +110,7 @@ export function PortfolioPage() {
       setCopiedLink(type);
       toast.success("Link copiado!");
       setTimeout(() => setCopiedLink(null), 2000);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Erro ao copiar link");
     }
   };
@@ -236,8 +236,8 @@ export function PortfolioPage() {
             <Button
               onClick={() => setViewMode("list")}
               className={`w-10 h-10 p-0 border rounded-none transition-colors ${viewMode === "list"
-                  ? "bg-red-600 border-red-600 text-white"
-                  : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                ? "bg-red-600 border-red-600 text-white"
+                : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
                 }`}
             >
               <List className="w-5 h-5" />
@@ -245,8 +245,8 @@ export function PortfolioPage() {
             <Button
               onClick={() => setViewMode("grid")}
               className={`w-10 h-10 p-0 border rounded-none transition-colors ${viewMode === "grid"
-                  ? "bg-red-600 border-red-600 text-white"
-                  : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                ? "bg-red-600 border-red-600 text-white"
+                : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
                 }`}
             >
               <Grid className="w-5 h-5" />

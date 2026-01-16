@@ -121,6 +121,7 @@ export function ProjectDetailPage() {
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionBox, setSelectionBox] = useState(null);
+  const selectionBoxRef = useRef(selectionBox);
   const containerRef = useRef(null);
 
   const handleDownloadAll = async () => {
@@ -192,7 +193,7 @@ export function ProjectDetailPage() {
     setSelectedItems(new Set());
   };
 
-  const updateSelection = (e) => {
+  const updateSelection = useCallback((e) => {
     if (!isSelecting || !containerRef.current) return;
 
     const container = containerRef.current;
@@ -201,19 +202,20 @@ export function ProjectDetailPage() {
     const y = e.clientY - rect.top + container.scrollTop;
 
     setSelectionBox((prev) => ({ ...prev, endX: x, endY: y }));
-  };
+  }, [isSelecting]);
 
-  const endSelection = () => {
+  const endSelection = useCallback(() => {
     if (!isSelecting) return;
     setIsSelecting(false);
 
     // Calculate final selection
-    if (!selectionBox || !containerRef.current) return;
+    const box = selectionBoxRef.current;
+    if (!box || !containerRef.current) return;
 
-    const left = Math.min(selectionBox.startX, selectionBox.endX);
-    const top = Math.min(selectionBox.startY, selectionBox.endY);
-    const width = Math.abs(selectionBox.startX - selectionBox.endX);
-    const height = Math.abs(selectionBox.startY - selectionBox.endY);
+    const left = Math.min(box.startX, box.endX);
+    const top = Math.min(box.startY, box.endY);
+    const width = Math.abs(box.startX - box.endX);
+    const height = Math.abs(box.startY - box.endY);
 
     // If box is too small, treat as click and clear selection (unless shift key?)
     if (width < 5 && height < 5) {
@@ -245,7 +247,11 @@ export function ProjectDetailPage() {
 
     setSelectedItems(newSelected);
     setSelectionBox(null);
-  };
+  }, [isSelecting]);
+
+  useEffect(() => {
+    selectionBoxRef.current = selectionBox;
+  }, [selectionBox]);
 
   useEffect(() => {
     if (isSelecting) {
@@ -256,7 +262,7 @@ export function ProjectDetailPage() {
       window.removeEventListener("mousemove", updateSelection);
       window.removeEventListener("mouseup", endSelection);
     };
-  }, [isSelecting]);
+  }, [isSelecting, updateSelection, endSelection]);
 
   const breadcrumbs = useMemo(() => {
     const path = [];
@@ -892,21 +898,19 @@ export function ProjectDetailPage() {
             <div className="flex bg-zinc-950/50 p-1 border border-zinc-800/50">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${
-                  viewMode === "grid"
+                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "grid"
                     ? "bg-red-600 text-white"
                     : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                  }`}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setViewMode("folders")}
-                className={`w-9 h-9 flex items-center justify-center transition-all ${
-                  viewMode === "folders"
+                className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "folders"
                     ? "bg-red-600 text-white"
                     : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                  }`}
               >
                 <FolderTree className="w-4 h-4" />
               </button>
@@ -1032,10 +1036,10 @@ export function ProjectDetailPage() {
                   exit={{ opacity: 0 }}
                 >
                   {currentLevelFolders.length === 0 &&
-                  currentLevelVideos.length === 0 &&
-                  currentLevelFiles.length === 0 &&
-                  uploadQueue.length === 0 &&
-                  !currentFolderId ? (
+                    currentLevelVideos.length === 0 &&
+                    currentLevelFiles.length === 0 &&
+                    uploadQueue.length === 0 &&
+                    !currentFolderId ? (
                     <div className="flex flex-col items-center justify-center h-80 border border-dashed border-zinc-800 bg-zinc-950/10">
                       <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-6">
                         <FileVideo className="w-8 h-8 text-zinc-700" />
@@ -1472,9 +1476,8 @@ const FolderCard = memo(
               ) : (
                 <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px] bg-zinc-950">
                   <div
-                    className={`relative bg-zinc-900 overflow-hidden ${
-                      previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
-                    }`}
+                    className={`relative bg-zinc-900 overflow-hidden ${previews.length === 1 ? "col-span-2 row-span-2" : "col-span-1 row-span-2"
+                      }`}
                   >
                     <img
                       src={previews[0]}
@@ -1531,7 +1534,7 @@ const FolderCard = memo(
                       ? `${folder.videos_count} vídeo${folder.videos_count > 1 ? "s" : ""}`
                       : ""}
                     {folder.videos_count > 0 &&
-                    (folder.subfolders_count > 0 || folder.files_count > 0)
+                      (folder.subfolders_count > 0 || folder.files_count > 0)
                       ? ", "
                       : ""}
                     {folder.subfolders_count > 0
@@ -1865,11 +1868,9 @@ const VideoCard = memo(
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${
-                isDragging ? "opacity-50 scale-95" : ""
-              } ${
-                isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
-              } ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
+              className={`group glass-card border-none rounded-none overflow-hidden cursor-pointer relative flex flex-col h-full transition-all ${isDragging ? "opacity-50 scale-95" : ""
+                } ${isDropTarget ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-black scale-105" : ""
+                } ${isSelected ? "ring-2 ring-red-600 bg-red-900/10" : ""}`}
               style={{ zIndex: 1 }}
             >
               {/* Indicador de Drop para criar versão */}

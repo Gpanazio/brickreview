@@ -9,7 +9,7 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
 
 const router = express.Router();
 const upload = multer({
@@ -27,6 +27,8 @@ const unlinkAsync = promisify(fs.unlink);
 router.post('/upload', authenticateToken, upload.single('video'), async (req, res) => {
 
 
+  let tempFile;
+
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No video file provided' });
@@ -40,7 +42,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
     // Sanitize filename to prevent path traversal
     const safeFilename = path.basename(req.file.originalname);
-    const tempFile = path.join(tempDir, `${Date.now()}-${safeFilename}`);
+    tempFile = path.join(tempDir, `${Date.now()}-${safeFilename}`);
 
     // Save to temp file for ffmpeg processing
     await fs.promises.writeFile(tempFile, req.file.buffer);

@@ -11,7 +11,9 @@ function findExecutable(name, envVar) {
   try {
     const path = execSync(`which ${name}`, { encoding: "utf8" }).trim();
     if (path) return path;
-  } catch { }
+  } catch {
+    // Ignore error
+  }
 
   const commonPaths = [`/usr/bin/${name}`, `/usr/local/bin/${name}`, `/opt/homebrew/bin/${name}`];
   for (const path of commonPaths) {
@@ -24,7 +26,9 @@ function findExecutable(name, envVar) {
       timeout: 5000,
     }).trim();
     if (nixPath) return nixPath;
-  } catch { }
+  } catch {
+    // Ignore error
+  }
 
   console.warn(`⚠️  ${name} não encontrado no sistema`);
   return null;
