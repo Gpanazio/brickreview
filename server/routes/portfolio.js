@@ -25,7 +25,7 @@ const unlinkAsync = promisify(fs.unlink);
  * @access Private
  */
 router.post('/upload', authenticateToken, upload.single('video'), async (req, res) => {
-  const tempFile = path.join(process.cwd(), 'temp-uploads', `${Date.now()}-${req.file.originalname}`);
+
 
   try {
     if (!req.file) {
@@ -34,6 +34,13 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
     const { title, description } = req.body;
     const bucketId = req.body.bucketId || 'primary';
+
+    const tempDir = path.join(process.cwd(), 'temp-uploads');
+    await fs.promises.mkdir(tempDir, { recursive: true });
+    
+    // Sanitize filename to prevent path traversal
+    const safeFilename = path.basename(req.file.originalname);
+    const tempFile = path.join(tempDir, `${Date.now()}-${safeFilename}`);
 
     // Save to temp file for ffmpeg processing
     await fs.promises.writeFile(tempFile, req.file.buffer);
@@ -59,7 +66,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       throw new Error(`Bucket ${bucketId} not found`);
     }
 
-    const fileName = `portfolio/${Date.now()}-${req.file.originalname}`;
+    const fileName = `portfolio/${Date.now()}-${safeFilename}`;
     const uploadCommand = new PutObjectCommand({
       Bucket: bucket.bucketName,
       Key: fileName,
@@ -71,7 +78,9 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
     // Generate thumbnail
     const thumbnailPath = `portfolio/thumbs/${Date.now()}-thumb.jpg`;
-    const thumbnailFile = path.join(process.cwd(), 'thumbnails', `${Date.now()}-thumb.jpg`);
+    const thumbnailDir = path.join(process.cwd(), 'thumbnails');
+    await fs.promises.mkdir(thumbnailDir, { recursive: true });
+    const thumbnailFile = path.join(thumbnailDir, `${Date.now()}-thumb.jpg`);
 
     await new Promise((resolve, reject) => {
       ffmpeg(tempFile)
@@ -129,13 +138,8 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
 
     const video = result.rows[0];
 
-    // Generate embed code
+    // Generate embed code (for response only, not stored)
     const embedCode = `<iframe src="${process.env.APP_URL || 'http://localhost:5000'}/portfolio/embed/${video.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
-
-    await pool.query(
-      'UPDATE portfolio_videos SET embed_code = $1 WHERE id = $2',
-      [embedCode, video.id]
-    );
 
     res.json({
       success: true,
@@ -149,9 +153,13 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
     console.error('Portfolio upload error:', error);
 
     // Clean up temp file on error
+    // Clean up temp files on error
     try {
-      if (fs.existsSync(tempFile)) {
+      if (typeof tempFile !== 'undefined' && fs.existsSync(tempFile)) {
         await unlinkAsync(tempFile);
+      }
+      if (typeof thumbnailFile !== 'undefined' && fs.existsSync(thumbnailFile)) {
+        await unlinkAsync(thumbnailFile);
       }
     } catch (cleanupError) {
       console.error('Cleanup error:', cleanupError);

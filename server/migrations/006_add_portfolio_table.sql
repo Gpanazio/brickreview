@@ -53,3 +53,10 @@ SELECT
   END as file_size_formatted
 FROM portfolio_videos pv
 WHERE pv.deleted_at IS NULL;
+
+-- Trigger to update updated_at automatically
+DROP TRIGGER IF EXISTS update_portfolio_videos_updated_at ON portfolio_videos;
+CREATE TRIGGER update_portfolio_videos_updated_at
+  BEFORE UPDATE ON portfolio_videos
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();

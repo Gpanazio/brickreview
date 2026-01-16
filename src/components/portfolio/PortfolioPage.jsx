@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,14 +33,10 @@ export function PortfolioPage() {
   const [viewMode, setViewMode] = useState("grid");
   const [editingVideo, setEditingVideo] = useState(null);
   const [copiedLink, setCopiedLink] = useState(null);
+  const [deletingVideo, setDeletingVideo] = useState(null);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    fetchVideos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     try {
       const response = await fetch("/api/portfolio/videos", {
         headers: { Authorization: `Bearer ${token}` },
@@ -58,7 +54,11 @@ export function PortfolioPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchVideos();
+  }, [fetchVideos]);
 
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
@@ -115,13 +115,15 @@ export function PortfolioPage() {
     }
   };
 
-  const handleDelete = async (videoId, title) => {
-    if (!confirm(`Tem certeza que deseja excluir "${title}"?`)) {
-      return;
-    }
+  const handleDeleteClick = (video) => {
+    setDeletingVideo(video);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingVideo) return;
 
     try {
-      const response = await fetch(`/api/portfolio/videos/${videoId}`, {
+      const response = await fetch(`/api/portfolio/videos/${deletingVideo.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -129,7 +131,10 @@ export function PortfolioPage() {
       if (response.ok) {
         toast.success("Vídeo excluído com sucesso!");
         fetchVideos();
-        if (showModal) setShowModal(false);
+        setDeletingVideo(null);
+        if (showModal && selectedVideo?.id === deletingVideo.id) {
+          setShowModal(false);
+        }
       } else {
         toast.error("Erro ao excluir vídeo");
       }
@@ -230,21 +235,19 @@ export function PortfolioPage() {
           <div className="flex items-center gap-2">
             <Button
               onClick={() => setViewMode("list")}
-              className={`w-10 h-10 p-0 border rounded-none transition-colors ${
-                viewMode === "list"
+              className={`w-10 h-10 p-0 border rounded-none transition-colors ${viewMode === "list"
                   ? "bg-red-600 border-red-600 text-white"
                   : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
-              }`}
+                }`}
             >
               <List className="w-5 h-5" />
             </Button>
             <Button
               onClick={() => setViewMode("grid")}
-              className={`w-10 h-10 p-0 border rounded-none transition-colors ${
-                viewMode === "grid"
+              className={`w-10 h-10 p-0 border rounded-none transition-colors ${viewMode === "grid"
                   ? "bg-red-600 border-red-600 text-white"
                   : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
-              }`}
+                }`}
             >
               <Grid className="w-5 h-5" />
             </Button>
@@ -345,7 +348,7 @@ export function PortfolioPage() {
                         variant="ghost"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDelete(video.id, video.title);
+                          handleDeleteClick(video);
                         }}
                         className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
                       >
@@ -498,12 +501,12 @@ export function PortfolioPage() {
                       <div className="relative">
                         <textarea
                           readOnly
-                          value={selectedVideo.embed_code}
+                          value={`<iframe src="${window.location.origin}/portfolio/embed/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
                           className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 h-24 resize-none pr-10"
                         />
                         <button
                           onClick={() =>
-                            handleCopyLink(selectedVideo.embed_code, "embed")
+                            handleCopyLink(`<iframe src="${window.location.origin}/portfolio/embed/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`, "embed")
                           }
                           className="absolute right-2 top-2 text-zinc-400 hover:text-white"
                         >
@@ -620,6 +623,50 @@ export function PortfolioPage() {
                   )}
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deletingVideo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+            onClick={() => setDeletingVideo(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-panel border border-zinc-800/50 rounded-none max-w-sm w-full p-6 text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Trash2 className="w-12 h-12 text-red-600 mx-auto mb-4" />
+              <h2 className="brick-title text-lg text-white mb-2">
+                Excluir Vídeo?
+              </h2>
+              <p className="text-sm text-zinc-400 mb-6">
+                Tem certeza que deseja excluir &ldquo;{deletingVideo.title}&rdquo;? Esta ação não pode ser desfeita.
+              </p>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setDeletingVideo(null)}
+                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white border-none"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={confirmDelete}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white border-none"
+                >
+                  Excluir
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}
