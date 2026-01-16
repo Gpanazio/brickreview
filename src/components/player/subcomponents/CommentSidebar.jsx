@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useAuth } from "../../../hooks/useAuth";
 import { useVideo } from "../../../context/VideoContext";
 import { Button } from "@/components/ui/button";
