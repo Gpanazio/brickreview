@@ -31,6 +31,35 @@ Este documento detalha todas as funcionalidades implementadas no BrickReview.
 
 ---
 
+## 📁 Storage System Integration (Google Drive Style)
+
+### Unified Storage Interface
+Interface moderna e responsiva para gerenciamento de arquivos que espelha a experiência do Google Drive.
+
+### Recursos Principais
+
+#### Gestão de Arquivos Drag & Drop
+- **Visual Feedback**: Overlay escuro com instruções claras ao arrastar arquivos para a janela
+- **Intuitive Move**: Arraste arquivos para pastas ou para os breadcrumbs (navegação) para movê-los
+- **Multi-selection**: Selecione múltiplos itens com Ctrl/Cmd ou arraste do mouse
+
+#### Context Menus (Menu de Botão Direito)
+- **Background**: Clique no fundo vazio para "Nova Pasta" ou "Fazer Upload"
+- **Item Menu**: Clique em arquivos/pastas para "Abrir", "Renomear", "Compartilhar" ou "Excluir"
+- **Grid & List View**: Consistência de menus em ambos os modos de visualização
+
+#### Sistema de Compartilhamento ("Share Link")
+- Gere links públicos instantaneamente para qualquer arquivo ou pasta
+- Feedback visual com Toast notifications
+- Links compatíveis com acesso anônimo (Guest)
+
+#### Navegação Inteligente
+- **Breadcrumbs Interativos**: Clique para navegar ou solte arquivos sobre eles para mover itens
+- **Search & Filter**: Encontre arquivos rapidamente (planejado)
+
+
+---
+
 ## 🎨 Drawing Annotations (Desenhos Frame-by-Frame)
 
 ### O que é

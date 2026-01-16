@@ -1,23 +1,25 @@
 # BrickReview
 
-> ✅ **Nota de Desenvolvimento (v0.7.2):** Projeto em produção estável. Correções de visualização de timeline e UX implementadas. Consulte [CHANGELOG.md](CHANGELOG.md) para detalhes.
+> ✅ **Nota de Desenvolvimento (v0.7.3):** Projeto em produção estável. Melhorias significativas na interface de Storage (UI estilo Google Drive) e sistema de compartilhamento. Consulte [CHANGELOG.md](CHANGELOG.md) para detalhes.
 
 Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (preto/vermelho/branco).
 
 ## 🎯 Funcionalidades
 
+- [x] **Storage UI estilo Google Drive** (drag-drop, context menus, breadcrumbs)
 - ✅ Upload de vídeos via drag-drop
 - ✅ Player customizado com marcações temporais
 - ✅ Comentários frame-by-frame com threads
 - ✅ **Sistema de desenho frame-by-frame** (drawing annotations)
 - ✅ **Comentários de visitantes** (guest comments sem conta)
-- ✅ **Compartilhamento público** com controle de acesso (view/comment)
+- ✅ **Compartilhamento público** de arquivos e pastas via Storage
 - ✅ **Emoji picker** nos comentários
 - ✅ Sistema de aprovação de clientes
 - ✅ Versionamento de arquivos (múltiplas versões por vídeo)
 - ✅ Notificações in-app + email
 - ✅ Cloudflare R2 para storage de vídeos
 - ✅ Railway para banco de dados e API
+- ✅ Integração Híbrida Google Drive (Backup + UI)
 - ✅ Autenticação JWT compartilhada
 
 ## 🚀 Stack Tecnológica
@@ -322,6 +324,13 @@ Implementação robusta em 3 camadas:
 - [ ] Analytics dashboard
 - [ ] Offline support (PWA)
 
+### ✅ v0.7.3 - Storage UI & Sharing (CONCLUÍDO)
+
+- [x] UI estilo Google Drive (Drag & Drop visual, Context Menus)
+- [x] Compartilhamento de links públicos para arquivos e pastas
+- [x] Navegação por breadcrumbs com suporte a drag-and-drop
+- [x] Gerenciamento avançado de arquivos (renomear, mover para raiz)
+
 ## 🚀 Deploy
 
 ### Railway (Recomendado)
@@ -523,7 +532,7 @@ Usa a tabela `master_users` compartilhada com outros sistemas BRICK (brickprojec
 ---
 
 **Status:** ✅ Em produção estável
-**Versão:** 0.7.1
+**Versão:** 0.7.3
 **Licença:** Privado (BRICK Produtora)
 
 ---
