@@ -600,6 +600,13 @@ export function ProjectDetailPage() {
     if (!rawFiles || rawFiles.length === 0) return;
     const filesToUpload = Array.from(rawFiles);
 
+    // Helper to get folder name
+    const getFolderName = (folderId) => {
+      if (!folderId) return "Raiz do Projeto";
+      const folder = folders.find((f) => f.id === folderId);
+      return folder ? folder.name : "Pasta Desconhecida";
+    };
+
     // Check for duplicates
     const duplicates = [];
     for (const file of filesToUpload) {
@@ -607,33 +614,32 @@ export function ProjectDetailPage() {
       const name = file.name;
       const title = name.split(".")[0];
 
-      let exists = false;
+      let existingItem = null;
       if (isVideo) {
-        exists = project?.videos?.some(
-          (v) =>
-            (v.folder_id === currentFolderId || (!currentFolderId && v.folder_id === null)) &&
-            v.title === title
-        );
+        existingItem = project?.videos?.find((v) => v.title === title);
       } else {
-        exists = files.some(
-          (f) =>
-            (f.folder_id === currentFolderId || (!currentFolderId && f.folder_id === null)) &&
-            f.name === name
-        );
+        existingItem = files.find((f) => f.name === name);
       }
 
-      if (exists) duplicates.push(name);
+      if (existingItem) {
+        const location = getFolderName(existingItem.folder_id);
+        duplicates.push(`${name} (em ${location})`);
+      }
     }
 
     if (duplicates.length > 0) {
-      // Ask for confirmation
-      // For now, simpler approach: just show warning and filter out?
-      // Or showing a toaster and stop?
-      // The user said "doesn't warn".
-      const proceed = window.confirm(
-        `Arquivos duplicados encontrados: ${duplicates.join(", ")}. Deseja continuar e criar duplicatas?`
-      );
-      if (!proceed) return;
+      openConfirmDialog({
+        title: "Arquivos duplicados",
+        message: `Os seguintes arquivos já existem no projeto:\n\n${duplicates.join("\n")}\n\nDeseja continuar e criar duplicatas?`,
+        confirmText: "Continuar Upload",
+        cancelText: "Cancelar",
+        variant: "warning",
+        onConfirm: () => {
+          uploadFiles(filesToUpload, id, currentFolderId);
+          if (e?.target) e.target.value = "";
+        },
+      });
+      return;
     }
 
     uploadFiles(filesToUpload, id, currentFolderId);
