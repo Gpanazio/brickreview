@@ -21,6 +21,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 export function PortfolioPage() {
   const navigate = useNavigate();
@@ -29,7 +38,11 @@ export function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [uploadData, setUploadData] = useState({ title: "", description: "" });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
   const [editingVideo, setEditingVideo] = useState(null);
   const [copiedLink, setCopiedLink] = useState(null);
@@ -60,19 +73,51 @@ export function PortfolioPage() {
     fetchVideos();
   }, [fetchVideos]);
 
-  const handleFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
 
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelection(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileSelection = (file) => {
     if (!file.type.startsWith("video/")) {
       toast.error("Por favor, selecione um arquivo de vídeo");
+      return;
+    }
+    setSelectedFile(file);
+    // Auto-fill title if empty
+    if (!uploadData.title) {
+      setUploadData(prev => ({ ...prev, title: file.name.replace(/\.[^/.]+$/, "") }));
+    }
+  };
+
+  const handleUploadSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      toast.error("Selecione um vídeo para enviar");
       return;
     }
 
     setUploading(true);
     const formData = new FormData();
-    formData.append("video", file);
-    formData.append("title", file.name);
+    formData.append("video", selectedFile);
+    formData.append("title", uploadData.title);
+    if (uploadData.description) {
+      formData.append("description", uploadData.description);
+    }
 
     try {
       const response = await fetch("/api/portfolio/upload", {
@@ -83,6 +128,9 @@ export function PortfolioPage() {
 
       if (response.ok) {
         toast.success("Vídeo enviado com sucesso!");
+        setUploadModalOpen(false);
+        setUploadData({ title: "", description: "" });
+        setSelectedFile(null);
         fetchVideos();
       } else {
         const error = await response.json();
@@ -93,11 +141,10 @@ export function PortfolioPage() {
       toast.error("Erro ao fazer upload do vídeo");
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
   };
+
+
 
   const handleVideoClick = (video) => {
     setSelectedVideo(video);
@@ -252,20 +299,125 @@ export function PortfolioPage() {
               <Grid className="w-5 h-5" />
             </Button>
             <Button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="glass-button-primary border-none rounded-none px-6 h-10 font-black uppercase tracking-widest text-xs ml-2"
+              onClick={() => setViewMode("grid")}
+              className={`w-10 h-10 p-0 border rounded-none transition-colors ${viewMode === "grid"
+                ? "bg-red-600 border-red-600 text-white"
+                : "bg-zinc-900/50 border-zinc-800/50 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                }`}
             >
-              <Upload className="w-4 h-4 mr-3" />
-              {uploading ? "Enviando..." : "Fazer Upload"}
+              <Grid className="w-5 h-5" />
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="video/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
+
+            <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className="glass-button-primary border-none rounded-none px-6 h-10 font-black uppercase tracking-widest text-xs ml-2"
+                >
+                  <Upload className="w-4 h-4 mr-3" />
+                  Upload Video
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="brick-title text-2xl tracking-tighter uppercase">
+                    Upload de Vídeo
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleUploadSubmit} className="space-y-6 pt-4">
+
+                  {/* File Drop Zone */}
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${dragActive ? "border-red-500 bg-red-500/10" : "border-zinc-800 hover:border-zinc-700 bg-zinc-900/20"
+                      } ${selectedFile ? "border-green-500/50 bg-green-500/5" : ""}`}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      onChange={(e) => e.target.files?.[0] && handleFileSelection(e.target.files[0])}
+                    />
+
+                    {selectedFile ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                          <Film className="w-6 h-6 text-green-500" />
+                        </div>
+                        <p className="text-sm font-medium text-white truncate max-w-[200px]">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10 mt-2 h-6 text-[10px] uppercase"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFile(null);
+                          }}
+                        >
+                          Remover
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center mb-2">
+                          <Upload className="w-6 h-6 text-zinc-400" />
+                        </div>
+                        <p className="text-sm font-medium text-zinc-300">
+                          Clique para selecionar ou arraste
+                        </p>
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-wider">
+                          MP4, MOV, WebM (Max 500MB)
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">
+                        Título
+                      </Label>
+                      <Input
+                        required
+                        value={uploadData.title}
+                        onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
+                        className="glass-input border-none rounded-none h-10"
+                        placeholder="Ex: Showreel 2024"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">
+                        Descrição (Opcional)
+                      </Label>
+                      <Input
+                        value={uploadData.description}
+                        onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
+                        className="glass-input border-none rounded-none h-10"
+                        placeholder="Detalhes sobre o vídeo..."
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={uploading || !selectedFile}
+                    className="w-full glass-button-primary border-none rounded-none h-12 font-black uppercase tracking-widest"
+                  >
+                    {uploading ? "Enviando..." : "Confirmar Upload"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </header>
@@ -274,22 +426,44 @@ export function PortfolioPage() {
       <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
         <div className="max-w-7xl mx-auto">
           {videos.length === 0 ? (
-            <div className="glass-panel border border-zinc-800/30 rounded-none p-12 text-center">
-              <div className="w-16 h-16 bg-zinc-900/50 flex items-center justify-center mx-auto mb-4">
-                <Film className="w-8 h-8 text-zinc-600" />
-              </div>
-              <p className="brick-tech text-[10px] text-zinc-500 uppercase tracking-widest">
-                Nenhum vídeo no portfolio
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center h-64 border border-zinc-900 bg-zinc-950/20"
+            >
+              <p className="text-zinc-500 uppercase tracking-[0.3em] font-black text-[10px]">
+                Nenhum vídeo encontrado
               </p>
-            </div>
+              <Button
+                size="sm"
+                onClick={() => setUploadModalOpen(true)}
+                className="mt-6 glass-button-primary border-none rounded-none px-8 py-6 h-auto"
+              >
+                Fazer seu primeiro upload
+              </Button>
+            </motion.div>
           ) : viewMode === "list" ? (
-            <div className="space-y-2">
-              {videos.map((video, index) => (
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.03,
+                  },
+                },
+              }}
+              className="space-y-2"
+            >
+              {videos.map((video) => (
                 <motion.div
                   key={video.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  variants={{
+                    hidden: { opacity: 0, x: -10 },
+                    show: { opacity: 1, x: 0 },
+                  }}
                   className="glass-panel border border-zinc-800/30 rounded-none p-4 hover:border-red-600/30 transition-all group cursor-pointer"
                   onClick={() => handleVideoClick(video)}
                 >
@@ -358,15 +532,29 @@ export function PortfolioPage() {
                   </div>
                 </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {videos.map((video, index) => (
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.05,
+                  },
+                },
+              }}
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+            >
+              {videos.map((video) => (
                 <motion.div
                   key={video.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05 }}
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    show: { opacity: 1, y: 0 },
+                  }}
                   className="glass-panel border border-zinc-800/30 rounded-none overflow-hidden hover:border-red-600/30 transition-all group cursor-pointer"
                   onClick={() => handleVideoClick(video)}
                 >
@@ -414,7 +602,28 @@ export function PortfolioPage() {
                   </div>
                 </motion.div>
               ))}
-            </div>
+
+              {/* Add New Video Card (Grid View) */}
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  show: { opacity: 1, y: 0 },
+                }}
+              >
+                <div
+                  onClick={() => setUploadModalOpen(true)}
+                  className="group cursor-pointer h-full min-h-[200px] border border-dashed border-zinc-800 hover:border-red-600/50 bg-zinc-900/20 hover:bg-zinc-900/40 transition-all duration-300 flex flex-col items-center justify-center gap-4 relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-red-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="w-12 h-12 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center group-hover:scale-110 group-hover:border-red-600 transition-all duration-300 relative z-10">
+                    <Upload className="w-6 h-6 text-zinc-500 group-hover:text-red-500 transition-colors" />
+                  </div>
+                  <span className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] group-hover:text-white transition-colors relative z-10">
+                    Upload Video
+                  </span>
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </div>
       </div>
