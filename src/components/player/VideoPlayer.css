@@ -1,6 +1,7 @@
 /* Remove o box-shadow padrão e bordas do Plyr */
 :root {
-  --plyr-color-main: #dc2626; /* Vermelho BRICK */
+  --plyr-color-main: #dc2626;
+  /* Vermelho BRICK */
   --plyr-control-radius: 0px;
   --plyr-font-family: "JetBrains Mono", monospace;
   --plyr-font-size-time: 12px;
@@ -37,7 +38,8 @@
 .plyr__control {
   background: transparent;
   transition: all 0.2s ease;
-  color: #a1a1aa; /* zinc-400 */
+  color: #a1a1aa;
+  /* zinc-400 */
 }
 
 .plyr__control:hover,
@@ -50,12 +52,15 @@
 .plyr__control--overlaid {
   background: rgba(10, 10, 10, 0.4) !important;
   backdrop-filter: blur(12px);
-  border-radius: 2px !important; /* Slight rounding for monolith look */
+  border-radius: 2px !important;
+  /* Slight rounding for monolith look */
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-  padding: 0 !important; /* Reset padding to use flex centering with explicit size */
-  width: 100px !important; /* Desktop default width */
-  height: 50px !important; /* Desktop default height (2:1 ratio) */
+  /* Reset padding to use flex centering with explicit size */
+  width: 100px !important;
+  /* Desktop default width */
+  height: 50px !important;
+  /* Desktop default height (2:1 ratio) */
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -72,7 +77,8 @@
 }
 
 .plyr__control--overlaid:hover {
-  background: #dc2626 !important; /* red-600 */
+  background: #dc2626 !important;
+  /* red-600 */
   border-color: #ef4444;
   transform: translate(-50%, -50%) scale(1.05);
 }
@@ -142,8 +148,13 @@
 
 /* Animações Customizadas */
 @keyframes spin-soft {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin-slow {
@@ -156,8 +167,15 @@
 }
 
 @keyframes overlayFadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Garante que o vídeo use object-fit contain para não cropagem no modo full-size */
@@ -188,7 +206,8 @@ video.plyr-react {
   margin: 0 !important;
   padding: 0 !important;
   background: #000;
-  aspect-ratio: unset !important; /* Remove qualquer aspect-ratio que o Plyr tente injetar */
+  aspect-ratio: unset !important;
+  /* Remove qualquer aspect-ratio que o Plyr tente injetar */
 }
 
 .plyr__video-wrapper {
@@ -209,6 +228,7 @@ video.plyr-react {
 /* Custom Range Input Styles */
 input[type="range"] {
   -webkit-appearance: none;
+  appearance: none;
   background: transparent;
 }
 
@@ -249,8 +269,10 @@ input[type="range"]:focus {
   bottom: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  height: 100dvh !important; /* Fix para barra de endereços do Safari Mobile */
-  z-index: 99999 !important; /* Z-index altíssimo para sobrepor tudo */
+  height: 100dvh !important;
+  /* Fix para barra de endereços do Safari Mobile */
+  z-index: 99999 !important;
+  /* Z-index altíssimo para sobrepor tudo */
   background: #000 !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -264,6 +286,7 @@ input[type="range"]:focus {
 
 /* 2. Ajustes específicos para Mobile, PRESERVANDO sua correção anterior */
 @media (max-width: 768px) {
+
   /* IMPORTANTE: Mantemos z-index baixo APENAS quando NÃO estiver em fullscreen.
      Isso preserva sua correção para que dropdowns/headers funcionem no layout normal. */
   .plyr:not(.plyr--fullscreen),

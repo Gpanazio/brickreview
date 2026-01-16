@@ -266,9 +266,10 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
       [token, id, passwordHash, expiresAt]
     );
 
+    const appUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' ? `${req.protocol}://${req.get('host')}` : 'http://localhost:5173');
     res.json({
       share: result.rows[0],
-      url: `${process.env.APP_URL || req.protocol + '://' + req.get('host')}/portfolio/c/${token}`,
+      url: `${appUrl}/portfolio/c/${token}`,
     });
   } catch (error) {
     console.error('Error creating share:', error);

@@ -125,7 +125,8 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
     const video = result.rows[0];
 
     // Generate embed code (for response only, not stored)
-    const embedCode = `<iframe src="${process.env.APP_URL || 'http://localhost:5000'}/portfolio/embed/${video.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
+    const appUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' ? `${req.protocol}://${req.get('host')}` : 'http://localhost:5173');
+    const embedCode = `<iframe src="${appUrl}/portfolio/embed/${video.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`;
 
     res.json({
       success: true,

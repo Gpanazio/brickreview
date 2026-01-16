@@ -13,7 +13,15 @@ import {
     Folder,
     FolderOpen,
     CornerUpLeft,
+    X,
+    ExternalLink,
 } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     ContextMenu,
     ContextMenuContent,
@@ -40,6 +48,7 @@ export function SharedStoragePage() {
     const [folders, setFolders] = useState([]);
     const [files, setFiles] = useState([]);
     const [viewMode, setViewMode] = useState("grid");
+    const [previewFile, setPreviewFile] = useState(null);
 
     // Initial load
     useEffect(() => {
@@ -68,10 +77,11 @@ export function SharedStoragePage() {
             setBreadcrumbs([{ id: data.id, name: data.name }]);
             setCurrentFolder({ id: data.id, name: data.name, mimeType: data.mimeType });
 
-            // If it's a file, we might want to show a preview or just info?
-            // For this implementation, we assume shared folders mostly. 
-            // If it's a file, `fetchFolderContents` will likely fail or return empty, 
-            // but logic below handles folders.
+            // If it's a file, show preview immediately
+            if (data.mimeType !== "application/vnd.google-apps.folder") {
+                setPreviewFile(data);
+                setLoading(false);
+            }
         } catch (err) {
             console.error("Error fetching root metadata:", err);
             setError(err.message);
@@ -135,6 +145,10 @@ export function SharedStoragePage() {
         if (mimeType.startsWith("image/")) return FileImage;
         if (mimeType.startsWith("text/")) return FileText;
         return File;
+    };
+
+    const handleFileClick = (file) => {
+        setPreviewFile(file);
     };
 
     if (loading && !currentFolder) {
@@ -309,7 +323,7 @@ export function SharedStoragePage() {
                                                             animate={{ opacity: 1, y: 0 }}
                                                             transition={{ delay: index * 0.05 }}
                                                             className="glass-panel border rounded-none p-4 transition-all group cursor-pointer border-zinc-800/30 hover:border-red-600/30"
-                                                            onClick={() => window.open(file.webViewLink, "_blank")}
+                                                            onClick={() => handleFileClick(file)}
                                                         >
                                                             <div className="flex items-center gap-4">
                                                                 <div className="w-10 h-10 bg-zinc-900/50 flex items-center justify-center flex-shrink-0">
@@ -332,7 +346,7 @@ export function SharedStoragePage() {
                                                                     <Button
                                                                         size="sm"
                                                                         variant="ghost"
-                                                                        onClick={(e) => { e.stopPropagation(); window.open(file.webViewLink, "_blank"); }}
+                                                                        onClick={(e) => { e.stopPropagation(); window.open(file.webContentLink || file.webViewLink, "_blank"); }}
                                                                         className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
                                                                     >
                                                                         <Download className="w-4 h-4" />
@@ -342,8 +356,11 @@ export function SharedStoragePage() {
                                                         </motion.div>
                                                     </ContextMenuTrigger>
                                                     <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                                                        <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
-                                                            <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
+                                                        <ContextMenuItem onClick={() => handleFileClick(file)}>
+                                                            <ExternalLink className="mr-2 h-4 w-4" /> Visualizar
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem onClick={() => window.open(file.webContentLink || file.webViewLink, "_blank")}>
+                                                            <Download className="mr-2 h-4 w-4" /> Baixar
                                                         </ContextMenuItem>
                                                     </ContextMenuContent>
                                                 </ContextMenu>
@@ -362,7 +379,7 @@ export function SharedStoragePage() {
                                                             animate={{ opacity: 1, scale: 1 }}
                                                             transition={{ delay: index * 0.05 }}
                                                             className="glass-panel border rounded-none p-4 transition-all group cursor-pointer border-zinc-800/30 hover:border-red-600/30"
-                                                            onClick={() => window.open(file.webViewLink, "_blank")}
+                                                            onClick={() => handleFileClick(file)}
                                                         >
                                                             <div className="flex flex-col gap-3">
                                                                 <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center">
@@ -388,8 +405,11 @@ export function SharedStoragePage() {
                                                         </motion.div>
                                                     </ContextMenuTrigger>
                                                     <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                                                        <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
-                                                            <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
+                                                        <ContextMenuItem onClick={() => handleFileClick(file)}>
+                                                            <ExternalLink className="mr-2 h-4 w-4" /> Visualizar
+                                                        </ContextMenuItem>
+                                                        <ContextMenuItem onClick={() => window.open(file.webContentLink || file.webViewLink, "_blank")}>
+                                                            <Download className="mr-2 h-4 w-4" /> Baixar
                                                         </ContextMenuItem>
                                                     </ContextMenuContent>
                                                 </ContextMenu>
@@ -402,6 +422,84 @@ export function SharedStoragePage() {
                     )}
                 </div>
             </div>
+
+            {/* Preview Dialog */}
+            <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+                <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none max-w-4xl p-0 overflow-hidden">
+                    <DialogHeader className="p-6 border-b border-zinc-800/50 flex flex-row items-center justify-between">
+                        <div>
+                            <DialogTitle className="brick-title text-xl uppercase tracking-tighter text-white">
+                                {previewFile?.name}
+                            </DialogTitle>
+                            <div className="flex items-center gap-3 mt-1">
+                                <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest">
+                                    {previewFile && formatFileSize(previewFile.size)}
+                                </span>
+                                <span className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest">
+                                    {previewFile?.mimeType}
+                                </span>
+                            </div>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setPreviewFile(null)}
+                            className="h-8 w-8 text-zinc-500 hover:text-white"
+                        >
+                            <X className="w-5 h-5" />
+                        </Button>
+                    </DialogHeader>
+
+                    <div className="bg-black aspect-video flex items-center justify-center relative group">
+                        {previewFile?.mimeType.startsWith("image/") ? (
+                            <img
+                                src={previewFile.webViewLink.replace('/view', '/preview')}
+                                alt={previewFile.name}
+                                className="max-h-full max-w-full object-contain"
+                            />
+                        ) : previewFile?.mimeType.startsWith("video/") ? (
+                            <video
+                                src={previewFile.webContentLink}
+                                controls
+                                className="w-full h-full"
+                            />
+                        ) : (
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center">
+                                    <File className="w-10 h-10 text-zinc-700" />
+                                </div>
+                                <p className="text-zinc-500 text-xs italic">Prévia indisponível para este tipo de arquivo</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-6 bg-zinc-900/30 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">
+                                BRICK CLOUD STORAGE
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={() => window.open(previewFile?.webViewLink, "_blank")}
+                                className="border-zinc-800 rounded-none h-10 px-6 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white"
+                            >
+                                <ExternalLink className="w-3 h-3 mr-2 text-red-600" />
+                                Abrir no Drive
+                            </Button>
+                            <Button
+                                onClick={() => window.open(previewFile?.webContentLink || previewFile?.webViewLink, "_blank")}
+                                className="glass-button-primary border-none rounded-none h-10 px-8 text-[10px] font-black uppercase tracking-widest"
+                            >
+                                <Download className="w-3 h-3 mr-2" />
+                                Baixar Arquivo
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

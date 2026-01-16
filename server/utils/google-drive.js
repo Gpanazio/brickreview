@@ -162,7 +162,7 @@ class GoogleDriveManager {
     try {
       const response = await this.drive.files.get({
         fileId: fileId,
-        fields: 'id, name, size, mimeType, createdTime, modifiedTime, webViewLink',
+        fields: 'id, name, size, mimeType, createdTime, modifiedTime, webViewLink, webContentLink, thumbnailLink',
       });
 
       return response.data;

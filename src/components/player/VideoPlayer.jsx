@@ -589,11 +589,10 @@ function VideoPlayerContent({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
-                        approvalStatus === "approved"
-                          ? "border-green-500/50 text-green-500 bg-green-500/10"
-                          : "border-zinc-700 text-zinc-400 bg-zinc-900"
-                      }`}
+                      className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${approvalStatus === "approved"
+                        ? "border-green-500/50 text-green-500 bg-green-500/10"
+                        : "border-zinc-700 text-zinc-400 bg-zinc-900"
+                        }`}
                     >
                       {approvalStatus === "approved" ? (
                         <CheckCircle className="w-3 h-3 mr-2" />
@@ -677,11 +676,10 @@ function VideoPlayerContent({
                     variant="ghost"
                     size="sm"
                     onClick={handleToggleCompare}
-                    className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${
-                      isComparing
-                        ? "border-red-600 text-white bg-red-600"
-                        : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
-                    }`}
+                    className={`rounded-none border px-3 h-8 text-[10px] font-black uppercase tracking-widest transition-all ${isComparing
+                      ? "border-red-600 text-white bg-red-600"
+                      : "border-zinc-800 text-zinc-400 bg-zinc-900 hover:bg-zinc-800"
+                      }`}
                   >
                     <Columns2 className="w-3 h-3 mr-2" />
                     Comparar
@@ -705,11 +703,10 @@ function VideoPlayerContent({
                           <DropdownMenuItem
                             key={v.id}
                             onClick={() => handleCompareVersionChange(v.id)}
-                            className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
-                              v.id === compareVersionId
-                                ? "text-red-500 bg-red-500/10"
-                                : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                            }`}
+                            className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${v.id === compareVersionId
+                              ? "text-red-500 bg-red-500/10"
+                              : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                              }`}
                           >
                             <div className="flex items-center justify-between w-full">
                               <span>Versão {v.version_number}</span>
@@ -739,11 +736,10 @@ function VideoPlayerContent({
                       <DropdownMenuItem
                         key={v.id}
                         onClick={() => handleVersionChange(v.id)}
-                        className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${
-                          v.id === currentVideoId
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                        }`}
+                        className={`rounded-none cursor-pointer font-bold text-[10px] uppercase tracking-widest ${v.id === currentVideoId
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                          }`}
                       >
                         <div className="flex items-center justify-between w-full">
                           <span>Versão {v.version_number}</span>
@@ -857,11 +853,10 @@ function VideoPlayerContent({
                             playerRef.current.plyr.speed = speed;
                           }
                         }}
-                        className={`text-[10px] justify-center cursor-pointer font-bold ${
-                          playbackSpeed === speed
-                            ? "text-red-500 bg-red-500/10"
-                            : "text-zinc-500 focus:text-white focus:bg-zinc-800"
-                        }`}
+                        className={`text-[10px] justify-center cursor-pointer font-bold ${playbackSpeed === speed
+                          ? "text-red-500 bg-red-500/10"
+                          : "text-zinc-500 focus:text-white focus:bg-zinc-800"
+                          }`}
                       >
                         {speed}x
                       </DropdownMenuItem>
@@ -876,9 +871,8 @@ function VideoPlayerContent({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`text-[10px] font-bold uppercase tracking-widest h-8 px-2 rounded-none ${
-                        quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
-                      }`}
+                      className={`text-[10px] font-bold uppercase tracking-widest h-8 px-2 rounded-none ${quality === "original" ? "text-red-500" : "text-zinc-500 hover:text-white"
+                        }`}
                     >
                       {quality === "original" ? "Original" : "720p"}
                     </Button>
@@ -889,21 +883,19 @@ function VideoPlayerContent({
                   >
                     <DropdownMenuItem
                       onClick={() => setQuality("proxy")}
-                      className={`text-[10px] cursor-pointer font-bold ${
-                        quality === "proxy"
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                      }`}
+                      className={`text-[10px] cursor-pointer font-bold ${quality === "proxy"
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                     >
                       Auto (720p)
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => setQuality("original")}
-                      className={`text-[10px] cursor-pointer font-bold ${
-                        quality === "original"
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-400 focus:text-white focus:bg-zinc-800"
-                      }`}
+                      className={`text-[10px] cursor-pointer font-bold ${quality === "original"
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-400 focus:text-white focus:bg-zinc-800"
+                        }`}
                     >
                       Original (Máx)
                     </DropdownMenuItem>

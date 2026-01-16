@@ -16,6 +16,7 @@ export function PortfolioPlayerPage() {
   const [password, setPassword] = useState("");
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [videoDimensions, setVideoDimensions] = useState(null);
   const playerRef = useRef(null);
   const videoRef = useRef(null);
 
@@ -238,6 +239,31 @@ export function PortfolioPlayerPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] flex flex-col">
+      <style>{`
+        .portfolio-video-container {
+          width: 100%;
+          height: 100%;
+          max-height: 85vh;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        @media (min-width: 1440px) {
+          .portfolio-video-container {
+            max-height: 80vh;
+            padding: 20px;
+          }
+        }
+        .portfolio-video-container .plyr__control--overlaid {
+          width: 80px !important;
+          height: 40px !important;
+        }
+        .portfolio-video-container .plyr__control--overlaid svg {
+          width: 24px !important;
+          height: 24px !important;
+        }
+      `}</style>
       {/* Header */}
       <header className="border-b border-zinc-800/20 glass-panel px-4 py-4 md:px-8 md:py-6 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-600/30 to-transparent" />
@@ -278,12 +304,24 @@ export function PortfolioPlayerPage() {
             </div>
 
             {/* Video Player */}
-            <div className="bg-black aspect-video">
+            <div
+              className="bg-black portfolio-video-container relative mx-auto"
+              style={{
+                aspectRatio: videoDimensions ? `${videoDimensions.width} / ${videoDimensions.height}` : "16 / 9",
+                maxHeight: "75vh"
+              }}
+            >
               <video
                 ref={videoRef}
                 src={video.direct_url}
                 className="w-full h-full"
                 playsInline
+                onLoadedMetadata={(e) => {
+                  setVideoDimensions({
+                    width: e.target.videoWidth,
+                    height: e.target.videoHeight
+                  });
+                }}
               />
             </div>
 

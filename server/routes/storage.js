@@ -468,7 +468,7 @@ router.post('/share', authenticateToken, async (req, res) => {
 
     const result = await googleDriveManager.shareFile(fileId);
 
-    const appUrl = process.env.APP_URL || 'http://localhost:5173';
+    const appUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' ? `${req.protocol}://${req.get('host')}` : 'http://localhost:5173');
     // Use the /storage/s/:id route we will create in frontend
     const internalShareLink = `${appUrl}/storage/s/${result.id}`;
 

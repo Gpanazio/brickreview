@@ -11,8 +11,6 @@ export function VideoPlayerCore() {
     setCurrentTime,
     setDuration,
     setIsPlaying,
-    setVolume,
-    setIsMuted,
     setPlaybackRate,
   } = useVideo();
 
