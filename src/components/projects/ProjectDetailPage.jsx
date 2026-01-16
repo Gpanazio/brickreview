@@ -55,7 +55,7 @@ export function ProjectDetailPage() {
   const [project, setProject] = useState(null);
   const [folders, setFolders] = useState([]);
   const [files, setFiles] = useState([]);
-  const { uploadFiles, uploadQueue: globalUploadQueue, isUploading } = useUpload();
+  const { uploadFiles, uploadQueue: globalUploadQueue, isUploading, registerRefreshCallback } = useUpload();
   const [loading, setLoading] = useState(true);
   // const [uploading, setUploading] = useState(false); // Removed local state
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -349,6 +349,18 @@ export function ProjectDetailPage() {
     fetchFolders();
     fetchFiles();
   }, [fetchProjectDetails, fetchFolders, fetchFiles]);
+
+  // Register callback to refresh data after successful uploads
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchProjectDetails();
+      fetchFolders();
+      fetchFiles();
+    };
+
+    const unregister = registerRefreshCallback(handleRefresh);
+    return () => unregister();
+  }, [registerRefreshCallback, fetchProjectDetails, fetchFolders, fetchFiles]);
 
   // Polling para atualizar status de vídeos em processamento
   useEffect(() => {

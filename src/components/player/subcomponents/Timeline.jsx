@@ -10,6 +10,10 @@ export function Timeline() {
   const [hoverData, setHoverData] = useState(null);
   const timelineRef = useRef(null);
 
+  // Check if video is being processed
+  const isProcessing = currentVideo && (currentVideo.status === "pending" || currentVideo.status === "processing");
+  const hasSprites = currentVideo?.sprite_vtt_url;
+
   const getCommentRange = (comment) => {
     if (!comment || comment.timestamp === null) return null;
     const start = parseTimestampSeconds(comment.timestamp);
@@ -72,8 +76,15 @@ export function Timeline() {
                 className="bg-black"
               />
             ) : (
-              <div className="w-32 h-20 bg-zinc-800 flex items-center justify-center text-zinc-500 text-xs">
-                Sem preview
+              <div className="w-32 h-20 bg-zinc-800 flex flex-col items-center justify-center text-zinc-500 text-xs gap-2">
+                {isProcessing && !hasSprites ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-zinc-600 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-[10px] uppercase tracking-wider">Processando...</span>
+                  </>
+                ) : (
+                  <span>Sem preview</span>
+                )}
               </div>
             )}
 
@@ -139,7 +150,7 @@ export function Timeline() {
             >
               {hasRange && (
                 <div
-                  className={`absolute h-1.5 rounded-full backdrop-blur-sm transition-colors ${
+                  className={`absolute h-1.5 rounded-full backdrop-blur-sm transition-colors cursor-ew-resize ${
                     isActive
                       ? "bg-red-600/40 border border-red-600/50"
                       : "bg-white/20 hover:bg-white/30"
