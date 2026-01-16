@@ -25,7 +25,13 @@ export function UploadProvider({ children }) {
             // Remove from queue after delay if success
             if (status === "success") {
                 // Trigger all refresh callbacks when upload succeeds
-                refreshCallbacksRef.current.forEach(callback => callback());
+                refreshCallbacksRef.current.forEach(callback => {
+                    try {
+                        callback();
+                    } catch (error) {
+                        console.error("Error in upload refresh callback:", error);
+                    }
+                });
 
                 setTimeout(() => {
                     setUploadQueue((prev) => prev.filter((u) => u.id !== id));
