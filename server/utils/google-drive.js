@@ -12,7 +12,7 @@ class GoogleDriveManager {
     this.enabled = process.env.GOOGLE_DRIVE_ENABLED === 'true';
     this.drive = null;
     this.folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-    this.limit = parseInt(process.env.GOOGLE_DRIVE_LIMIT || '32212254720000'); // 30TB default
+    this.limit = parseInt(process.env.GOOGLE_DRIVE_LIMIT || '21474836480000'); // 20TB default
 
     if (this.enabled) {
       this.initializeDrive();

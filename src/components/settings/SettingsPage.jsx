@@ -90,7 +90,7 @@ export function SettingsPage() {
               animate={{ opacity: 1, x: 0 }}
               className="brick-title text-2xl md:text-4xl tracking-tighter uppercase leading-none mb-2"
             >
-              Configurações
+              Armazenamento
             </motion.h1>
             <div className="flex items-center gap-2">
               <span className="h-[1px] w-4 bg-red-600" />
@@ -369,7 +369,7 @@ export function SettingsPage() {
           <div className="bg-zinc-950/30 border border-zinc-800/30 rounded-none p-4">
             <p className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest text-center">
               {storageStats?.drive.enabled
-                ? "R2: Cache Rápido (20GB) • Drive: Backup Automático (30TB) • Estatísticas em tempo real"
+                ? "R2: Cache Rápido (20GB) • Drive: Backup Automático (20TB) • Estatísticas em tempo real"
                 : "Cloudflare R2 Free Plan: 10GB por bucket • As estatísticas são atualizadas em tempo real"}
             </p>
           </div>

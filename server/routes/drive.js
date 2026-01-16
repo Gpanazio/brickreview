@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import googleDriveManager from '../utils/google-drive.js';
 
 const router = express.Router();
@@ -7,9 +7,9 @@ const router = express.Router();
 /**
  * @route GET /api/drive/auth-url
  * @desc Get OAuth URL for Google Drive authorization
- * @access Private
+ * @access Private (Admin only)
  */
-router.get('/auth-url', authenticateToken, (req, res) => {
+router.get('/auth-url', authenticateToken, requireAdmin, (req, res) => {
   try {
     const authUrl = googleDriveManager.getAuthUrl();
     res.json({ authUrl });
@@ -119,9 +119,9 @@ router.get('/oauth/callback', async (req, res) => {
 /**
  * @route GET /api/drive/status
  * @desc Check if Google Drive is enabled and configured
- * @access Private
+ * @access Private (Admin only)
  */
-router.get('/status', authenticateToken, (req, res) => {
+router.get('/status', authenticateToken, requireAdmin, (req, res) => {
   try {
     const isEnabled = googleDriveManager.isEnabled();
 
