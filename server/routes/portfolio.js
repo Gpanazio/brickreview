@@ -3,7 +3,7 @@ import multer from 'multer';
 import bcrypt from 'bcryptjs';
 import { authenticateToken } from '../middleware/auth.js';
 import r2Manager from '../utils/r2-manager.js';
-import pool from '../database.js';
+import pool from '../db.js';
 import { getVideoMetadata, generateThumbnail } from '../utils/video.js';
 import { promisify } from 'util';
 import fs from 'fs';

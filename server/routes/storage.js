@@ -4,7 +4,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import r2Manager from '../utils/r2-manager.js';
 import hybridStorageManager from '../utils/hybrid-storage.js';
 import googleDriveManager from '../utils/google-drive.js';
-import pool from '../database.js';
+import pool from '../db.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
