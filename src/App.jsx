@@ -54,6 +54,7 @@ const ProjectDetailPage = lazy(() => import("./components/projects/ProjectDetail
 const ShareViewPage = lazy(() => import("./components/projects/ShareViewPage").then(m => ({ default: m.ShareViewPage })));
 const SettingsPage = lazy(() => import("./components/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const StoragePage = lazy(() => import("./components/storage/StoragePage").then(m => ({ default: m.StoragePage })));
+const SharedStoragePage = lazy(() => import("./components/storage/SharedStoragePage").then(m => ({ default: m.SharedStoragePage })));
 const PortfolioPage = lazy(() => import("./components/portfolio/PortfolioPage").then(m => ({ default: m.PortfolioPage })));
 
 // Helper para identificar URLs padrão antigas
@@ -70,6 +71,7 @@ function App() {
             <Routes>
               {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
               <Route path="/share/:token" element={<ShareViewPage />} />
+              <Route path="/storage/s/:id" element={<SharedStoragePage />} />
 
               {/* Rotas Principais do App */}
               <Route path="/*" element={<AppContent />} />

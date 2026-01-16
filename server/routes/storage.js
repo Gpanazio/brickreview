@@ -468,15 +468,101 @@ router.post('/share', authenticateToken, async (req, res) => {
 
     const result = await googleDriveManager.shareFile(fileId);
 
+    const appUrl = process.env.APP_URL || 'http://localhost:5173';
+    // Use the /storage/s/:id route we will create in frontend
+    const internalShareLink = `${appUrl}/storage/s/${result.id}`;
+
     res.json({
       success: true,
       message: 'Share link generated successfully',
-      shareLink: result.shareLink,
+      shareLink: internalShareLink,
+      googleLink: result.shareLink,
       name: result.name,
     });
   } catch (error) {
     console.error('Share file error:', error);
     res.status(500).json({ error: error.message || 'Failed to generate share link' });
+  }
+});
+
+// ... existing methods ...
+
+/**
+ * @route GET /api/storage/public/metadata/:fileId
+ * @desc Get metadata for a public file/folder
+ * @access Public
+ */
+router.get('/public/metadata/:fileId', async (req, res) => {
+  try {
+    const { fileId } = req.params;
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    const metadata = await googleDriveManager.getFileMetadata(fileId);
+
+    res.json(metadata);
+  } catch (error) {
+    console.error('Public metadata error:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch public metadata' });
+  }
+});
+
+/**
+ * @route GET /api/storage/public/files
+ * @desc List files in a public folder
+ * @access Public
+ */
+router.get('/public/files', async (req, res) => {
+  try {
+    const { folderId, pageToken, pageSize = 100 } = req.query;
+
+    if (!folderId) {
+      return res.status(400).json({ error: 'Folder ID is required for public listing' });
+    }
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    // Verify folder exists and is accessible
+    try {
+      await googleDriveManager.getFileMetadata(folderId);
+    } catch (e) {
+      return res.status(404).json({ error: 'Folder not found or not accessible' });
+    }
+
+    const result = await googleDriveManager.listFiles(
+      parseInt(pageSize),
+      pageToken,
+      folderId
+    );
+
+    // Enrich with webViewLinks
+    const filesWithLinks = await Promise.all(
+      result.files.map(async (file) => {
+        try {
+          const metadata = await googleDriveManager.getFileMetadata(file.id);
+          return {
+            ...file,
+            webViewLink: metadata.webViewLink,
+            thumbnailLink: metadata.thumbnailLink || null
+          };
+        } catch (error) {
+          return file;
+        }
+      })
+    );
+
+    res.json({
+      files: filesWithLinks,
+      nextPageToken: result.nextPageToken,
+    });
+
+  } catch (error) {
+    console.error('Public list files error:', error);
+    res.status(500).json({ error: error.message || 'Failed to list public files' });
   }
 });
 
