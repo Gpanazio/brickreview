@@ -181,12 +181,11 @@ export function VideoPlayerCore() {
       {!isLoading && (
         <button
           onClick={handleTogglePlay}
-          className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer bg-transparent transition-opacity duration-200 ${
-            isPlaying ? "opacity-0 group-hover/player:opacity-100" : "opacity-100"
-          }`}
+          className={`absolute inset-0 flex items-center justify-center z-10 cursor-pointer bg-transparent transition-opacity duration-200 ${isPlaying ? "opacity-0 group-hover/player:opacity-100" : "opacity-100"
+            }`}
           aria-label={isPlaying ? "Pause" : "Play"}
         >
-          <div className="w-24 h-12 md:w-40 md:h-20 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 hover:bg-red-600 hover:border-red-500 hover:scale-105 shadow-2xl group rounded-none">
+          <div className="w-12 h-24 md:w-20 md:h-40 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 hover:bg-red-600 hover:border-red-500 hover:scale-105 shadow-2xl group rounded-none">
             {isPlaying ? (
               <Pause className="w-5 h-5 md:w-8 md:h-8 text-white fill-white" />
             ) : (
