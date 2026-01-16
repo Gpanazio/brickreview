@@ -214,6 +214,40 @@ router.get('/videos/:id', authenticateToken, async (req, res) => {
 });
 
 /**
+ * @route GET /api/portfolio/videos/:id/public
+ * @desc Get single portfolio video (public access for player)
+ * @access Public
+ */
+router.get('/videos/:id/public', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT id, title, description, direct_url, thumbnail_path, duration, is_password_protected, view_count, created_at, r2_bucket_id FROM portfolio_videos WHERE id = $1 AND deleted_at IS NULL',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const video = result.rows[0];
+    const bucket = r2Manager.getBucket(video.r2_bucket_id || 'primary');
+
+    res.json({
+      video: {
+        ...video,
+        thumbnail_url: video.thumbnail_path ? `${bucket.publicUrl}/${video.thumbnail_path}` : null,
+        // Remove sensitive data
+        password_hash: undefined,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching public portfolio video:', error);
+    res.status(500).json({ error: 'Failed to fetch portfolio video' });
+  }
+});
+
+/**
  * @route PATCH /api/portfolio/videos/:id
  * @desc Update portfolio video (including password protection)
  * @access Private
