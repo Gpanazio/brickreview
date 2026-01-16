@@ -417,4 +417,34 @@ router.patch('/move', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * @route PATCH /api/storage/rename
+ * @desc Rename a file or folder
+ * @access Private
+ */
+router.patch('/rename', authenticateToken, async (req, res) => {
+  try {
+    const { fileId, name } = req.body;
+
+    if (!fileId || !name) {
+      return res.status(400).json({ error: 'File ID and new name are required' });
+    }
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    const result = await googleDriveManager.renameFile(fileId, name);
+
+    res.json({
+      success: true,
+      message: 'Item renamed successfully',
+      result,
+    });
+  } catch (error) {
+    console.error('Rename item error:', error);
+    res.status(500).json({ error: error.message || 'Failed to rename item' });
+  }
+});
+
 export default router;

@@ -28,7 +28,16 @@ import {
 import { CreateFolderDialog } from "../projects/CreateFolderDialog"; // Reusing existing dialog
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Folder, FolderOpen, MoreVertical, Plus, CornerUpLeft } from "lucide-react";
+import { Folder, FolderOpen, MoreVertical, Plus, CornerUpLeft, Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function StoragePage() {
   const navigate = useNavigate();
@@ -43,6 +52,12 @@ export function StoragePage() {
   const [viewMode, setViewMode] = useState("grid");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [dragOverFolder, setDragOverFolder] = useState(null);
+
+  // New state for Rename and Selection
+  const [itemToRename, setItemToRename] = useState(null);
+  const [newName, setNewName] = useState("");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [dragOverBreadcrumb, setDragOverBreadcrumb] = useState(null);
 
   const fileInputRef = useRef(null);
 
@@ -151,6 +166,53 @@ export function StoragePage() {
       console.error("Error moving item:", error);
       toast.error("Erro ao mover item");
     }
+  };
+
+  const handleRename = async (e) => {
+    e.preventDefault();
+    if (!itemToRename || !newName.trim()) return;
+
+    try {
+      const response = await fetch("/api/storage/rename", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fileId: itemToRename.id,
+          name: newName,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Item renomeado com sucesso");
+        setItemToRename(null);
+        setNewName("");
+        fetchFiles(currentFolder?.id);
+      } else {
+        toast.error("Erro ao renomear item");
+      }
+    } catch (error) {
+      console.error("Error renaming item:", error);
+      toast.error("Erro ao renomear item");
+    }
+  };
+
+  const openRenameDialog = (item) => {
+    setItemToRename(item);
+    setNewName(item.name);
+  };
+
+  const toggleSelection = (e, id) => {
+    e.stopPropagation();
+    const newSelected = new Set(e.metaKey || e.ctrlKey ? selectedIds : []);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
   };
 
   const handleFileSelect = (e) => {
@@ -380,9 +442,33 @@ export function StoragePage() {
               </Button>
             )}
             {breadcrumbs.map((crumb, index) => (
-              <div key={crumb.id || 'root'} className="flex items-center">
+              <div
+                key={crumb.id || 'root'}
+                className="flex items-center"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (crumb.id !== currentFolder?.id) {
+                    setDragOverBreadcrumb(index);
+                  }
+                }}
+                onDragLeave={() => setDragOverBreadcrumb(null)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverBreadcrumb(null);
+                  if (crumb.id === currentFolder?.id) return;
+
+                  const data = e.dataTransfer.getData("application/x-drive-item");
+                  if (data) {
+                    const item = JSON.parse(data);
+                    // Avoid moving folder into itself or its direct parent (if redundant)
+                    if (item.id !== crumb.id) {
+                      handleMoveItem(item.id, crumb.id);
+                    }
+                  }
+                }}
+              >
                 <span
-                  className={`cursor-pointer hover:text-white hover:underline ${index === breadcrumbs.length - 1 ? 'text-white font-medium' : ''}`}
+                  className={`cursor-pointer hover:text-white hover:underline transition-colors px-1 rounded ${index === breadcrumbs.length - 1 ? 'text-white font-medium' : ''} ${dragOverBreadcrumb === index ? 'bg-red-600/20 text-red-500' : ''}`}
                   onClick={() => handleBreadcrumbClick(index)}
                 >
                   {crumb.name}
@@ -435,8 +521,10 @@ export function StoragePage() {
                       <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className={`glass-panel border rounded-none p-4 flex items-center gap-3 hover:bg-zinc-900/50 cursor-pointer transition-all group ${dragOverFolder === folder.id ? 'border-red-600 bg-red-900/10' : 'border-zinc-800/30 hover:border-zinc-700'}`}
-                        onClick={() => handleFolderClick(folder)}
+                        className={`glass-panel border rounded-none p-4 flex items-center gap-3 cursor-pointer transition-all group ${selectedIds.has(folder.id) ? 'bg-white/10 border-red-600' : 'hover:bg-zinc-900/50 border-zinc-800/30 hover:border-zinc-700'
+                          } ${dragOverFolder === folder.id ? 'border-red-600 bg-red-900/10' : ''}`}
+                        onClick={(e) => toggleSelection(e, folder.id)}
+                        onDoubleClick={() => handleFolderClick(folder)}
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: folder.id, type: 'folder' }));
@@ -470,6 +558,9 @@ export function StoragePage() {
                     <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
                       <ContextMenuItem onClick={() => handleFolderClick(folder)}>
                         <FolderOpen className="mr-2 h-4 w-4" /> Abrir
+                      </ContextMenuItem>
+                      <ContextMenuItem onClick={() => openRenameDialog(folder)}>
+                        <Pencil className="mr-2 h-4 w-4" /> Renomear
                       </ContextMenuItem>
                       <ContextMenuSeparator className="bg-zinc-800" />
                       <ContextMenuItem
@@ -525,7 +616,9 @@ export function StoragePage() {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="glass-panel border border-zinc-800/30 rounded-none p-4 hover:border-red-600/30 transition-all group"
+                          className={`glass-panel border rounded-none p-4 transition-all group ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
+                            }`}
+                          onClick={(e) => toggleSelection(e, file.id)}
                           draggable
                           onDragStart={(e) => {
                             e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
@@ -552,7 +645,7 @@ export function StoragePage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => window.open(file.webViewLink, "_blank")}
+                                onClick={(e) => { e.stopPropagation(); window.open(file.webViewLink, "_blank"); }}
                                 className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
                               >
                                 <Download className="w-4 h-4" />
@@ -560,7 +653,7 @@ export function StoragePage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDelete(file.id, file.name)}
+                                onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }}
                                 className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -572,6 +665,9 @@ export function StoragePage() {
                       <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
                         <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
                           <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
+                        </ContextMenuItem>
+                        <ContextMenuItem onClick={() => openRenameDialog(file)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Renomear
                         </ContextMenuItem>
                         <ContextMenuSeparator className="bg-zinc-800" />
                         <ContextMenuItem
@@ -596,7 +692,9 @@ export function StoragePage() {
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: index * 0.05 }}
-                          className="glass-panel border border-zinc-800/30 rounded-none p-4 hover:border-red-600/30 transition-all group"
+                          className={`glass-panel border rounded-none p-4 transition-all group ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
+                            }`}
+                          onClick={(e) => toggleSelection(e, file.id)}
                           draggable
                           onDragStart={(e) => {
                             e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
@@ -647,6 +745,9 @@ export function StoragePage() {
                         <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
                           <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
                         </ContextMenuItem>
+                        <ContextMenuItem onClick={() => openRenameDialog(file)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Renomear
+                        </ContextMenuItem>
                         <ContextMenuSeparator className="bg-zinc-800" />
                         <ContextMenuItem
                           className="text-red-600 focus:text-red-500"
@@ -663,6 +764,7 @@ export function StoragePage() {
           </div>
         </div>
       </div>
+
       {/* Create Folder Dialog */}
       <CreateFolderDialog
         isOpen={isCreateFolderOpen}
@@ -670,6 +772,48 @@ export function StoragePage() {
         onConfirm={handleCreateFolder}
         title={currentFolder ? "Nova Subpasta" : "Nova Pasta"}
       />
+
+      {/* Rename Dialog */}
+      <Dialog open={!!itemToRename} onOpenChange={(open) => !open && setItemToRename(null)}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="brick-title text-xl tracking-tighter uppercase">
+              Renomear
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleRename} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-zinc-500">
+                Novo Nome
+              </Label>
+              <Input
+                required
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="glass-input border-none rounded-none h-12"
+                placeholder="Nome do item"
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setItemToRename(null)}
+                className="glass-button border border-zinc-800 rounded-none h-10 w-full md:w-auto"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="glass-button-primary border-none rounded-none h-10 w-full md:w-auto font-black uppercase tracking-widest"
+              >
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

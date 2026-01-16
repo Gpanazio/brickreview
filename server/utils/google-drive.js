@@ -205,6 +205,31 @@ class GoogleDriveManager {
   }
 
   /**
+   * Rename a file or folder
+   */
+  async renameFile(fileId, newName) {
+    if (!this.isEnabled()) {
+      throw new Error('Google Drive is not enabled');
+    }
+
+    try {
+      const response = await this.drive.files.update({
+        fileId: fileId,
+        resource: {
+          name: newName,
+        },
+        fields: 'id, name',
+      });
+
+      console.log(`✅ Renamed file ${fileId} to ${newName}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Failed to rename file in Google Drive:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get storage usage statistics
    */
   async getStorageStats() {
