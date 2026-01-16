@@ -97,6 +97,7 @@ import drawingsRoutes from './routes/drawings.js'
 import imagesRoutes from './routes/images.js'
 import storageRoutes from './routes/storage.js'
 import driveRoutes from './routes/drive.js'
+import portfolioRoutes from './routes/portfolio.js'
 // TODO: Import other routes
 // import notificationsRoutes from './routes/notifications.js'
 
@@ -112,6 +113,7 @@ app.use('/api/drawings', drawingsRoutes)
 app.use('/api/images', imagesRoutes)
 app.use('/api/storage', storageRoutes)
 app.use('/api/drive', driveRoutes)
+app.use('/api/portfolio', portfolioRoutes)
 // app.use('/api/notifications', notificationsRoutes)
 
 // Serve comment attachments from Railway Volume
