@@ -66,10 +66,12 @@ export function SharedStoragePage() {
 
     const fetchRootMetadata = async () => {
         setLoading(true);
+        setError(null); // Clear any previous errors
         try {
             const response = await fetch(`/api/storage/public/metadata/${id}`);
             if (!response.ok) {
-                throw new Error("Conteúdo não encontrado ou acesso negado");
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "Conteúdo não encontrado ou acesso negado");
             }
             const data = await response.json();
             setRootMetadata(data);
@@ -105,7 +107,8 @@ export function SharedStoragePage() {
                 setFolders(folderItems);
                 setFiles(fileItems);
             } else {
-                toast.error("Erro ao carregar arquivos");
+                const errorData = await response.json().catch(() => ({ error: "Erro desconhecido" }));
+                toast.error(errorData.error || "Erro ao carregar arquivos");
             }
         } catch (err) {
             console.error("Error fetching files:", err);
