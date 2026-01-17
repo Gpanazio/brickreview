@@ -1,0 +1,11 @@
+# Nixpacks configuration for BrickReview
+# Ensures ffmpeg is installed in the environment
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "ffmpeg"]
+
+[phases.build]
+cmds = ["npm ci", "npm run build"]
+
+[start]
+cmd = "chmod +x railway-start.sh && ./railway-start.sh"

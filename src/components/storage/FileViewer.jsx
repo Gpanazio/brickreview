@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Download, File } from "lucide-react";
 
-export function FileViewer({ file, isOpen, onClose }) {
+export function FileViewer({ file, isOpen, onClose, token }) {
     const [imageHasError, setImageHasError] = useState(false);
     const [videoHasError, setVideoHasError] = useState(false);
 
@@ -58,14 +58,6 @@ export function FileViewer({ file, isOpen, onClose }) {
         return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
     };
 
-    const getHighResImage = (file) => {
-        if (file.thumbnailLink) {
-            // Replace default size param (e.g. =s220) with a larger one (=s2000)
-            return file.thumbnailLink.replace(/=s\d+/, '=s2000');
-        }
-        return file.webContentLink; // Fallback
-    };
-
     // Safely get mimeType (handle both mimeType and mime_type)
     const mimeType = file.mimeType || file.mime_type || "";
 
@@ -73,31 +65,28 @@ export function FileViewer({ file, isOpen, onClose }) {
     const isVideo = mimeType.startsWith("video/");
     const isAudio = mimeType.startsWith("audio/");
     const isPdf = mimeType === "application/pdf";
-    // Determine if we should use iframe preview (PDFs, Docs, or anything not natively playable but viewable in Drive)
-    // For simplicity, let's treat anything not media as potentially iframe-able via Drive Preview,
-    // but specifically target PDFs and Text for now to avoid Google Drive UI loading inside for everything.
     const isIframePreview = isPdf ||
         mimeType.includes("text/") ||
-        mimeType.includes("application/vnd.google-apps") || // Google Docs
+        mimeType.includes("application/vnd.google-apps") ||
         mimeType.includes("application/msword") ||
         mimeType.includes("application/vnd.openxmlformats-officedocument");
 
+    const getProxyUrl = (file) => {
+        if (!file || !token) return "";
+        return `/api/storage/proxy/${file.id}?token=${token}`;
+    };
 
     const renderContent = () => {
+        const proxyUrl = getProxyUrl(file);
+
         if (isImage) {
-            const imageUrl = getHighResImage(file);
-
-            if (imageHasError) {
-                return renderErrorState("Erro ao carregar imagem");
-            }
-
             return (
                 <img
-                    src={imageUrl}
+                    src={proxyUrl}
                     alt={file.name}
                     className="max-h-full max-w-full object-contain"
                     onError={() => {
-                        console.error("Error loading image:", imageUrl);
+                        console.error("Error loading image from proxy:", proxyUrl);
                         setImageHasError(true);
                     }}
                 />
@@ -105,19 +94,13 @@ export function FileViewer({ file, isOpen, onClose }) {
         }
 
         if (isVideo) {
-            const videoUrl = file.webContentLink || file.webViewLink;
-
-            if (videoHasError) {
-                return renderErrorState("Erro ao carregar vídeo");
-            }
-
             return (
                 <video
-                    src={videoUrl}
+                    src={proxyUrl}
                     controls
                     className="max-h-full max-w-full"
                     onError={() => {
-                        console.error("Error loading video:", videoUrl);
+                        console.error("Error loading video from proxy:", proxyUrl);
                         setVideoHasError(true);
                     }}
                 >
@@ -133,7 +116,7 @@ export function FileViewer({ file, isOpen, onClose }) {
                         <File className="w-10 h-10 text-red-500" />
                     </div>
                     <audio
-                        src={file.webContentLink}
+                        src={proxyUrl}
                         controls
                         autoPlay
                         className="w-full max-w-md"
@@ -147,36 +130,16 @@ export function FileViewer({ file, isOpen, onClose }) {
         // For PDFs and documents, Google Drive blocks iframe embedding due to their CSP
         // Instead, provide a download/open option
         if (isIframePreview) {
+            const previewUrl = `https://drive.google.com/file/d/${file.id}/preview`;
+
             return (
-                <div className="flex flex-col items-center justify-center gap-6 p-8">
-                    <div className="w-24 h-24 bg-zinc-900 flex items-center justify-center rounded-lg">
-                        <File className="w-12 h-12 text-zinc-500" />
-                    </div>
-                    <div className="text-center max-w-md">
-                        <h3 className="brick-title text-lg text-white mb-2">{file.name}</h3>
-                        <p className="text-zinc-500 text-sm mb-6">
-                            Este tipo de arquivo não pode ser visualizado diretamente no navegador.
-                        </p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        {file.webViewLink && (
-                            <Button
-                                onClick={() => openSafeUrl(file.webViewLink)}
-                                className="glass-button border border-zinc-800 rounded-none h-10 px-6 text-[10px] font-black uppercase tracking-widest"
-                            >
-                                Abrir no Google Drive
-                            </Button>
-                        )}
-                        {file.webContentLink && (
-                            <Button
-                                onClick={() => openSafeUrl(file.webContentLink)}
-                                className="glass-button-primary border-none rounded-none h-10 px-6 text-[10px] font-black uppercase tracking-widest"
-                            >
-                                <Download className="w-3 h-3 mr-2" />
-                                Baixar Arquivo
-                            </Button>
-                        )}
-                    </div>
+                <div className="w-full h-full flex flex-col">
+                    <iframe
+                        src={previewUrl}
+                        className="w-full h-full border-none bg-white"
+                        allow="autoplay"
+                        title={file.name}
+                    />
                 </div>
             );
         }
