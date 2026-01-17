@@ -21,6 +21,10 @@ import EmojiPicker from "emoji-picker-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
+// Constants
+const DEFAULT_RANGE_DURATION_SECONDS = 5;
+const DRAWING_COLORS = ["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"];
+
 // CommentItemInline - Direct props version (no react-window itemData destructuring)
 const CommentItemInline = ({
   comment,
@@ -859,11 +863,10 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                     {hasTimestamp && (
                       <button
                         type="button"
-                        className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500"}`}
+                        className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}`}
                         onClick={() => {
                           if (!isRangeMode) {
-                            // Ao ativar o range, define o fim como +5 segundos do tempo atual como default
-                            setRangeEndTime(currentTime + 5);
+                            setRangeEndTime(currentTime + DEFAULT_RANGE_DURATION_SECONDS);
                           } else {
                             setRangeEndTime(null);
                           }
@@ -975,7 +978,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   <div className="flex items-center gap-2 px-2 py-1 bg-zinc-900/50 rounded-sm border border-zinc-800">
                     <span className="text-[10px] text-zinc-500 uppercase font-bold">Cores:</span>
                     <div className="flex items-center gap-1">
-                      {["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"].map(
+                      {DRAWING_COLORS.map(
                         (color) => (
                           <button
                             key={color}
