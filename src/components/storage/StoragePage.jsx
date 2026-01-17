@@ -84,6 +84,10 @@ export function StoragePage() {
   const containerRef = useRef(null);
   const itemsRef = useRef(new Map());
 
+  // Check if clicking on a file/folder item (draggable)
+  const selectionOnDragStartRef = useRef(new Set());
+  const cachedItemRectsRef = useRef(new Map());
+
   // Confirm Dialog State
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -273,9 +277,26 @@ export function StoragePage() {
     setSelectionBox({ startX: x, startY: y, currentX: x, currentY: y });
     setIsSelecting(true);
 
-    if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    // Store initial selection state
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      selectionOnDragStartRef.current = new Set(selectedIds);
+    } else {
+      selectionOnDragStartRef.current = new Set();
       setSelectedIds(new Set());
     }
+
+    // Cache item positions
+    cachedItemRectsRef.current.clear();
+    itemsRef.current.forEach((element, id) => {
+      if (!element) return;
+      const elRect = element.getBoundingClientRect();
+      cachedItemRectsRef.current.set(id, {
+        left: elRect.left - rect.left + scrollLeft,
+        top: elRect.top - rect.top + scrollTop,
+        width: elRect.width,
+        height: elRect.height
+      });
+    });
   };
 
   const handleSelectionMouseMove = (e) => {
@@ -296,21 +317,16 @@ export function StoragePage() {
     const boxWidth = Math.abs(currentX - selectionBox.startX);
     const boxHeight = Math.abs(currentY - selectionBox.startY);
 
-    const newSelected = new Set(e.shiftKey || e.ctrlKey || e.metaKey ? selectedIds : []);
+    // Start with base selection (from start of drag)
+    const newSelected = new Set(selectionOnDragStartRef.current);
 
-    itemsRef.current.forEach((element, id) => {
-      if (!element) return;
-
-      // Get element position relative to container
-      const elRect = element.getBoundingClientRect();
-      const elLeft = elRect.left - rect.left + scrollLeft;
-      const elTop = elRect.top - rect.top + scrollTop;
-
+    // Add currently intersecting items
+    cachedItemRectsRef.current.forEach((elRect, id) => {
       const isIntersecting = (
-        boxLeft < elLeft + elRect.width &&
-        boxLeft + boxWidth > elLeft &&
-        boxTop < elTop + elRect.height &&
-        boxTop + boxHeight > elTop
+        boxLeft < elRect.left + elRect.width &&
+        boxLeft + boxWidth > elRect.left &&
+        boxTop < elRect.top + elRect.height &&
+        boxTop + boxHeight > elRect.top
       );
 
       if (isIntersecting) {
@@ -324,6 +340,7 @@ export function StoragePage() {
   const handleSelectionMouseUp = () => {
     setIsSelecting(false);
     setSelectionBox(null);
+    cachedItemRectsRef.current.clear();
   };
 
   // Improved drag handlers for drop zone overlay
