@@ -17,6 +17,15 @@ RUN npm run build
 # Prune dev dependencies
 RUN npm prune --production
 
+# Create production bundle
+RUN mkdir -p /app/production-files && \
+    cp -a /app/package*.json /app/production-files/ && \
+    cp -a /app/node_modules /app/production-files/ && \
+    cp -a /app/dist /app/production-files/ && \
+    cp -a /app/server /app/production-files/ && \
+    cp -a /app/scripts /app/production-files/ && \
+    cp -a /app/railway-start.sh /app/production-files/
+
 # Stage 2: Production
 FROM node:20-slim
 
@@ -30,12 +39,8 @@ RUN ffmpeg -version && ffprobe -version
 
 WORKDIR /app
 
-# Copy artifacts from builder
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server ./server
-COPY --from=builder /app/railway-start.sh ./railway-start.sh
+# Copy artifacts from builder (single layer)
+COPY --from=builder /app/production-files/ .
 
 # Fix permissions for non-root user
 RUN chmod +x railway-start.sh && \

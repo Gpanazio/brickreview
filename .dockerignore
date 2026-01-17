@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules
+
+# Build artifacts
+dist
+build
+
+# Environment & Logs
+.env
+.env.*
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+Dockerfile
+.dockerignore
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Other
+temp-uploads
+thumbnails
