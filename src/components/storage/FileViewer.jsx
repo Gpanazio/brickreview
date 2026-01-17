@@ -107,20 +107,23 @@ export function FileViewer({ file, isOpen, onClose }) {
             );
         }
 
-        if (isIframePreview && file.webContentLink) {
-            // For PDFs and documents, use webContentLink for direct viewing
-            // Note: Google Drive links may not work in iframe due to CSP
+        if (isIframePreview && file.webViewLink) {
+            // Use Google Drive preview link (CSP now allows drive.google.com iframes)
+            const previewLink = file.webViewLink.replace('/view', '/preview');
             return (
                 <iframe
-                    src={file.webContentLink}
+                    src={previewLink}
                     className="w-full h-full border-none"
                     title={file.name}
                     allow="autoplay"
+                    onError={(e) => {
+                        console.error("Error loading iframe:", previewLink);
+                    }}
                 />
             );
         }
 
-        // If iframe preview is needed but webContentLink is not available
+        // If iframe preview is needed but webViewLink is not available
         if (isIframePreview) {
             return (
                 <div className="flex flex-col items-center gap-4">
@@ -128,14 +131,16 @@ export function FileViewer({ file, isOpen, onClose }) {
                         <File className="w-10 h-10 text-zinc-700" />
                     </div>
                     <p className="text-zinc-500 text-xs italic mb-4">
-                        Este arquivo não pode ser visualizado diretamente.
+                        Link de visualização não disponível.
                     </p>
-                    <Button
-                        onClick={() => window.open(file.webViewLink, "_blank")}
-                        className="glass-button-primary border-none rounded-none h-10 px-6"
-                    >
-                        Abrir no Google Drive
-                    </Button>
+                    {file.webContentLink && (
+                        <Button
+                            onClick={() => window.open(file.webContentLink, "_blank")}
+                            className="glass-button-primary border-none rounded-none h-10 px-6"
+                        >
+                            Baixar Arquivo
+                        </Button>
+                    )}
                 </div>
             );
         }
