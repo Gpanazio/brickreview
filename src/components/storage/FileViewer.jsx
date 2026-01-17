@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, File, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, File } from "lucide-react";
 
 export function FileViewer({ file, isOpen, onClose }) {
     const [imageHasError, setImageHasError] = useState(false);
@@ -214,14 +214,6 @@ export function FileViewer({ file, isOpen, onClose }) {
                             </span>
                         </div>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={onClose}
-                        className="h-8 w-8 text-zinc-500 hover:text-white hover:bg-zinc-900 rounded-none"
-                    >
-                        <X className="w-5 h-5" />
-                    </Button>
                 </DialogHeader>
 
                 {/* Viewer Area */}
