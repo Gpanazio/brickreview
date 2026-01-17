@@ -7,15 +7,15 @@ const Toaster = ({ ...props }) => {
       className="toaster group"
       toastOptions={{
         classNames: {
-          toast: "group toast group-[.toaster]:bg-black group-[.toaster]:text-white group-[.toaster]:border-zinc-800 group-[.toaster]:shadow-lg group-[.toaster]:rounded-none group-[.toaster]:font-mono group-[.toaster]:uppercase group-[.toaster]:tracking-widest group-[.toaster]:text-[10px]",
-          description: "group-[.toast]:text-zinc-500",
-          actionButton: "group-[.toast]:bg-red-600 group-[.toast]:text-white group-[.toast]:rounded-none group-[.toast]:font-bold",
-          cancelButton: "group-[.toast]:bg-zinc-800 group-[.toast]:text-white group-[.toast]:rounded-none",
-          success: "group-[.toaster]:border-green-900 group-[.toaster]:bg-black",
-          error: "group-[.toaster]:border-red-900 group-[.toaster]:bg-black",
-          info: "group-[.toaster]:border-blue-900 group-[.toaster]:bg-black",
-          warning: "group-[.toaster]:border-amber-900 group-[.toaster]:bg-black",
-          loading: "group-[.toaster]:border-zinc-800 group-[.toaster]:bg-black",
+          toast: "group toast group-[.toaster]:bg-background/90 group-[.toaster]:backdrop-blur-xl group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg group-[.toaster]:rounded-none group-[.toaster]:font-mono group-[.toaster]:uppercase group-[.toaster]:tracking-widest group-[.toaster]:text-[10px]",
+          description: "group-[.toast]:text-muted-foreground",
+          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:rounded-none group-[.toast]:font-bold",
+          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground group-[.toast]:rounded-none",
+          success: "group-[.toaster]:border-green-900 group-[.toaster]:text-green-500",
+          error: "group-[.toaster]:border-red-900 group-[.toaster]:text-red-500",
+          info: "group-[.toaster]:border-blue-900 group-[.toaster]:text-blue-500",
+          warning: "group-[.toaster]:border-amber-900 group-[.toaster]:text-amber-500",
+          loading: "group-[.toaster]:border-zinc-800",
         },
       }}
       {...props}

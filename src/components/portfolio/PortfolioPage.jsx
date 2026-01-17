@@ -48,6 +48,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function PortfolioPage() {
   const navigate = useNavigate();
@@ -78,6 +79,14 @@ export function PortfolioPage() {
   const [dragActive, setDragActive] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
   const [editingVideo, setEditingVideo] = useState(null);
+
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
   const [copiedLink, setCopiedLink] = useState(null);
 
   const fileInputRef = useRef(null);
@@ -159,23 +168,28 @@ export function PortfolioPage() {
   };
 
   const handleDeleteFolder = async (folder) => {
-    if (!confirm(`Tem certeza que deseja excluir a pasta "${folder.name}"?`)) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: "Excluir Pasta",
+      message: `Tem certeza que deseja excluir a pasta "${folder.name}"?`,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/portfolio/collections/${folder.id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
-    try {
-      const response = await fetch(`/api/portfolio/collections/${folder.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        toast.success("Pasta excluída");
-        fetchContents();
-      } else {
-        toast.error("Erro ao excluir pasta");
-      }
-    } catch (error) {
-      toast.error("Erro ao excluir pasta");
-    }
+          if (response.ok) {
+            toast.success("Pasta excluída");
+            fetchContents();
+          } else {
+            toast.error("Erro ao excluir pasta");
+          }
+        } catch (error) {
+          toast.error("Erro ao excluir pasta");
+        }
+      },
+    });
   };
 
   const handleNavigateFolder = (folder) => {
@@ -311,26 +325,31 @@ export function PortfolioPage() {
   };
 
   const handleDeleteVideo = async (video) => {
-    if (!confirm("Tem certeza que deseja excluir este vídeo?")) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: "Excluir Vídeo",
+      message: "Tem certeza que deseja excluir este vídeo?",
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/portfolio/videos/${video.id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
-    try {
-      const response = await fetch(`/api/portfolio/videos/${video.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        toast.success("Vídeo excluído");
-        fetchContents();
-        if (showModal && selectedVideo?.id === video.id) {
-          setShowModal(false);
+          if (response.ok) {
+            toast.success("Vídeo excluído");
+            fetchContents();
+            if (showModal && selectedVideo?.id === video.id) {
+              setShowModal(false);
+            }
+          } else {
+            toast.error("Erro ao excluir vídeo");
+          }
+        } catch (error) {
+          toast.error("Erro ao excluir vídeo");
         }
-      } else {
-        toast.error("Erro ao excluir vídeo");
-      }
-    } catch (error) {
-      toast.error("Erro ao excluir vídeo");
-    }
+      },
+    });
   };
 
   const handleUpdatePassword = async (videoId, password, removePassword = false) => {
@@ -394,7 +413,7 @@ export function PortfolioPage() {
           >
             <button
               onClick={() => navigate("/")}
-              className="w-10 h-10 flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors border border-zinc-800/50"
+              className="w-10 h-10 flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors border border-zinc-800/50 cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -896,6 +915,18 @@ export function PortfolioPage() {
           </Dialog>
         )}
       </AnimatePresence>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="danger"
+      />
 
     </div>
   );

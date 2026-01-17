@@ -39,6 +39,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileViewer } from "./FileViewer";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function StoragePage() {
   const navigate = useNavigate();
@@ -70,6 +71,14 @@ export function StoragePage() {
   const [previewFile, setPreviewFile] = useState(null);
 
   const fileInputRef = useRef(null);
+
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
 
   useEffect(() => {
     fetchFiles(currentFolder?.id);
@@ -357,26 +366,29 @@ export function StoragePage() {
   };
 
   const handleDelete = async (fileId, fileName) => {
-    if (!confirm(`Tem certeza que deseja excluir "${fileName}"?`)) {
-      return;
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: "Excluir Arquivo",
+      message: `Tem certeza que deseja excluir "${fileName}"?`,
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/storage/drive-files/${fileId}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
-    try {
-      const response = await fetch(`/api/storage/drive-files/${fileId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        toast.success("Arquivo excluído com sucesso!");
-        fetchFiles();
-      } else {
-        toast.error("Erro ao excluir arquivo");
-      }
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Erro ao excluir arquivo");
-    }
+          if (response.ok) {
+            toast.success("Arquivo excluído com sucesso!");
+            fetchFiles();
+          } else {
+            toast.error("Erro ao excluir arquivo");
+          }
+        } catch (error) {
+          console.error("Delete error:", error);
+          toast.error("Erro ao excluir arquivo");
+        }
+      },
+    });
   };
 
   const formatFileSize = (bytes) => {
@@ -416,7 +428,7 @@ export function StoragePage() {
           >
             <button
               onClick={() => navigate("/")}
-              className="w-10 h-10 flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors border border-zinc-800/50"
+              className="w-10 h-10 flex items-center justify-center bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors border border-zinc-800/50 cursor-pointer"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -1055,6 +1067,18 @@ export function StoragePage() {
         file={previewFile}
         isOpen={!!previewFile}
         onClose={() => setPreviewFile(null)}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="danger"
       />
     </div>
   );

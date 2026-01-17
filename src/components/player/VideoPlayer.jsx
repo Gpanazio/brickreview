@@ -575,7 +575,7 @@ function VideoPlayerContent({
       <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden min-h-0">
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
-            <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors">
+            <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors cursor-pointer">
               <ChevronLeft className="w-5 h-5" />
             </button>
             <h2 className="brick-title text-lg tracking-tighter uppercase truncate">

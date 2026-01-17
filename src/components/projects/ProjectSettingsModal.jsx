@@ -18,6 +18,7 @@ import {
   Search,
   RefreshCw,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token }) {
   // Estados de Navegação: 'main', 'cover-selection', 'cover-editor', 'cover-browser'
@@ -51,6 +52,14 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   const [shareLink, setShareLink] = useState("");
   const [isGeneratingShare, setIsGeneratingShare] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
 
   useEffect(() => {
     fetchProjectDetails();
@@ -462,24 +471,30 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
   };
 
   const handleDeleteProject = async () => {
-    if (!confirm(`Tem certeza que deseja excluir "${projectData.name}"?`)) return;
-    const deleteToast = toast.loading("Excluindo...");
-    try {
-      const response = await fetch(`/api/projects/${project.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    setConfirmDialog({
+      isOpen: true,
+      title: "Excluir Projeto",
+      message: `Tem certeza que deseja excluir "${projectData.name}"? Esta ação não pode ser desfeita.`,
+      onConfirm: async () => {
+        const deleteToast = toast.loading("Excluindo...");
+        try {
+          const response = await fetch(`/api/projects/${project.id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
-      if (response.ok) {
-        toast.success("Projeto excluído", { id: deleteToast });
-        onProjectUpdate();
-        onClose();
-      } else {
-        toast.error("Erro ao excluir", { id: deleteToast });
-      }
-    } catch (_error) {
-      toast.error("Erro ao excluir", { id: deleteToast });
-    }
+          if (response.ok) {
+            toast.success("Projeto excluído", { id: deleteToast });
+            onProjectUpdate();
+            onClose();
+          } else {
+            toast.error("Erro ao excluir", { id: deleteToast });
+          }
+        } catch (_error) {
+          toast.error("Erro ao excluir", { id: deleteToast });
+        }
+      },
+    });
   };
 
   // --- RENDERIZADORES DE VIEW ---
@@ -936,6 +951,18 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
         {viewMode === "cover-browser" && renderCoverBrowser()}
         {viewMode === "cover-editor" && renderCoverEditor()}
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 }

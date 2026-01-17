@@ -210,7 +210,7 @@ function Sidebar({ collapsed, setCollapsed }) {
               className={`flex items-center gap-4 px-4 py-3 border-l-2 transition-all group ${isActive(item.path)
                 ? "bg-red-600/10 border-red-600 text-white shadow-[inset_10px_0_20px_rgba(220,38,38,0.05)]"
                 : "border-transparent text-zinc-500 hover:text-white hover:bg-zinc-900/50"
-                } ${collapsed ? "justify-center" : ""}`}
+                } ${collapsed ? "justify-center" : ""} cursor-pointer`}
               title={collapsed ? item.label : ""}
             >
               <item.icon
@@ -509,7 +509,7 @@ function ProjectsPage() {
             className={`p-1.5 rounded-md transition-all ${viewMode === "grid"
               ? "bg-zinc-800 text-white shadow-sm"
               : "text-zinc-500 hover:text-zinc-300"
-              }`}
+              } cursor-pointer`}
             title="Grid View"
           >
             <Grid className="w-4 h-4" />
@@ -519,7 +519,7 @@ function ProjectsPage() {
             className={`p-1.5 rounded-md transition-all ${viewMode === "list"
               ? "bg-zinc-800 text-white shadow-sm"
               : "text-zinc-500 hover:text-zinc-300"
-              }`}
+              } cursor-pointer`}
             title="List View"
           >
             <List className="w-4 h-4" />
@@ -826,7 +826,7 @@ function MobileNav({ navItems, user, logout }) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex flex-col items-center gap-1 text-zinc-500">
+          <button className="flex flex-col items-center gap-1 text-zinc-500 cursor-pointer">
             <div className="w-6 h-6 bg-red-600 flex items-center justify-center">
               <span className="text-[10px] font-black text-white">
                 {user.username.substring(0, 2).toUpperCase()}

@@ -901,7 +901,7 @@ export function ProjectDetailPage() {
                 className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "grid"
                   ? "bg-red-600 text-white"
                   : "text-zinc-500 hover:text-zinc-300"
-                  }`}
+                  } cursor-pointer`}
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
@@ -910,7 +910,7 @@ export function ProjectDetailPage() {
                 className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "folders"
                   ? "bg-red-600 text-white"
                   : "text-zinc-500 hover:text-zinc-300"
-                  }`}
+                  } cursor-pointer`}
               >
                 <FolderTree className="w-4 h-4" />
               </button>
@@ -1552,7 +1552,7 @@ const FolderCard = memo(
                 <div onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className="text-zinc-700 hover:text-white transition-colors p-1 hover:bg-zinc-800/50 rounded-sm">
+                      <button className="text-zinc-700 hover:text-white transition-colors p-1 hover:bg-zinc-800/50 rounded-sm cursor-pointer">
                         <MoreVertical className="w-4 h-4" />
                       </button>
                     </DropdownMenuTrigger>
