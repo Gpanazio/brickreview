@@ -47,7 +47,7 @@ const allowAnyOrigin = !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '
 // Headers de Segurança e Performance
 app.use((req, res, next) => {
   // Segurança
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; worker-src 'self' blob:; connect-src 'self' https: ws: wss:; media-src 'self' https: blob:; frame-ancestors 'self';");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; worker-src 'self' blob:; connect-src 'self' https: ws: wss:; media-src 'self' https: blob:; frame-src 'self' https://drive.google.com https://docs.google.com; frame-ancestors 'self';");
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.removeHeader('X-Frame-Options'); // Substituído por frame-ancestors

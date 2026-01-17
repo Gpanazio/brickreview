@@ -863,7 +863,6 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                       className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 hover:border-red-600 hover:bg-zinc-800 transition-all select-none cursor-ew-resize active:bg-red-900/20"
                       onMouseDown={handleScrubStart}
                       title="Arraste para ajustar o tempo final"
-                      style={{ cursor: 'ew-resize' }}
                     >
                       <span>Fim:</span>
                       <span className="text-white font-bold min-w-[2.5em] text-center">

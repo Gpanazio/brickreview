@@ -6,7 +6,7 @@ export function FileViewer({ file, isOpen, onClose }) {
     if (!file) return null;
 
     const formatFileSize = (bytes) => {
-        if (bytes === 0) return "0 B";
+        if (!bytes || bytes === 0) return "0 B";
         const k = 1024;
         const sizes = ["B", "KB", "MB", "GB", "TB"];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -21,38 +21,68 @@ export function FileViewer({ file, isOpen, onClose }) {
         return file.webContentLink; // Fallback
     };
 
-    const isImage = file.mimeType.startsWith("image/");
-    const isVideo = file.mimeType.startsWith("video/");
-    const isAudio = file.mimeType.startsWith("audio/");
-    const isPdf = file.mimeType === "application/pdf";
+    // Safely get mimeType (handle both mimeType and mime_type)
+    const mimeType = file.mimeType || file.mime_type || "";
+
+    const isImage = mimeType.startsWith("image/");
+    const isVideo = mimeType.startsWith("video/");
+    const isAudio = mimeType.startsWith("audio/");
+    const isPdf = mimeType === "application/pdf";
     // Determine if we should use iframe preview (PDFs, Docs, or anything not natively playable but viewable in Drive)
-    // For simplicity, let's treat anything not media as potentially iframe-able via Drive Preview, 
+    // For simplicity, let's treat anything not media as potentially iframe-able via Drive Preview,
     // but specifically target PDFs and Text for now to avoid Google Drive UI loading inside for everything.
     const isIframePreview = isPdf ||
-        file.mimeType.includes("text/") ||
-        file.mimeType.includes("application/vnd.google-apps") || // Google Docs
-        file.mimeType.includes("application/msword") ||
-        file.mimeType.includes("application/vnd.openxmlformats-officedocument");
+        mimeType.includes("text/") ||
+        mimeType.includes("application/vnd.google-apps") || // Google Docs
+        mimeType.includes("application/msword") ||
+        mimeType.includes("application/vnd.openxmlformats-officedocument");
 
 
     const renderContent = () => {
         if (isImage) {
+            const imageUrl = getHighResImage(file);
             return (
                 <img
-                    src={getHighResImage(file)}
+                    src={imageUrl}
                     alt={file.name}
                     className="max-h-full max-w-full object-contain"
+                    onError={(e) => {
+                        console.error("Error loading image:", imageUrl);
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                        e.target.parentElement.innerHTML = `
+                            <div class="flex flex-col items-center gap-4">
+                                <p class="text-zinc-500 text-sm">Erro ao carregar imagem</p>
+                                <button onclick="window.open('${file.webViewLink}', '_blank')" class="glass-button-primary border-none rounded-none h-10 px-6">
+                                    Abrir no Google Drive
+                                </button>
+                            </div>
+                        `;
+                    }}
                 />
             );
         }
 
         if (isVideo) {
+            // Use webContentLink for direct download/streaming
+            const videoUrl = file.webContentLink || file.webViewLink;
             return (
                 <video
-                    src={file.webContentLink}
+                    src={videoUrl}
                     controls
-                    autoPlay
                     className="max-h-full max-w-full"
+                    onError={(e) => {
+                        console.error("Error loading video:", videoUrl);
+                        e.target.onerror = null;
+                        e.target.parentElement.innerHTML = `
+                            <div class="flex flex-col items-center gap-4">
+                                <p class="text-zinc-500 text-sm">Erro ao carregar vídeo</p>
+                                <button onclick="window.open('${file.webViewLink}', '_blank')" class="glass-button-primary border-none rounded-none h-10 px-6">
+                                    Abrir no Google Drive
+                                </button>
+                            </div>
+                        `;
+                    }}
                 >
                     Seu navegador não suporta a reprodução deste vídeo.
                 </video>
@@ -77,8 +107,8 @@ export function FileViewer({ file, isOpen, onClose }) {
             );
         }
 
-        if (isIframePreview) {
-            // Convert view link to preview link for clean iframe experience
+        if (isIframePreview && file.webViewLink) {
+            // Use Google Drive preview link (CSP now allows drive.google.com iframes)
             const previewLink = file.webViewLink.replace('/view', '/preview');
             return (
                 <iframe
@@ -86,7 +116,32 @@ export function FileViewer({ file, isOpen, onClose }) {
                     className="w-full h-full border-none"
                     title={file.name}
                     allow="autoplay"
+                    onError={(e) => {
+                        console.error("Error loading iframe:", previewLink);
+                    }}
                 />
+            );
+        }
+
+        // If iframe preview is needed but webViewLink is not available
+        if (isIframePreview) {
+            return (
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center rounded-lg">
+                        <File className="w-10 h-10 text-zinc-700" />
+                    </div>
+                    <p className="text-zinc-500 text-xs italic mb-4">
+                        Link de visualização não disponível.
+                    </p>
+                    {file.webContentLink && (
+                        <Button
+                            onClick={() => window.open(file.webContentLink, "_blank")}
+                            className="glass-button-primary border-none rounded-none h-10 px-6"
+                        >
+                            Baixar Arquivo
+                        </Button>
+                    )}
+                </div>
             );
         }
 
@@ -116,7 +171,7 @@ export function FileViewer({ file, isOpen, onClose }) {
                                 {formatFileSize(file.size)}
                             </span>
                             <span className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest truncate max-w-[200px]">
-                                {file.mimeType}
+                                {mimeType || "Tipo desconhecido"}
                             </span>
                         </div>
                     </div>
