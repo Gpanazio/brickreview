@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, File, X, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -16,6 +16,37 @@ export function FileViewer({ file, isOpen, onClose }) {
     }, [file?.id, isOpen]);
 
     if (!file) return null;
+
+    // Safe URL opener - prevents XSS via javascript: URLs
+    const openSafeUrl = (url) => {
+        if (!url) {
+            console.error('No URL provided');
+            return;
+        }
+
+        // Only allow http and https protocols
+        if (url.trim().startsWith('https://') || url.trim().startsWith('http://')) {
+            window.open(url.trim(), '_blank', 'noopener,noreferrer');
+        } else {
+            console.error('Blocked attempt to open unsafe URL:', url);
+        }
+    };
+
+    // Reusable error display component
+    const renderErrorState = (errorMessage) => (
+        <div className="flex flex-col items-center gap-4">
+            <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center rounded-lg">
+                <File className="w-10 h-10 text-zinc-700" />
+            </div>
+            <p className="text-zinc-500 text-sm">{errorMessage}</p>
+            <Button
+                onClick={() => openSafeUrl(file.webViewLink)}
+                className="glass-button-primary border-none rounded-none h-10 px-6"
+            >
+                Abrir no Google Drive
+            </Button>
+        </div>
+    );
 
     const formatFileSize = (bytes) => {
         if (!bytes || bytes === 0) return "0 B";
@@ -55,20 +86,7 @@ export function FileViewer({ file, isOpen, onClose }) {
             const imageUrl = getHighResImage(file);
 
             if (imageHasError) {
-                return (
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center rounded-lg">
-                            <File className="w-10 h-10 text-zinc-700" />
-                        </div>
-                        <p className="text-zinc-500 text-sm">Erro ao carregar imagem</p>
-                        <Button
-                            onClick={() => window.open(file.webViewLink, '_blank')}
-                            className="glass-button-primary border-none rounded-none h-10 px-6"
-                        >
-                            Abrir no Google Drive
-                        </Button>
-                    </div>
-                );
+                return renderErrorState("Erro ao carregar imagem");
             }
 
             return (
@@ -88,20 +106,7 @@ export function FileViewer({ file, isOpen, onClose }) {
             const videoUrl = file.webContentLink || file.webViewLink;
 
             if (videoHasError) {
-                return (
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center rounded-lg">
-                            <File className="w-10 h-10 text-zinc-700" />
-                        </div>
-                        <p className="text-zinc-500 text-sm">Erro ao carregar vídeo</p>
-                        <Button
-                            onClick={() => window.open(file.webViewLink, '_blank')}
-                            className="glass-button-primary border-none rounded-none h-10 px-6"
-                        >
-                            Abrir no Google Drive
-                        </Button>
-                    </div>
-                );
+                return renderErrorState("Erro ao carregar vídeo");
             }
 
             return (
@@ -137,40 +142,37 @@ export function FileViewer({ file, isOpen, onClose }) {
             );
         }
 
-        if (isIframePreview && file.webViewLink) {
-            // Use Google Drive preview link (CSP now allows drive.google.com iframes)
-            const previewLink = file.webViewLink.replace('/view', '/preview');
-            return (
-                <iframe
-                    src={previewLink}
-                    className="w-full h-full border-none"
-                    title={file.name}
-                    allow="autoplay"
-                    onError={(e) => {
-                        console.error("Error loading iframe:", previewLink);
-                    }}
-                />
-            );
-        }
-
-        // If iframe preview is needed but webViewLink is not available
+        // For PDFs and documents, Google Drive blocks iframe embedding due to their CSP
+        // Instead, provide a download/open option
         if (isIframePreview) {
             return (
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center rounded-lg">
-                        <File className="w-10 h-10 text-zinc-700" />
+                <div className="flex flex-col items-center justify-center gap-6 p-8">
+                    <div className="w-24 h-24 bg-zinc-900 flex items-center justify-center rounded-lg">
+                        <File className="w-12 h-12 text-zinc-500" />
                     </div>
-                    <p className="text-zinc-500 text-xs italic mb-4">
-                        Link de visualização não disponível.
-                    </p>
-                    {file.webContentLink && (
+                    <div className="text-center max-w-md">
+                        <h3 className="brick-title text-lg text-white mb-2">{file.name}</h3>
+                        <p className="text-zinc-500 text-sm mb-6">
+                            Este tipo de arquivo não pode ser visualizado diretamente no navegador.
+                        </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
                         <Button
-                            onClick={() => window.open(file.webContentLink, "_blank")}
-                            className="glass-button-primary border-none rounded-none h-10 px-6"
+                            onClick={() => openSafeUrl(file.webViewLink)}
+                            className="glass-button border border-zinc-800 rounded-none h-10 px-6 text-[10px] font-black uppercase tracking-widest"
                         >
-                            Baixar Arquivo
+                            Abrir no Google Drive
                         </Button>
-                    )}
+                        {file.webContentLink && (
+                            <Button
+                                onClick={() => openSafeUrl(file.webContentLink)}
+                                className="glass-button-primary border-none rounded-none h-10 px-6 text-[10px] font-black uppercase tracking-widest"
+                            >
+                                <Download className="w-3 h-3 mr-2" />
+                                Baixar Arquivo
+                            </Button>
+                        )}
+                    </div>
                 </div>
             );
         }
@@ -196,6 +198,9 @@ export function FileViewer({ file, isOpen, onClose }) {
                         <DialogTitle className="brick-title text-lg md:text-xl uppercase tracking-tighter text-white truncate">
                             {file.name}
                         </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Visualizador de arquivo: {file.name}, tamanho {formatFileSize(file.size)}, tipo {mimeType || "desconhecido"}
+                        </DialogDescription>
                         <div className="flex items-center gap-3 mt-1">
                             <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest bg-zinc-900/50 px-2 py-0.5 rounded">
                                 {formatFileSize(file.size)}
@@ -230,14 +235,14 @@ export function FileViewer({ file, isOpen, onClose }) {
                     </div>
                     <div className="flex items-center gap-3">
                         <Button
-                            onClick={() => window.open(file.webViewLink, "_blank")}
+                            onClick={() => openSafeUrl(file.webViewLink)}
                             variant="outline"
                             className="border-zinc-800 bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-none h-9 px-4 text-[10px] font-black uppercase tracking-widest"
                         >
                             Abrir no Drive
                         </Button>
                         <Button
-                            onClick={() => window.open(file.webContentLink || file.webViewLink, "_blank")}
+                            onClick={() => openSafeUrl(file.webContentLink || file.webViewLink)}
                             className="glass-button-primary border-none rounded-none h-9 px-6 text-[10px] font-black uppercase tracking-widest"
                         >
                             <Download className="w-3 h-3 mr-2" />
