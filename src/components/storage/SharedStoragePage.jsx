@@ -107,8 +107,8 @@ export function SharedStoragePage() {
                 setFolders(folderItems);
                 setFiles(fileItems);
             } else {
-                const errorData = await response.json().catch(() => ({ error: "Erro desconhecido" }));
-                toast.error(errorData.error || "Erro ao carregar arquivos");
+                const errorData = await response.json().catch(() => null);
+                toast.error(errorData?.error || `${response.status}: ${response.statusText}` || "Erro ao carregar arquivos");
             }
         } catch (err) {
             console.error("Error fetching files:", err);
