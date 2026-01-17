@@ -25,8 +25,8 @@ export function FileViewer({ file, isOpen, onClose }) {
         }
 
         // Only allow http and https protocols
-        if (url.startsWith('https://') || url.startsWith('http://')) {
-            window.open(url, '_blank', 'noopener,noreferrer');
+        if (url.trim().startsWith('https://') || url.trim().startsWith('http://')) {
+            window.open(url.trim(), '_blank', 'noopener,noreferrer');
         } else {
             console.error('Blocked attempt to open unsafe URL:', url);
         }
