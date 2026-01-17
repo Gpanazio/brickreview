@@ -159,7 +159,7 @@ export function FileViewer({ file, isOpen, onClose, token }) {
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none max-w-6xl w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden outline-none">
+            <DialogContent className="bg-zinc-950 border-zinc-800 rounded-lg max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 flex flex-col overflow-hidden outline-none">
                 <DialogHeader className="p-4 border-b border-zinc-800/50 flex flex-row items-center justify-between bg-[#0a0a0a] shrink-0">
                     <div className="flex-1 min-w-0 mr-4">
                         <DialogTitle className="brick-title text-lg md:text-xl uppercase tracking-tighter text-white truncate">
@@ -180,7 +180,7 @@ export function FileViewer({ file, isOpen, onClose, token }) {
                 </DialogHeader>
 
                 {/* Viewer Area */}
-                <div className="flex-1 bg-black relative flex items-center justify-center overflow-hidden">
+                <div className="flex-1 bg-black relative flex items-center justify-center overflow-auto min-h-[300px] min-w-[300px]">
                     {renderContent()}
                 </div>
 

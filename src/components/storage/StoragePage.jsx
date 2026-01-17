@@ -78,6 +78,12 @@ export function StoragePage() {
 
   const fileInputRef = useRef(null);
 
+  // Selection Box State
+  const [selectionBox, setSelectionBox] = useState(null);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const containerRef = useRef(null);
+  const itemsRef = useRef(new Map());
+
   // Confirm Dialog State
   const [confirmDialog, setConfirmDialog] = useState({
     isOpen: false,
@@ -245,6 +251,79 @@ export function StoragePage() {
     if (selectedFiles.length > 0) {
       uploadFiles(selectedFiles);
     }
+  };
+
+  // Selection Box Logic
+  const handleSelectionMouseDown = (e) => {
+    // Ignore if clicking on generic interactive elements or right click
+    if (e.target.closest('button') || e.target.closest('[role="menuitem"]') || e.button !== 0) return;
+
+    // Check if clicking on a file/folder item (draggable)
+    if (e.target.closest('[draggable="true"]')) return;
+
+    if (!containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const scrollTop = containerRef.current.scrollTop;
+    const scrollLeft = containerRef.current.scrollLeft;
+
+    const x = e.clientX - rect.left + scrollLeft;
+    const y = e.clientY - rect.top + scrollTop;
+
+    setSelectionBox({ startX: x, startY: y, currentX: x, currentY: y });
+    setIsSelecting(true);
+
+    if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectionMouseMove = (e) => {
+    if (!isSelecting || !selectionBox || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const scrollTop = containerRef.current.scrollTop;
+    const scrollLeft = containerRef.current.scrollLeft;
+
+    const currentX = e.clientX - rect.left + scrollLeft;
+    const currentY = e.clientY - rect.top + scrollTop;
+
+    setSelectionBox(prev => ({ ...prev, currentX, currentY }));
+
+    // Calculate selection
+    const boxLeft = Math.min(selectionBox.startX, currentX);
+    const boxTop = Math.min(selectionBox.startY, currentY);
+    const boxWidth = Math.abs(currentX - selectionBox.startX);
+    const boxHeight = Math.abs(currentY - selectionBox.startY);
+
+    const newSelected = new Set(e.shiftKey || e.ctrlKey || e.metaKey ? selectedIds : []);
+
+    itemsRef.current.forEach((element, id) => {
+      if (!element) return;
+
+      // Get element position relative to container
+      const elRect = element.getBoundingClientRect();
+      const elLeft = elRect.left - rect.left + scrollLeft;
+      const elTop = elRect.top - rect.top + scrollTop;
+
+      const isIntersecting = (
+        boxLeft < elLeft + elRect.width &&
+        boxLeft + boxWidth > elLeft &&
+        boxTop < elTop + elRect.height &&
+        boxTop + boxHeight > elTop
+      );
+
+      if (isIntersecting) {
+        newSelected.add(id);
+      }
+    });
+
+    setSelectedIds(newSelected);
+  };
+
+  const handleSelectionMouseUp = () => {
+    setIsSelecting(false);
+    setSelectionBox(null);
   };
 
   // Improved drag handlers for drop zone overlay
@@ -502,12 +581,29 @@ export function StoragePage() {
 
       {/* Content */}
       <div
-        className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative"
+        ref={containerRef}
+        className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative select-none"
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
+        onMouseDown={handleSelectionMouseDown}
+        onMouseMove={handleSelectionMouseMove}
+        onMouseUp={handleSelectionMouseUp}
+        onMouseLeave={handleSelectionMouseUp}
       >
+        {/* Selection Box */}
+        {selectionBox && (
+          <div
+            className="absolute border border-red-500 bg-red-500/10 pointer-events-none z-50"
+            style={{
+              left: Math.min(selectionBox.startX, selectionBox.currentX),
+              top: Math.min(selectionBox.startY, selectionBox.currentY),
+              width: Math.abs(selectionBox.currentX - selectionBox.startX),
+              height: Math.abs(selectionBox.currentY - selectionBox.startY),
+            }}
+          />
+        )}
         {/* Drop Zone Overlay */}
         <AnimatePresence>
           {isDraggingFile && (
@@ -624,6 +720,10 @@ export function StoragePage() {
                           <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
+                            ref={el => {
+                              if (el) itemsRef.current.set(folder.id, el);
+                              else itemsRef.current.delete(folder.id);
+                            }}
                             className={`glass-panel border rounded-none p-4 flex items-center gap-3 cursor-pointer transition-all group ${selectedIds.has(folder.id) ? 'bg-white/10 border-red-600' : 'hover:bg-zinc-900/50 border-zinc-800/30 hover:border-zinc-700'
                               } ${dragOverFolder === folder.id ? 'border-red-600 bg-red-900/10' : ''}`}
                             onClick={(e) => toggleSelection(e, folder.id)}
@@ -752,6 +852,10 @@ export function StoragePage() {
                         <ContextMenu key={file.id}>
                           <ContextMenuTrigger>
                             <motion.div
+                              ref={el => {
+                                if (el) itemsRef.current.set(file.id, el);
+                                else itemsRef.current.delete(file.id);
+                              }}
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.05 }}
@@ -794,9 +898,6 @@ export function StoragePage() {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
-                                      <DropdownMenuItem onClick={() => setPreviewFile(file)}>
-                                        <Eye className="mr-2 h-4 w-4" /> Visualizar
-                                      </DropdownMenuItem>
                                       <DropdownMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
                                         <Download className="mr-2 h-4 w-4" /> Baixar
                                       </DropdownMenuItem>
@@ -849,6 +950,11 @@ export function StoragePage() {
                         <ContextMenu key={file.id}>
                           <ContextMenuTrigger>
                             <motion.div
+                              layout
+                              ref={el => {
+                                if (el) itemsRef.current.set(file.id, el);
+                                else itemsRef.current.delete(file.id);
+                              }}
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ delay: index * 0.05 }}
@@ -862,16 +968,37 @@ export function StoragePage() {
                               }}
                             >
                               <div className="flex flex-col gap-3">
-                                <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center">
+                                <div
+                                  className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center relative overflow-hidden"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewFile(file);
+                                  }}
+                                >
                                   {file.thumbnailLink ? (
                                     <img
                                       src={file.thumbnailLink}
                                       alt={file.name}
-                                      className="w-full h-full object-cover"
+                                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                     />
                                   ) : (
                                     <FileIcon className="w-12 h-12 text-zinc-500" />
                                   )}
+
+                                  {/* Hover Overlay with Download */}
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="text-white hover:text-red-500 hover:bg-black/50 rounded-full"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(file.webViewLink, "_blank");
+                                      }}
+                                    >
+                                      <Download className="w-6 h-6" />
+                                    </Button>
+                                  </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h4 className="brick-title text-xs text-white truncate mb-2">
@@ -894,9 +1021,6 @@ export function StoragePage() {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
-                                      <DropdownMenuItem onClick={() => setPreviewFile(file)}>
-                                        <Eye className="mr-2 h-4 w-4" /> Visualizar
-                                      </DropdownMenuItem>
                                       <DropdownMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
                                         <Download className="mr-2 h-4 w-4" /> Baixar
                                       </DropdownMenuItem>
@@ -920,10 +1044,10 @@ export function StoragePage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => setPreviewFile(file)}
+                                    onClick={() => window.open(file.webViewLink, "_blank")}
                                     className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800 flex-1"
                                   >
-                                    <Eye className="w-4 h-4" />
+                                    <Download className="w-4 h-4" />
                                   </Button>
                                   <Button
                                     size="sm"
@@ -938,9 +1062,6 @@ export function StoragePage() {
                             </motion.div>
                           </ContextMenuTrigger>
                           <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                            <ContextMenuItem onClick={() => setPreviewFile(file)}>
-                              <Eye className="mr-2 h-4 w-4" /> Visualizar
-                            </ContextMenuItem>
                             <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
                               <Download className="mr-2 h-4 w-4" /> Baixar
                             </ContextMenuItem>
