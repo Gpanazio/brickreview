@@ -10,9 +10,6 @@ import {
   List,
   SlidersHorizontal,
   Plus,
-  Clock,
-  Star,
-  Archive,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -132,9 +129,6 @@ function AppContent() {
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/storage" element={<StoragePage />} />
                   <Route path="/portfolio" element={<PortfolioPage />} />
-                  <Route path="/recent" element={<RecentPage />} />
-                  <Route path="/starred" element={<StarredPage />} />
-                  <Route path="/archived" element={<ArchivedPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>
@@ -154,9 +148,6 @@ function Sidebar({ collapsed, setCollapsed }) {
 
   const navItems = [
     { icon: Home, label: "Todos os Projetos", path: "/" },
-    { icon: Clock, label: "Recentes", path: "/recent" },
-    { icon: Star, label: "Favoritos", path: "/starred" },
-    { icon: Archive, label: "Arquivados", path: "/archived" },
     { icon: Briefcase, label: "Portfolio", path: "/portfolio" },
     { icon: HardDrive, label: "Storage", path: "/storage" },
     { icon: Settings, label: "Configurações", path: "/settings" },
@@ -780,37 +771,14 @@ function ProjectCard({ project, onProjectUpdate }) {
   );
 }
 
-function RecentPage() {
-  return (
-    <div className="p-8">
-      <h1 className="brick-title text-3xl">Projetos Recentes</h1>
-    </div>
-  );
-}
-
-function StarredPage() {
-  return (
-    <div className="p-8">
-      <h1 className="brick-title text-3xl">Projetos Favoritos</h1>
-    </div>
-  );
-}
-
-function ArchivedPage() {
-  return (
-    <div className="p-8">
-      <h1 className="brick-title text-3xl">Projetos Arquivados</h1>
-    </div>
-  );
-}
 
 function MobileNav({ navItems, user, logout }) {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800 z-[100] px-6 flex items-center justify-between">
-      {navItems.slice(0, 3).map((item) => (
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800 z-[100] px-4 flex items-center justify-around">
+      {navItems.map((item) => (
         <Link
           key={item.path}
           to={item.path}
