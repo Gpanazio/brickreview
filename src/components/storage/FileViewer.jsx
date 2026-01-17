@@ -39,12 +39,14 @@ export function FileViewer({ file, isOpen, onClose }) {
                 <File className="w-10 h-10 text-zinc-700" />
             </div>
             <p className="text-zinc-500 text-sm">{errorMessage}</p>
-            <Button
-                onClick={() => openSafeUrl(file.webViewLink)}
-                className="glass-button-primary border-none rounded-none h-10 px-6"
-            >
-                Abrir no Google Drive
-            </Button>
+            {file.webViewLink && (
+                <Button
+                    onClick={() => openSafeUrl(file.webViewLink)}
+                    className="glass-button-primary border-none rounded-none h-10 px-6"
+                >
+                    Abrir no Google Drive
+                </Button>
+            )}
         </div>
     );
 
@@ -157,12 +159,14 @@ export function FileViewer({ file, isOpen, onClose }) {
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3">
-                        <Button
-                            onClick={() => openSafeUrl(file.webViewLink)}
-                            className="glass-button border border-zinc-800 rounded-none h-10 px-6 text-[10px] font-black uppercase tracking-widest"
-                        >
-                            Abrir no Google Drive
-                        </Button>
+                        {file.webViewLink && (
+                            <Button
+                                onClick={() => openSafeUrl(file.webViewLink)}
+                                className="glass-button border border-zinc-800 rounded-none h-10 px-6 text-[10px] font-black uppercase tracking-widest"
+                            >
+                                Abrir no Google Drive
+                            </Button>
+                        )}
                         {file.webContentLink && (
                             <Button
                                 onClick={() => openSafeUrl(file.webContentLink)}
@@ -234,13 +238,15 @@ export function FileViewer({ file, isOpen, onClose }) {
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Button
-                            onClick={() => openSafeUrl(file.webViewLink)}
-                            variant="outline"
-                            className="border-zinc-800 bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-none h-9 px-4 text-[10px] font-black uppercase tracking-widest"
-                        >
-                            Abrir no Drive
-                        </Button>
+                        {file.webViewLink && (
+                            <Button
+                                onClick={() => openSafeUrl(file.webViewLink)}
+                                variant="outline"
+                                className="border-zinc-800 bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-none h-9 px-4 text-[10px] font-black uppercase tracking-widest"
+                            >
+                                Abrir no Drive
+                            </Button>
+                        )}
                         <Button
                             onClick={() => openSafeUrl(file.webContentLink || file.webViewLink)}
                             className="glass-button-primary border-none rounded-none h-9 px-6 text-[10px] font-black uppercase tracking-widest"
