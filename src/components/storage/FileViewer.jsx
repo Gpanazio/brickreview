@@ -1,8 +1,20 @@
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download, File, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 export function FileViewer({ file, isOpen, onClose }) {
+    const [imageHasError, setImageHasError] = useState(false);
+    const [videoHasError, setVideoHasError] = useState(false);
+
+    // Reset error states when file changes or dialog closes
+    useEffect(() => {
+        if (isOpen && file) {
+            setImageHasError(false);
+            setVideoHasError(false);
+        }
+    }, [file?.id, isOpen]);
+
     if (!file) return null;
 
     const formatFileSize = (bytes) => {
@@ -41,47 +53,65 @@ export function FileViewer({ file, isOpen, onClose }) {
     const renderContent = () => {
         if (isImage) {
             const imageUrl = getHighResImage(file);
+
+            if (imageHasError) {
+                return (
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center rounded-lg">
+                            <File className="w-10 h-10 text-zinc-700" />
+                        </div>
+                        <p className="text-zinc-500 text-sm">Erro ao carregar imagem</p>
+                        <Button
+                            onClick={() => window.open(file.webViewLink, '_blank')}
+                            className="glass-button-primary border-none rounded-none h-10 px-6"
+                        >
+                            Abrir no Google Drive
+                        </Button>
+                    </div>
+                );
+            }
+
             return (
                 <img
                     src={imageUrl}
                     alt={file.name}
                     className="max-h-full max-w-full object-contain"
-                    onError={(e) => {
+                    onError={() => {
                         console.error("Error loading image:", imageUrl);
-                        e.target.onerror = null;
-                        e.target.style.display = 'none';
-                        e.target.parentElement.innerHTML = `
-                            <div class="flex flex-col items-center gap-4">
-                                <p class="text-zinc-500 text-sm">Erro ao carregar imagem</p>
-                                <button onclick="window.open('${file.webViewLink}', '_blank')" class="glass-button-primary border-none rounded-none h-10 px-6">
-                                    Abrir no Google Drive
-                                </button>
-                            </div>
-                        `;
+                        setImageHasError(true);
                     }}
                 />
             );
         }
 
         if (isVideo) {
-            // Use webContentLink for direct download/streaming
             const videoUrl = file.webContentLink || file.webViewLink;
+
+            if (videoHasError) {
+                return (
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center rounded-lg">
+                            <File className="w-10 h-10 text-zinc-700" />
+                        </div>
+                        <p className="text-zinc-500 text-sm">Erro ao carregar vídeo</p>
+                        <Button
+                            onClick={() => window.open(file.webViewLink, '_blank')}
+                            className="glass-button-primary border-none rounded-none h-10 px-6"
+                        >
+                            Abrir no Google Drive
+                        </Button>
+                    </div>
+                );
+            }
+
             return (
                 <video
                     src={videoUrl}
                     controls
                     className="max-h-full max-w-full"
-                    onError={(e) => {
+                    onError={() => {
                         console.error("Error loading video:", videoUrl);
-                        e.target.onerror = null;
-                        e.target.parentElement.innerHTML = `
-                            <div class="flex flex-col items-center gap-4">
-                                <p class="text-zinc-500 text-sm">Erro ao carregar vídeo</p>
-                                <button onclick="window.open('${file.webViewLink}', '_blank')" class="glass-button-primary border-none rounded-none h-10 px-6">
-                                    Abrir no Google Drive
-                                </button>
-                            </div>
-                        `;
+                        setVideoHasError(true);
                     }}
                 >
                     Seu navegador não suporta a reprodução deste vídeo.
