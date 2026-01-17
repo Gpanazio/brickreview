@@ -28,7 +28,7 @@ import {
 import { CreateFolderDialog } from "../projects/CreateFolderDialog"; // Reusing existing dialog
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Folder, FolderOpen, FolderPlus, MoreVertical, Plus, CornerUpLeft, Pencil, Share2 } from "lucide-react";
+import { Folder, FolderOpen, FolderPlus, MoreVertical, Plus, CornerUpLeft, Pencil, Share2, Eye } from "lucide-react";
 import {
   Dialog,
   DialogContent,
