@@ -12,16 +12,20 @@ RUN ffmpeg -version && ffprobe -version
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first (for better caching)
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including devDependencies for build)
+RUN npm ci
 
-# Copy built frontend and server
-COPY dist ./dist
-COPY server ./server
-COPY railway-start.sh ./
+# Copy source code
+COPY . .
+
+# Build the frontend
+RUN npm run build
+
+# Remove devDependencies after build
+RUN npm prune --production
 
 # Make start script executable
 RUN chmod +x railway-start.sh
