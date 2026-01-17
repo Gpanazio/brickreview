@@ -459,6 +459,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
   const handleScrubStart = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsScrubbing(true);
     scrubRef.current = {
       startX: e.clientX,
@@ -822,8 +823,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 disabled={isGuest && !canComment}
               />
 
-              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between">
-                <div className="flex items-center gap-1">
+              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1 flex-wrap">
                   <button
                     type="button"
                     className={`p-2 rounded-sm transition-colors ${
@@ -858,10 +859,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   )}
 
                   {hasTimestamp && isRangeMode && (
-                    <div 
-                      className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 cursor-ew-resize hover:border-zinc-700 hover:bg-zinc-800 transition-colors select-none"
+                    <div
+                      className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 hover:border-red-600 hover:bg-zinc-800 transition-all select-none cursor-ew-resize active:bg-red-900/20"
                       onMouseDown={handleScrubStart}
                       title="Arraste para ajustar o tempo final"
+                      style={{ cursor: 'ew-resize' }}
                     >
                       <span>Fim:</span>
                       <span className="text-white font-bold min-w-[2.5em] text-center">
@@ -971,7 +973,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 <button
                   type="submit"
                   disabled={!newComment.trim() || (isGuest && !canComment)}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors"
+                  className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors cursor-pointer"
                 >
                   Enviar
                 </button>
