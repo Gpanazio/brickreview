@@ -295,6 +295,30 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
     });
   };
 
+  const handleTouchStart = (e) => {
+    // Prevent default to avoid scrolling while dragging
+    // But we only want to prevent if we are actually dragging the image?
+    // For now simple implementation.
+    if (e.target.tagName === "IMG") {
+      // e.preventDefault(); // Might be needed, but check if it breaks anything
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragStart({
+        x: touch.clientX - position.x,
+        y: touch.clientY - position.y,
+      });
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    setPosition({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y,
+    });
+  };
+
   const handleMouseUp = () => {
     setIsDragging(false);
   };
@@ -578,11 +602,14 @@ export function ProjectSettingsModal({ project, onClose, onProjectUpdate, token 
       </div>
 
       <div
-        className="relative aspect-[4/3] rounded-none overflow-hidden border border-zinc-800 mb-4 bg-zinc-950 cursor-move group"
+        className="relative aspect-[4/3] rounded-none overflow-hidden border border-zinc-800 mb-4 bg-zinc-950 cursor-move group touch-none"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleMouseUp}
       >
         {previewImage && (
           <img

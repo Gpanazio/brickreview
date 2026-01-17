@@ -637,7 +637,40 @@ export function StoragePage() {
                             }}
                           >
                             <Folder className={`w-5 h-5 text-zinc-500 group-hover:text-white transition-colors ${dragOverFolder === folder.id ? 'text-red-500' : ''}`} />
-                            <span className="text-sm text-zinc-300 font-medium truncate group-hover:text-white">{folder.name}</span>
+                            <span className="text-sm text-zinc-300 font-medium truncate group-hover:text-white flex-1">{folder.name}</span>
+
+                            {/* Mobile/Desktop Action Menu */}
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-sm"
+                                  >
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                                  <DropdownMenuItem onClick={() => handleFolderClick(folder)}>
+                                    <FolderOpen className="mr-2 h-4 w-4" /> Abrir
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleShare(folder)}>
+                                    <Share2 className="mr-2 h-4 w-4" /> Compartilhar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openRenameDialog(folder)}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Renomear
+                                  </DropdownMenuItem>
+                                  <ContextMenuSeparator className="bg-zinc-800" />
+                                  <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-500"
+                                    onClick={() => handleDelete(folder.id, folder.name)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </motion.div>
                         </ContextMenuTrigger>
                         <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
@@ -730,23 +763,40 @@ export function StoragePage() {
                                     </span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }}
-                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }}
-                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                <div className="flex items-center gap-2">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <MoreVertical className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                                      <DropdownMenuItem onClick={() => setPreviewFile(file)}>
+                                        <Eye className="mr-2 h-4 w-4" /> Visualizar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
+                                        <Download className="mr-2 h-4 w-4" /> Baixar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleShare(file)}>
+                                        <Share2 className="mr-2 h-4 w-4" /> Compartilhar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => openRenameDialog(file)}>
+                                        <Pencil className="mr-2 h-4 w-4" /> Renomear
+                                      </DropdownMenuItem>
+                                      <ContextMenuSeparator className="bg-zinc-800" />
+                                      <DropdownMenuItem
+                                        className="text-red-600 focus:text-red-500"
+                                        onClick={() => handleDelete(file.id, file.name)}
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 </div>
                               </div>
                             </motion.div>
@@ -813,7 +863,42 @@ export function StoragePage() {
                                     {formatFileSize(file.size)}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity pt-2 border-t border-zinc-800/30">
+                                <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6 text-white bg-black/50 hover:bg-black/80 rounded-sm"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <MoreVertical className="w-4 h-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                                      <DropdownMenuItem onClick={() => setPreviewFile(file)}>
+                                        <Eye className="mr-2 h-4 w-4" /> Visualizar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
+                                        <Download className="mr-2 h-4 w-4" /> Baixar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleShare(file)}>
+                                        <Share2 className="mr-2 h-4 w-4" /> Compartilhar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => openRenameDialog(file)}>
+                                        <Pencil className="mr-2 h-4 w-4" /> Renomear
+                                      </DropdownMenuItem>
+                                      <ContextMenuSeparator className="bg-zinc-800" />
+                                      <DropdownMenuItem
+                                        className="text-red-600 focus:text-red-500"
+                                        onClick={() => handleDelete(file.id, file.name)}
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                                <div className="flex items-center gap-2 opacity-100 md:opacity-40 md:group-hover:opacity-100 transition-opacity pt-2 border-t border-zinc-800/30">
                                   <Button
                                     size="sm"
                                     variant="ghost"

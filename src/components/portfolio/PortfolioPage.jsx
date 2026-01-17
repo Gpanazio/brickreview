@@ -21,6 +21,7 @@ import {
   Folder,
   FolderPlus,
   CornerUpLeft,
+  MoreVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -40,6 +41,13 @@ import {
   ContextMenuTrigger,
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export function PortfolioPage() {
   const navigate = useNavigate();
@@ -607,7 +615,33 @@ export function PortfolioPage() {
                         className="glass-panel border border-zinc-800/30 rounded-none p-4 flex items-center gap-3 cursor-pointer hover:border-red-600/30 transition-all group"
                       >
                         <Folder className="w-5 h-5 text-zinc-500 group-hover:text-red-500 transition-colors" />
-                        <span className="text-sm font-medium text-zinc-300 group-hover:text-white truncate">{folder.name}</span>
+                        <span className="text-sm font-medium text-zinc-300 group-hover:text-white truncate flex-1">{folder.name}</span>
+
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-sm"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                              <DropdownMenuItem onClick={() => handleNavigateFolder(folder)}>
+                                <Folder className="mr-2 h-4 w-4" /> Abrir
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator className="bg-zinc-800" />
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-500"
+                                onClick={() => handleDeleteFolder(folder)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                     </ContextMenuTrigger>
                     <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
@@ -639,8 +673,37 @@ export function PortfolioPage() {
                           </div>
                           <span className="text-sm text-white flex-1 truncate">{video.title}</span>
                           <div className="flex items-center gap-4 text-zinc-500 text-xs">
-                            <span>{formatDuration(video.duration)}</span>
-                            <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {video.view_count}</span>
+                            <span className="hidden md:inline">{formatDuration(video.duration)}</span>
+                            <span className="hidden md:flex items-center gap-1"><Eye className="w-3 h-3" /> {video.view_count}</span>
+
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                                  >
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                                  <DropdownMenuItem onClick={() => handleVideoClick(video)}>
+                                    <Play className="mr-2 h-4 w-4" /> Assistir / Detalhes
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${video.id}`, 'direct')}>
+                                    <Copy className="mr-2 h-4 w-4" /> Copiar Link
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-zinc-800" />
+                                  <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-500"
+                                    onClick={() => handleDeleteVideo(video)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                         </div>
                       </ContextMenuTrigger>
@@ -659,7 +722,7 @@ export function PortfolioPage() {
                       <ContextMenuTrigger>
                         <div
                           onClick={() => handleVideoClick(video)}
-                          className="glass-panel border border-zinc-800/30 rounded-none overflow-hidden hover:border-red-600/30 transition-all group cursor-pointer"
+                          className="glass-panel border border-zinc-800/30 rounded-none overflow-hidden hover:border-red-600/30 transition-all group cursor-pointer relative"
                         >
                           <div className="relative aspect-video bg-zinc-900">
                             {video.thumbnail_url ? (
@@ -671,6 +734,39 @@ export function PortfolioPage() {
                               <Play className="w-10 h-10 text-white" />
                             </div>
                             <div className="absolute bottom-1 right-1 bg-black/80 px-1 text-[9px] text-white">{formatDuration(video.duration)}</div>
+
+                            {/* Action Menu (Visible on mobile, hover on desktop) */}
+                            <div
+                              className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-white bg-black/50 hover:bg-black/80 rounded-sm"
+                                  >
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                                  <DropdownMenuItem onClick={() => handleVideoClick(video)}>
+                                    <Play className="mr-2 h-4 w-4" /> Assistir
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${video.id}`, 'direct')}>
+                                    <Copy className="mr-2 h-4 w-4" /> Copiar Link
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="bg-zinc-800" />
+                                  <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-500"
+                                    onClick={() => handleDeleteVideo(video)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                           <div className="p-3">
                             <h4 className="text-xs text-white truncate font-medium mb-1">{video.title}</h4>

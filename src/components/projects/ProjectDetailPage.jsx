@@ -878,7 +878,7 @@ export function ProjectDetailPage() {
               <motion.h1
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="brick-title text-2xl md:text-4xl tracking-tighter uppercase leading-none mb-2 truncate"
+                className="brick-title text-2xl md:text-4xl tracking-tighter uppercase leading-tight mb-2 break-words"
               >
                 {project.name}
               </motion.h1>
@@ -899,8 +899,8 @@ export function ProjectDetailPage() {
               <button
                 onClick={() => setViewMode("grid")}
                 className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "grid"
-                    ? "bg-red-600 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-red-600 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
                   }`}
               >
                 <LayoutGrid className="w-4 h-4" />
@@ -908,8 +908,8 @@ export function ProjectDetailPage() {
               <button
                 onClick={() => setViewMode("folders")}
                 className={`w-9 h-9 flex items-center justify-center transition-all ${viewMode === "folders"
-                    ? "bg-red-600 text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
+                  ? "bg-red-600 text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
                   }`}
               >
                 <FolderTree className="w-4 h-4" />
@@ -1549,9 +1549,26 @@ const FolderCard = memo(
                       : ""}
                   </p>
                 </div>
-                <button className="text-zinc-700 hover:text-white transition-colors">
-                  <MoreVertical className="w-4 h-4" />
-                </button>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="text-zinc-700 hover:text-white transition-colors p-1 hover:bg-zinc-800/50 rounded-sm">
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                      <DropdownMenuItem onClick={() => onGenerateShare?.()}>
+                        <Share2 className="mr-2 h-4 w-4" /> Gerar Link de Revisão
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onMove?.()}>
+                        <FolderOpen className="mr-2 h-4 w-4" /> Mover para...
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-red-600 focus:text-red-500" onClick={() => onDelete?.()}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
 
               <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-900/50">
@@ -1694,6 +1711,16 @@ const FileCard = memo(({ file, onDelete, onMove, isSelected }) => {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="glass-panel border-zinc-800 rounded-none">
+                  <DropdownMenuItem
+                    className="text-xs uppercase tracking-wider cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMove?.();
+                    }}
+                  >
+                    <FolderOpen className="w-3 h-3 mr-2" />
+                    Mover para...
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-xs uppercase tracking-wider text-red-500 cursor-pointer"
                     onClick={(e) => {
@@ -1950,9 +1977,35 @@ const VideoCard = memo(
                       Versão final para aprovação do cliente
                     </p>
                   </div>
-                  <button className="text-zinc-700 hover:text-white transition-colors">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="text-zinc-700 hover:text-white transition-colors p-1 hover:bg-zinc-800/50 rounded-sm">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                        <DropdownMenuItem onClick={() => onGenerateShare?.(video.id)}>
+                          <Share2 className="mr-2 h-4 w-4" /> Gerar Link de Revisão
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onMove?.()}>
+                          <FolderOpen className="mr-2 h-4 w-4" /> Mover para...
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onDownload?.("original")}>
+                          <Download className="mr-2 h-4 w-4" /> Baixar Original
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onDownload?.("proxy")}>
+                          <Download className="mr-2 h-4 w-4" /> Baixar Proxy (720p)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="focus:text-amber-500" onClick={() => onArchive?.(video.id)}>
+                          <Archive className="mr-2 h-4 w-4" /> Arquivar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600 focus:text-red-500" onClick={() => onDelete?.(video.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-900/50">

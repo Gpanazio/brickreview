@@ -1,10 +1,16 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Settings } from "lucide-react";
+import { Settings, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "../../hooks/useAuth";
 import { ProjectSettingsModal } from "./ProjectSettingsModal";
 import { ProjectCoverPlaceholder } from "@/components/ui/ProjectCoverPlaceholder";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Helper para verificar se a URL é a antiga padrão do Unsplash
 const isDefaultUrl = (url) => {
@@ -36,7 +42,7 @@ export function ProjectListItem({ project, onProjectUpdate }) {
       >
         <Link
           to={`/project/${project.id}`}
-          className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center min-w-0"
+          className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 md:gap-4 items-center min-w-0 pr-10"
         >
           <div className="md:col-span-6 flex items-center gap-4 min-w-0">
             <div className="relative w-12 h-8 flex-shrink-0 overflow-hidden border border-zinc-800 bg-zinc-950">
@@ -73,9 +79,25 @@ export function ProjectListItem({ project, onProjectUpdate }) {
           </div>
         </Link>
 
-        {/* Status indicator style simplified for list */}
+        {/* Action Menu */}
         <div className="absolute right-4 flex items-center gap-2">
-          <span className="text-[10px] text-zinc-600 font-mono uppercase tracking-widest hidden md:block">Settings via Right-click</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-zinc-500 hover:text-white hover:bg-zinc-800"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+              <DropdownMenuItem onClick={() => setShowSettings(true)}>
+                <Settings className="mr-2 h-4 w-4" /> Configurações
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

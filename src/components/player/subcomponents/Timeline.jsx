@@ -31,6 +31,23 @@ export function Timeline() {
     }
   };
 
+  const handleTouchSeek = (e) => {
+    e.stopPropagation();
+    // Prevent scrolling while scrubbing
+    // e.preventDefault(); // Might trigger non-passive error in some browsers, better to use touch-action: none in CSS
+
+    if (!timelineRef.current) return;
+
+    const touch = e.touches[0];
+    const rect = timelineRef.current.getBoundingClientRect();
+    const pos = (touch.clientX - rect.left) / rect.width;
+    const boundedPos = Math.max(0, Math.min(1, pos));
+
+    if (duration > 0) {
+      seekTo(boundedPos * duration);
+    }
+  };
+
   const handleMouseMove = (e) => {
     if (!timelineRef.current || duration <= 0) return;
 
@@ -101,10 +118,12 @@ export function Timeline() {
 
       <div
         ref={timelineRef}
-        className="w-full h-2 hover:h-3 bg-zinc-800 cursor-pointer relative transition-all duration-200 ease-out z-20 group/redline"
+        className="w-full h-2 hover:h-3 bg-zinc-800 cursor-pointer relative transition-all duration-200 ease-out z-20 group/redline touch-none"
         onClick={handleSeek}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchSeek}
+        onTouchMove={handleTouchSeek}
       >
         <div className="absolute inset-0 bg-zinc-900" />
 
@@ -150,11 +169,10 @@ export function Timeline() {
             >
               {hasRange && (
                 <div
-                  className={`absolute h-1.5 rounded-full backdrop-blur-sm transition-colors cursor-ew-resize ${
-                    isActive
+                  className={`absolute h-1.5 rounded-full backdrop-blur-sm transition-colors cursor-ew-resize ${isActive
                       ? "bg-red-600/40 border border-red-600/50"
                       : "bg-white/20 hover:bg-white/30"
-                  }`}
+                    }`}
                   style={{
                     left: 0,
                     width: `${Math.max(widthPercent, 0.2)}vw`,
@@ -169,10 +187,9 @@ export function Timeline() {
                   relative z-10 -translate-x-1/2 
                   transition-all duration-200 ease-out
                   border border-black/50 shadow-sm
-                  ${
-                    isActive
-                      ? "w-3 h-3 bg-red-600 scale-110 shadow-[0_0_8px_rgba(220,38,38,0.6)] ring-2 ring-red-900"
-                      : "w-1.5 h-1.5 bg-zinc-400 group-hover/marker:bg-white group-hover/marker:scale-150"
+                  ${isActive
+                    ? "w-3 h-3 bg-red-600 scale-110 shadow-[0_0_8px_rgba(220,38,38,0.6)] ring-2 ring-red-900"
+                    : "w-1.5 h-1.5 bg-zinc-400 group-hover/marker:bg-white group-hover/marker:scale-150"
                   }
                   rounded-full
                 `}

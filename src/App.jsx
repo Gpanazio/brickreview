@@ -18,6 +18,7 @@ import {
   LogOut,
   HardDrive,
   Briefcase,
+  MoreVertical,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -122,7 +123,7 @@ function AppContent() {
 
           <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
 
-          <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen bg-black/20 pb-20 md:pb-0">
+          <main className="flex-1 relative z-10 custom-scrollbar overflow-y-auto overflow-x-hidden h-screen bg-black/20 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
             <Suspense fallback={<PageLoader />}>
               <div key={location.pathname} className="h-full animate-fade-in">
                 <Routes location={location}>
@@ -715,11 +716,32 @@ function ProjectCard({ project, onProjectUpdate }) {
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
 
             {/* Status indicator */}
-            <div className="absolute top-4 right-4 flex items-center gap-2 px-2 py-1 bg-black/80 backdrop-blur-md border border-white/10">
+            <div className="absolute top-4 left-4 flex items-center gap-2 px-2 py-1 bg-black/80 backdrop-blur-md border border-white/10">
               <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
               <span className="brick-tech text-[8px] text-white uppercase tracking-tighter">
                 Active
               </span>
+            </div>
+
+            {/* Action Menu - Mobile accessible */}
+            <div className="absolute top-2 right-2 z-20" onClick={(e) => e.preventDefault()}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-white bg-black/20 hover:bg-black/80 rounded-sm backdrop-blur-sm"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setShowSettings(true); }}>
+                    <Settings className="mr-2 h-4 w-4" /> Configurações
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -787,7 +809,7 @@ function MobileNav({ navItems, user, logout }) {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-zinc-950/80 backdrop-blur-xl border-t border-zinc-800 z-50 px-6 flex items-center justify-between">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800 z-[100] px-6 flex items-center justify-between">
       {navItems.slice(0, 3).map((item) => (
         <Link
           key={item.path}

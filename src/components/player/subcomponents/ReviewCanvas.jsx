@@ -105,14 +105,6 @@ export function ReviewCanvas() {
       };
       setDrawings([...drawings, newDrawing]);
 
-      // Salva no backend (apenas se não for guest ou se tiver permissão - lógica atual permite apenas autenticados salvar?)
-      // A lógica original tinha: if (!isGuest) { save... } else { setCurrentDrawing([]) }
-      // Mas o app tem comentários de guest. Desenhos de guest?
-      // O código original dizia:
-      // if (!isGuest) { ... save ... } else { setCurrentDrawing([]); }
-      // Então Guests NÃO salvam desenhos no backend na versão anterior.
-      // Vou manter essa lógica.
-
       if (!isGuest) {
         const saveToast = toast.loading("Salvando desenho...");
         try {
@@ -142,12 +134,36 @@ export function ReviewCanvas() {
           toast.error("Erro ao salvar desenho", { id: saveToast });
         }
       } else {
-        // Se for Guest, limpa o desenho atual (não persiste)
-        // A menos que queiramos permitir guests desenharem?
-        // O código original não permitia salvar.
         setCurrentDrawing([]);
       }
     }
+  };
+
+  const startDrawingTouch = (e) => {
+    if (!isDrawingMode) return;
+    // e.preventDefault(); // Might need passive: false listener to work, React handles this differently
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) / rect.width;
+    const y = (touch.clientY - rect.top) / rect.height;
+    setCurrentDrawing([{ x, y }]);
+  };
+
+  const drawTouch = (e) => {
+    if (!isDrawing || !isDrawingMode) return;
+    // e.preventDefault(); 
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) / rect.width;
+    const y = (touch.clientY - rect.top) / rect.height;
+    setCurrentDrawing([...currentDrawing, { x, y }]);
   };
 
   // Renderiza os desenhos no canvas
@@ -212,14 +228,16 @@ export function ReviewCanvas() {
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute top-0 left-0 w-full h-full pointer-events-none ${
-        isDrawingMode ? "pointer-events-auto cursor-crosshair" : ""
-      }`}
+      className={`absolute top-0 left-0 w-full h-full pointer-events-none ${isDrawingMode ? "pointer-events-auto cursor-crosshair" : ""
+        }`}
       onMouseDown={startDrawing}
       onMouseMove={draw}
       onMouseUp={stopDrawing}
       onMouseLeave={stopDrawing}
-      style={{ zIndex: isDrawingMode ? 10 : 1 }}
+      onTouchStart={startDrawingTouch}
+      onTouchMove={drawTouch}
+      onTouchEnd={stopDrawing}
+      style={{ zIndex: isDrawingMode ? 10 : 1, touchAction: isDrawingMode ? "none" : "auto" }}
     />
   );
 }
