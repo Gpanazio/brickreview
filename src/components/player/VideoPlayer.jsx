@@ -573,7 +573,7 @@ function VideoPlayerContent({
   return (
     <>
       <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden min-h-0">
-        <div className="flex-1 flex flex-col min-w-0 relative z-10">
+        <div className="relative z-10 flex flex-col flex-none lg:flex-1 min-w-0 max-h-[60vh] lg:max-h-none overflow-hidden">
           <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
             <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors cursor-pointer">
               <ChevronLeft className="w-5 h-5" />
@@ -759,7 +759,7 @@ function VideoPlayerContent({
             </div>
           </div>
 
-          <div className="flex-1 bg-black flex items-center justify-center relative overflow-hidden max-h-[50vh] lg:max-h-none">
+          <div className="relative flex flex-1 items-center justify-center min-h-0 overflow-hidden bg-black">
             <div
               ref={videoContainerRef}
               className={`relative w-full h-full flex items-center justify-center bg-black ${isDrawingMode ? "is-drawing" : ""}`}
