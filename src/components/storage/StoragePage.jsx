@@ -40,6 +40,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileViewer } from "./FileViewer";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function StoragePage() {
   const navigate = useNavigate();
