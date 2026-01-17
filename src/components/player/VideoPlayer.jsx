@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { VideoLoadingState } from "@/components/ui/VideoLoadingState";
 
 const compareCommentsByTimestamp = (a, b) => {
   const aTs = parseTimestampSeconds(a?.timestamp);
@@ -780,12 +781,7 @@ function VideoPlayerContent({
                     onRateChange={setPlaybackRate}
                   />
                 ) : (
-                  <div className="flex flex-col items-center gap-3 text-zinc-400">
-                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                    <span className="text-xs font-bold uppercase tracking-[0.2em]">
-                      A carregar comparação...
-                    </span>
-                  </div>
+                  <VideoLoadingState message="A carregar comparação..." />
                 )
               ) : videoUrl ? (
                 <div
@@ -796,12 +792,7 @@ function VideoPlayerContent({
                   <ReviewCanvas />
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-3 text-zinc-400">
-                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                  <span className="text-xs font-bold uppercase tracking-[0.2em]">
-                    A carregar stream...
-                  </span>
-                </div>
+                <VideoLoadingState message="A carregar stream..." />
               )}
             </div>
           </div>
