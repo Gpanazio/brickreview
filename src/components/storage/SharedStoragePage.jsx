@@ -70,8 +70,8 @@ export function SharedStoragePage() {
         try {
             const response = await fetch(`/api/storage/public/metadata/${id}`);
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || "Conteúdo não encontrado ou acesso negado");
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.error || `${response.status}: ${response.statusText}` || "Conteúdo não encontrado ou acesso negado");
             }
             const data = await response.json();
             setRootMetadata(data);
