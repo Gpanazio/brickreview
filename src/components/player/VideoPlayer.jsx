@@ -759,7 +759,7 @@ function VideoPlayerContent({
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 bg-black flex items-center justify-center relative overflow-hidden">
+          <div className="relative flex flex-1 items-center justify-center min-h-0 overflow-hidden bg-black">
             <div
               ref={videoContainerRef}
               className={`relative w-full h-full flex items-center justify-center bg-black ${isDrawingMode ? "is-drawing" : ""}`}
