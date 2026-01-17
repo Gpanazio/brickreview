@@ -20,6 +20,18 @@ export const AuthProvider = ({ children }) => {
           Authorization: `Bearer ${authToken}`,
         },
       });
+
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        // 401/403 are expected for expired/invalid tokens, don't log as errors
+        if (response.status !== 401 && response.status !== 403) {
+          // For other errors, log them
+          console.error("Erro inesperado ao verificar token:", response.status);
+        }
+        logout();
+        return;
+      }
+
       const data = await response.json();
       if (data.valid) {
         setUser(data.user);
@@ -27,6 +39,7 @@ export const AuthProvider = ({ children }) => {
         logout();
       }
     } catch (error) {
+      // Only log unexpected errors (network issues, etc.)
       console.error("Erro ao verificar token:", error);
       logout();
     } finally {
