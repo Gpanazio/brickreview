@@ -24,12 +24,10 @@ export const AuthProvider = ({ children }) => {
       // Check if response is ok before parsing JSON
       if (!response.ok) {
         // 401/403 are expected for expired/invalid tokens, don't log as errors
-        if (response.status === 401 || response.status === 403) {
-          logout();
-          return;
+        if (response.status !== 401 && response.status !== 403) {
+          // For other errors, log them
+          console.error("Erro inesperado ao verificar token:", response.status);
         }
-        // For other errors, log them
-        console.error("Erro inesperado ao verificar token:", response.status);
         logout();
         return;
       }
