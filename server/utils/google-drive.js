@@ -373,7 +373,7 @@ class GoogleDriveManager {
       const parent = folderId || this.folderId;
       const response = await this.drive.files.list({
         q: `'${parent}' in parents and trashed=false`,
-        fields: 'nextPageToken, files(id, name, size, mimeType, createdTime, modifiedTime)',
+        fields: 'nextPageToken, files(id, name, size, mimeType, createdTime, modifiedTime, thumbnailLink, webViewLink, webContentLink)',
         pageSize: pageSize,
         pageToken: pageToken,
         orderBy: 'folder, createdTime desc',

@@ -1073,6 +1073,7 @@ export function StoragePage() {
         file={previewFile}
         isOpen={!!previewFile}
         onClose={() => setPreviewFile(null)}
+        token={token}
       />
 
       {/* Confirm Dialog */}

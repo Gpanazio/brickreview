@@ -307,21 +307,8 @@ router.get('/drive-files', authenticateToken, async (req, res) => {
       folderId
     );
 
-    // Add webViewLink to each file
-    const filesWithLinks = await Promise.all(
-      result.files.map(async (file) => {
-        try {
-          const metadata = await googleDriveManager.getFileMetadata(file.id);
-          return {
-            ...file,
-            webViewLink: metadata.webViewLink,
-          };
-        } catch (error) {
-          console.error(`Error getting metadata for ${file.id}:`, error);
-          return file;
-        }
-      })
-    );
+    // webViewLink and thumbnailLink are now included in listFiles result
+    const filesWithLinks = result.files;
 
     res.json({
       files: filesWithLinks,
@@ -563,6 +550,49 @@ router.get('/public/files', async (req, res) => {
   } catch (error) {
     console.error('Public list files error:', error);
     res.status(500).json({ error: error.message || 'Failed to list public files' });
+  }
+});
+
+/**
+ * @route GET /api/storage/proxy/:fileId
+ * @desc Stream file content from Google Drive (acts as a proxy for authenticated users)
+ * @access Private
+ */
+router.get('/proxy/:fileId', authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    // Get metadata for content type and name
+    const metadata = await googleDriveManager.getFileMetadata(fileId);
+
+    // If it's a Google Doc/Sheet/Slide, we can't stream it directly as binary
+    if (metadata.mimeType.startsWith('application/vnd.google-apps')) {
+      return res.redirect(metadata.webViewLink);
+    }
+
+    // Set headers
+    res.setHeader('Content-Type', metadata.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${metadata.name}"`);
+    if (metadata.size) {
+      res.setHeader('Content-Length', metadata.size);
+    }
+
+    // Get stream
+    const fileStream = await googleDriveManager.downloadFile(fileId);
+
+    // Pipe to response
+    fileStream.pipe(res);
+
+  } catch (error) {
+    console.error('Proxy file error:', error);
+    // If headers already sent, we can't send JSON error
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'Failed to proxy file' });
+    }
   }
 });
 
