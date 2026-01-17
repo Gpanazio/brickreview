@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { FileViewer } from "./FileViewer";
 
 export function SharedStoragePage() {
     const { id } = useParams(); // This is the folder ID or file ID shared
@@ -424,66 +425,11 @@ export function SharedStoragePage() {
             </div>
 
             {/* Preview Dialog */}
-            <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
-                <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none max-w-4xl p-0 overflow-hidden">
-                    <DialogHeader className="p-6 border-b border-zinc-800/50 flex flex-row items-center justify-between">
-                        <div>
-                            <DialogTitle className="brick-title text-xl uppercase tracking-tighter text-white">
-                                {previewFile?.name}
-                            </DialogTitle>
-                            <div className="flex items-center gap-3 mt-1">
-                                <span className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest">
-                                    {previewFile && formatFileSize(previewFile.size)}
-                                </span>
-                                <span className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest">
-                                    {previewFile?.mimeType}
-                                </span>
-                            </div>
-                        </div>
-                    </DialogHeader>
-
-                    <div className="bg-black aspect-video flex items-center justify-center relative group">
-                        {previewFile?.mimeType.startsWith("image/") ? (
-                            <img
-                                src={previewFile.webViewLink.replace('/view', '/preview')}
-                                alt={previewFile.name}
-                                className="max-h-full max-w-full object-contain"
-                            />
-                        ) : previewFile?.mimeType.startsWith("video/") ? (
-                            <video
-                                src={previewFile.webContentLink}
-                                controls
-                                className="w-full h-full"
-                            />
-                        ) : (
-                            <div className="flex flex-col items-center gap-4">
-                                <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center">
-                                    <File className="w-10 h-10 text-zinc-700" />
-                                </div>
-                                <p className="text-zinc-500 text-xs italic">Prévia indisponível para este tipo de arquivo</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="p-6 bg-zinc-900/30 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">
-                                BRICK CLOUD STORAGE
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Button
-                                onClick={() => window.open(previewFile?.webContentLink || previewFile?.webViewLink, "_blank")}
-                                className="glass-button-primary border-none rounded-none h-10 px-8 text-[10px] font-black uppercase tracking-widest"
-                            >
-                                <Download className="w-3 h-3 mr-2" />
-                                Baixar Arquivo
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <FileViewer
+                file={previewFile}
+                isOpen={!!previewFile}
+                onClose={() => setPreviewFile(null)}
+            />
         </div>
     );
 }

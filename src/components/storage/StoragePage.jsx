@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FileViewer } from "./FileViewer";
 
 export function StoragePage() {
   const navigate = useNavigate();
@@ -66,6 +67,7 @@ export function StoragePage() {
   // Share link dialog state
   const [shareLink, setShareLink] = useState("");
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [previewFile, setPreviewFile] = useState(null);
 
   const fileInputRef = useRef(null);
 
@@ -705,6 +707,7 @@ export function StoragePage() {
                               className={`glass-panel border rounded-none p-4 transition-all group cursor-pointer ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
                                 }`}
                               onClick={(e) => toggleSelection(e, file.id)}
+                              onDoubleClick={() => setPreviewFile(file)}
                               draggable
                               onDragStart={(e) => {
                                 e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
@@ -731,10 +734,10 @@ export function StoragePage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={(e) => { e.stopPropagation(); window.open(file.webViewLink, "_blank"); }}
+                                    onClick={(e) => { e.stopPropagation(); setPreviewFile(file); }}
                                     className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
                                   >
-                                    <Download className="w-4 h-4" />
+                                    <Eye className="w-4 h-4" />
                                   </Button>
                                   <Button
                                     size="sm"
@@ -784,6 +787,7 @@ export function StoragePage() {
                               className={`glass-panel border rounded-none p-4 transition-all group cursor-pointer ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
                                 }`}
                               onClick={(e) => toggleSelection(e, file.id)}
+                              onDoubleClick={() => setPreviewFile(file)}
                               draggable
                               onDragStart={(e) => {
                                 e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
@@ -813,10 +817,10 @@ export function StoragePage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => window.open(file.webViewLink, "_blank")}
+                                    onClick={() => setPreviewFile(file)}
                                     className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800 flex-1"
                                   >
-                                    <Download className="w-4 h-4" />
+                                    <Eye className="w-4 h-4" />
                                   </Button>
                                   <Button
                                     size="sm"
@@ -831,8 +835,11 @@ export function StoragePage() {
                             </motion.div>
                           </ContextMenuTrigger>
                           <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                            <ContextMenuItem onClick={() => setPreviewFile(file)}>
+                              <Eye className="mr-2 h-4 w-4" /> Visualizar
+                            </ContextMenuItem>
                             <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
-                              <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
+                              <Download className="mr-2 h-4 w-4" /> Baixar
                             </ContextMenuItem>
                             <ContextMenuItem onClick={() => handleShare(file)}>
                               <Share2 className="mr-2 h-4 w-4" /> Compartilhar
@@ -958,6 +965,12 @@ export function StoragePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <FileViewer
+        file={previewFile}
+        isOpen={!!previewFile}
+        onClose={() => setPreviewFile(null)}
+      />
     </div>
   );
 }
