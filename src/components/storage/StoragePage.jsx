@@ -46,6 +46,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { UploadProgressWidget } from "./UploadProgressWidget";
 
 export function StoragePage() {
   const navigate = useNavigate();
@@ -408,63 +409,82 @@ export function StoragePage() {
 
   const uploadFiles = async (filesToUpload) => {
     setUploading(true);
-    const newProgress = {};
 
-    for (const file of filesToUpload) {
-      const fileId = `${file.name}-${Date.now()}`;
-      newProgress[fileId] = { name: file.name, progress: 0, status: "uploading" };
-      setUploadProgress({ ...newProgress });
+    const uploadPromises = filesToUpload.map((file) => {
+      return new Promise((resolve, reject) => {
+        const fileId = `${file.name}-${Date.now()}`;
 
-      try {
+        setUploadProgress((prev) => ({
+          ...prev,
+          [fileId]: { name: file.name, progress: 0, status: "uploading" },
+        }));
+
         const formData = new FormData();
         formData.append("file", file);
         if (currentFolder?.id) {
           formData.append("parentId", currentFolder.id);
         }
 
-        const response = await fetch("/api/storage/upload-to-drive", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/storage/upload-to-drive");
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
-        if (response.ok) {
-          newProgress[fileId] = { name: file.name, progress: 100, status: "success" };
-          setUploadProgress({ ...newProgress });
-          toast.success(`${file.name} enviado com sucesso!`);
-        } else {
-          const error = await response.json();
-          newProgress[fileId] = {
-            name: file.name,
-            progress: 0,
-            status: "error",
-            error: error.error || "Erro no upload",
-          };
-          setUploadProgress({ ...newProgress });
-          toast.error(`Erro ao enviar ${file.name}`);
-        }
-      } catch (error) {
-        console.error("Upload error:", error);
-        newProgress[fileId] = {
-          name: file.name,
-          progress: 0,
-          status: "error",
-          error: error.message,
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = (event.loaded / event.total) * 100;
+            setUploadProgress((prev) => ({
+              ...prev,
+              [fileId]: { ...prev[fileId], progress: percentComplete },
+            }));
+          }
         };
-        setUploadProgress({ ...newProgress });
-        toast.error(`Erro ao enviar ${file.name}`);
-      }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setUploadProgress((prev) => ({
+              ...prev,
+              [fileId]: { ...prev[fileId], progress: 100, status: "success" },
+            }));
+            resolve(xhr.response);
+          } else {
+            let errorMsg = "Erro no upload";
+            try {
+              const res = JSON.parse(xhr.responseText);
+              errorMsg = res.error || errorMsg;
+            } catch (e) { }
+
+            setUploadProgress((prev) => ({
+              ...prev,
+              [fileId]: { ...prev[fileId], status: "error", error: errorMsg },
+            }));
+            reject(new Error(errorMsg));
+          }
+        };
+
+        xhr.onerror = () => {
+          setUploadProgress((prev) => ({
+            ...prev,
+            [fileId]: { ...prev[fileId], status: "error", error: "Falha na rede" },
+          }));
+          reject(new Error("Falha na rede"));
+        };
+
+        xhr.send(formData);
+      });
+    });
+
+    try {
+      await Promise.allSettled(uploadPromises);
+      toast.success("Processamento de uploads finalizado");
+      fetchFiles(currentFolder?.id);
+    } catch (error) {
+      console.error("Erro nos uploads:", error);
+    } finally {
+      setUploading(false);
+      // Wait a bit before clearing completed uploads from list if you want, 
+      // but usually we rely on the widget's close button or keep them there for a while
+      // The user can close the widget manually.
     }
-
-    setUploading(false);
-    fetchFiles();
-
-    // Limpar progresso após 3 segundos
-    setTimeout(() => {
-      setUploadProgress({});
-    }, 3000);
   };
 
   const handleDelete = async (fileId, fileName) => {
@@ -696,33 +716,7 @@ export function StoragePage() {
                 ))}
               </div>
 
-              {/* Upload Progress */}
-              {Object.keys(uploadProgress).length > 0 && (
-                <div className="glass-panel border border-zinc-800/30 rounded-none p-6">
-                  <h3 className="brick-title text-md uppercase tracking-tighter text-white mb-4">
-                    Uploads em Progresso
-                  </h3>
-                  <div className="space-y-3">
-                    {Object.entries(uploadProgress).map(([id, file]) => (
-                      <div key={id} className="flex items-center gap-3">
-                        {file.status === "uploading" && (
-                          <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-                        )}
-                        {file.status === "success" && (
-                          <CheckCircle2 className="w-4 h-4 text-green-500" />
-                        )}
-                        {file.status === "error" && (
-                          <AlertCircle className="w-4 h-4 text-red-500" />
-                        )}
-                        <span className="text-sm text-zinc-400 flex-1">{file.name}</span>
-                        {file.error && (
-                          <span className="text-xs text-red-500">{file.error}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Upload Progress - Moved to Widget */}
 
               {/* Folders Section */}
               {folders.length > 0 && (
@@ -960,7 +954,7 @@ export function StoragePage() {
                     })}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8 gap-4">
                     {files.map((file, index) => {
                       const FileIcon = getFileIcon(file.mimeType);
                       return (
@@ -1122,6 +1116,12 @@ export function StoragePage() {
           </ContextMenuContent>
         </ContextMenu>
       </div>
+
+      {/* Upload Progress Widget */}
+      <UploadProgressWidget
+        uploads={uploadProgress}
+        onClose={() => setUploadProgress({})}
+      />
 
       {/* Create Folder Dialog */}
       <CreateFolderDialog

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { VideoLoadingState } from "@/components/ui/VideoLoadingState";
 import { useVideo } from "../../../context/VideoContext";
 import { Play, Pause } from "lucide-react";
 import { toast } from "sonner";
@@ -149,12 +150,7 @@ export function VideoPlayerCore() {
   };
 
   if (!videoUrl) {
-    return (
-      <div className="flex flex-col items-center gap-3 text-zinc-400 h-full w-full bg-black justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-        <span className="text-xs font-bold uppercase tracking-[0.2em]">A carregar stream...</span>
-      </div>
-    );
+    return <VideoLoadingState message="A carregar stream..." />;
   }
 
   return (
@@ -168,14 +164,7 @@ export function VideoPlayerCore() {
       />
 
       {/* Loading overlay when switching quality */}
-      {isLoading && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 pointer-events-none">
-          <div className="h-12 w-12 animate-spin rounded-full border-3 border-red-500 border-t-transparent" />
-          <span className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-zinc-300">
-            A carregar...
-          </span>
-        </div>
-      )}
+      {isLoading && <VideoLoadingState message="A carregar..." />}
 
       {/* Big play/pause button in center */}
       {!isLoading && (

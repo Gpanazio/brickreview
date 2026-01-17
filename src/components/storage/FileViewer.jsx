@@ -3,9 +3,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Download, File } from "lucide-react";
 
+import { VideoLoadingState } from "@/components/ui/VideoLoadingState";
+
 export function FileViewer({ file, isOpen, onClose, token }) {
     const [imageHasError, setImageHasError] = useState(false);
     const [videoHasError, setVideoHasError] = useState(false);
+    const [isVideoLoading, setIsVideoLoading] = useState(true);
 
     // Reset error states when file changes or dialog closes
     useEffect(() => {
@@ -95,17 +98,25 @@ export function FileViewer({ file, isOpen, onClose, token }) {
 
         if (isVideo) {
             return (
-                <video
-                    src={proxyUrl}
-                    controls
-                    className="max-h-full max-w-full"
-                    onError={() => {
-                        console.error("Error loading video from proxy:", proxyUrl);
-                        setVideoHasError(true);
-                    }}
-                >
-                    Seu navegador não suporta a reprodução deste vídeo.
-                </video>
+                <div className="relative w-full h-full flex items-center justify-center bg-black">
+                    {isVideoLoading && <VideoLoadingState message="Carregando vídeo..." />}
+                    <video
+                        src={proxyUrl}
+                        controls
+                        className="max-h-full max-w-full"
+                        onLoadStart={() => setIsVideoLoading(true)}
+                        onWaiting={() => setIsVideoLoading(true)}
+                        onCanPlay={() => setIsVideoLoading(false)}
+                        onLoadedData={() => setIsVideoLoading(false)}
+                        onError={() => {
+                            console.error("Error loading video from proxy:", proxyUrl);
+                            setVideoHasError(true);
+                            setIsVideoLoading(false);
+                        }}
+                    >
+                        Seu navegador não suporta a reprodução deste vídeo.
+                    </video>
+                </div>
             );
         }
 
