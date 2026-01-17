@@ -973,7 +973,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 <button
                   type="submit"
                   disabled={!newComment.trim() || (isGuest && !canComment)}
-                  className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
+                  className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors cursor-pointer"
                 >
                   Enviar
                 </button>
