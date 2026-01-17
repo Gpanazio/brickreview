@@ -2,7 +2,10 @@
 # Ensures ffmpeg is installed in the environment
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "ffmpeg"]
+# Tenta via Nix (backup)
+nixPkgs = ['nodejs_20', 'ffmpeg-full']
+# Tenta via APT (principal - instala em /usr/bin)
+aptPkgs = ['ffmpeg']
 
 [phases.build]
 cmds = ["npm ci", "npm run build"]
