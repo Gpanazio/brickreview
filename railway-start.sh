@@ -15,7 +15,7 @@ if [ -z "$FFMPEG_PATH" ]; then
 
   # Strategy 2: Common absolute paths
   if [ -z "$FFMPEG_FOUND" ]; then
-    for path in /usr/bin/ffmpeg /usr/local/bin/ffmpeg /usr/bin/ffprobe; do
+    for path in /usr/bin/ffmpeg /usr/local/bin/ffmpeg /bin/ffmpeg; do
       if [ -f "$path" ]; then
         FFMPEG_FOUND="$path"
         break
@@ -23,43 +23,23 @@ if [ -z "$FFMPEG_PATH" ]; then
     done
   fi
 
-  # Strategy 3: Hardcore find
+  # Strategy 3: Limited find (only /usr and /nix/store, with timeout)
   if [ -z "$FFMPEG_FOUND" ]; then
-    echo "🔍 Fazendo busca profunda por FFmpeg..."
-    FFMPEG_FOUND=$(find /usr /nix/store -name ffmpeg -type f -executable 2>/dev/null | head -n 1)
-  fi
-
-  # Strategy 4: Check if we are running as root and can use apt-get update/install at runtime
-  if [ -z "$FFMPEG_FOUND" ]; then
-    echo "🔍 Tentando instalar FFmpeg via apt-get em tempo de execução..."
-    if [ "$(id -u)" = "0" ]; then
-        apt-get update && apt-get install -y ffmpeg && FFMPEG_FOUND=$(which ffmpeg)
-    else
-        echo "⚠️ Não é root, não posso instalar pacotes."
-    fi
-  fi
-
-  # Strategy 5: Last resort - try to find anything called ffmpeg even if not executable
-  if [ -z "$FFMPEG_FOUND" ]; then
-    echo "🔍 Fazendo busca desesperada por FFmpeg..."
-    FFMPEG_FOUND=$(find / -name ffmpeg -type f 2>/dev/null | head -n 1)
-    if [ -n "$FFMPEG_FOUND" ]; then
-      chmod +x "$FFMPEG_FOUND" 2>/dev/null || true
-    fi
+    echo "🔍 Fazendo busca limitada por FFmpeg..."
+    FFMPEG_FOUND=$(timeout 5 find /usr /nix/store -name ffmpeg -type f -executable 2>/dev/null | head -n 1 || true)
   fi
 
   if [ -n "$FFMPEG_FOUND" ]; then
     export FFMPEG_PATH="$FFMPEG_FOUND"
     echo "✅ FFmpeg encontrado: $FFMPEG_PATH"
-    
-    # Test execution
+
+    # Test execution (with timeout)
     echo "🧪 Testando execução do FFmpeg..."
-    "$FFMPEG_FOUND" -version | head -n 1 || echo "❌ Falha ao executar FFmpeg"
+    timeout 3 "$FFMPEG_FOUND" -version | head -n 1 || echo "❌ Falha ao executar FFmpeg"
   else
     echo "⚠️  FFmpeg não encontrado - thumbnails e proxies não funcionarão"
-    echo "📂 Listando conteúdo de /usr/bin e /nix/store para debug:"
+    echo "📂 Listando conteúdo de /usr/bin para debug:"
     ls -la /usr/bin/ff* 2>/dev/null || true
-    ls -la /nix/store/*/bin/ff* 2>/dev/null | head -n 20 || true
   fi
 fi
 
@@ -71,7 +51,7 @@ if [ -z "$FFPROBE_PATH" ]; then
 
   # Strategy 2: Common absolute paths
   if [ -z "$FFPROBE_FOUND" ]; then
-    for path in /usr/bin/ffprobe /usr/local/bin/ffprobe; do
+    for path in /usr/bin/ffprobe /usr/local/bin/ffprobe /bin/ffprobe; do
       if [ -f "$path" ]; then
         FFPROBE_FOUND="$path"
         break
@@ -79,19 +59,10 @@ if [ -z "$FFPROBE_PATH" ]; then
     done
   fi
 
-  # Strategy 3: Hardcore find
+  # Strategy 3: Limited find (only /usr and /nix/store, with timeout)
   if [ -z "$FFPROBE_FOUND" ]; then
-    echo "🔍 Fazendo busca profunda por FFprobe..."
-    FFPROBE_FOUND=$(find /usr /nix/store -name ffprobe -type f -executable 2>/dev/null | head -n 1)
-  fi
-
-  # Strategy 4: Last resort
-  if [ -z "$FFPROBE_FOUND" ]; then
-    echo "🔍 Fazendo busca desesperada por FFprobe..."
-    FFPROBE_FOUND=$(find / -name ffprobe -type f 2>/dev/null | head -n 1)
-    if [ -n "$FFPROBE_FOUND" ]; then
-      chmod +x "$FFPROBE_FOUND" 2>/dev/null || true
-    fi
+    echo "🔍 Fazendo busca limitada por FFprobe..."
+    FFPROBE_FOUND=$(timeout 5 find /usr /nix/store -name ffprobe -type f -executable 2>/dev/null | head -n 1 || true)
   fi
 
   if [ -n "$FFPROBE_FOUND" ]; then
