@@ -165,7 +165,7 @@ if (process.env.NODE_ENV === 'production') {
 
   // 1.5 Strict 404 for missing assets (prevents index.html fallback for scripts)
   app.use('/assets', (req, res) => {
-    console.warn(`[404] Asset missing: ${req.originalUrl}`);
+    console.info(`[404] Asset missing: ${req.originalUrl}`);
     res.status(404).send('Asset not found');
   });
 
