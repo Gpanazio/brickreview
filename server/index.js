@@ -142,6 +142,13 @@ if (fs.existsSync(ANEXOS_PATH)) {
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, '../dist')
 
+  // Helper to set no-cache headers
+  const setNoCacheHeaders = (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  };
+
   // 1. Assets com hash (JS/CSS/Images) -> Cache Imutável (1 ano)
   app.use(express.static(buildPath, {
     maxAge: '1y',
@@ -150,16 +157,14 @@ if (process.env.NODE_ENV === 'production') {
     setHeaders: (res, path) => {
       if (path.endsWith('.html')) {
         // Se por acaso pedir um .html direto (ex: /index.html), não cachear
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
+        setNoCacheHeaders(res);
       }
     }
   }))
 
   // 1.5 Strict 404 for missing assets (prevents index.html fallback for scripts)
   app.use('/assets', (req, res) => {
-    console.warn(`[404] Asset missing: ${req.path}`);
+    console.warn(`[404] Asset missing: ${req.originalUrl}`);
     res.status(404).send('Asset not found');
   });
 
@@ -171,9 +176,7 @@ if (process.env.NODE_ENV === 'production') {
 
     // IMPORTANTE: Prevenir cache do index.html para evitar erros de MIME type 
     // quando os assets (JS/CSS) mudam de hash após novo deploy.
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
+    setNoCacheHeaders(res);
 
     res.sendFile(path.join(buildPath, 'index.html'))
   })
