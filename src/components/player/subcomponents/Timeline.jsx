@@ -157,7 +157,8 @@ export function Timeline() {
           const leftPercent = Math.min(100, (ts / duration) * 100);
           const range = getCommentRange(comment);
           const hasRange = range && range.end !== null;
-          const widthPercent = hasRange ? ((range.end - range.start) / duration) * 100 : 0;
+          // Calculate width as percentage of valid duration, capped at 100% total
+          const widthPercent = hasRange ? Math.min(100 - leftPercent, ((range.end - range.start) / duration) * 100) : 0;
 
           const isActive = comment.id === activeRange?.commentId;
 
@@ -165,17 +166,21 @@ export function Timeline() {
             <div
               key={`marker-${comment.id}`}
               className="absolute top-0 h-full flex items-center group/marker"
-              style={{ left: `${leftPercent}%` }}
+              style={{
+                left: `${leftPercent}%`,
+                width: hasRange ? `${widthPercent}%` : '0px',
+                pointerEvents: 'none' // wrapper shouldn't block, children will decide
+              }}
             >
               {hasRange && (
                 <div
-                  className={`absolute h-1.5 rounded-full backdrop-blur-sm transition-colors cursor-ew-resize ${isActive
-                      ? "bg-red-600/40 border border-red-600/50"
-                      : "bg-white/20 hover:bg-white/30"
+                  className={`absolute h-2 rounded-sm backdrop-blur-sm transition-colors pointer-events-auto ${isActive
+                    ? "bg-red-600/40 border border-red-600/50"
+                    : "bg-white/20 hover:bg-white/30 border border-white/10"
                     }`}
                   style={{
                     left: 0,
-                    width: `${Math.max(widthPercent, 0.2)}vw`,
+                    width: "100%",
                     top: "50%",
                     transform: "translateY(-50%)",
                   }}
@@ -184,9 +189,10 @@ export function Timeline() {
 
               <div
                 className={`
-                  relative z-10 -translate-x-1/2 
+                  absolute left-0 
+                  z-10 -translate-x-1/2 
                   transition-all duration-200 ease-out
-                  border border-black/50 shadow-sm
+                  border border-black/50 shadow-sm pointer-events-auto
                   ${isActive
                     ? "w-3 h-3 bg-red-600 scale-110 shadow-[0_0_8px_rgba(220,38,38,0.6)] ring-2 ring-red-900"
                     : "w-1.5 h-1.5 bg-zinc-400 group-hover/marker:bg-white group-hover/marker:scale-150"
@@ -194,6 +200,7 @@ export function Timeline() {
                   rounded-full
                 `}
               >
+                {/* Touch target expansion */}
                 <div className="absolute -inset-2 bg-transparent cursor-pointer" />
               </div>
 

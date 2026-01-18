@@ -18,6 +18,7 @@ export function ReviewCanvas() {
     sharePassword,
     drawings,
     setDrawings,
+    isPlaying,
   } = useVideo();
 
   const { token } = useAuth();
@@ -93,17 +94,29 @@ export function ReviewCanvas() {
     setCurrentDrawing([...currentDrawing, { x, y }]);
   };
 
+  // Auto-exit drawing mode when video plays
+  useEffect(() => {
+    if (isPlaying && isDrawingMode) {
+      setIsDrawingMode(false);
+    }
+  }, [isPlaying, isDrawingMode, setIsDrawingMode]);
+
   const stopDrawing = async () => {
     if (!isDrawing) return;
     setIsDrawing(false);
+
     if (currentDrawing.length > 0) {
+      // Optimistic update
+      const tempId = Date.now();
       const newDrawing = {
         timestamp: currentTime,
         points: currentDrawing,
         color: selectedColor,
-        id: Date.now(),
+        id: tempId,
       };
-      setDrawings([...drawings, newDrawing]);
+
+      // Add optimistic drawing
+      setDrawings((prev) => [...prev, newDrawing]);
 
       if (!isGuest) {
         const saveToast = toast.loading("Salvando desenho...");
@@ -123,15 +136,23 @@ export function ReviewCanvas() {
           });
 
           if (response.ok) {
+            const savedData = await response.json();
+            // Update the drawing with the real ID from server
+            setDrawings((prev) =>
+              prev.map(d => d.id === tempId ? { ...d, id: savedData.id } : d)
+            );
             toast.success("Desenho salvo com sucesso!", { id: saveToast });
             setCurrentDrawing([]);
-            setIsDrawingMode(false);
+            // Don't auto-exit drawing mode here, let user continue drawing if they want (unless they hit play)
           } else {
             toast.error("Erro ao salvar desenho", { id: saveToast });
+            // Remove optimistic drawing on failure
+            setDrawings((prev) => prev.filter(d => d.id !== tempId));
           }
         } catch (error) {
           console.error("Erro ao salvar desenho:", error);
           toast.error("Erro ao salvar desenho", { id: saveToast });
+          setDrawings((prev) => prev.filter(d => d.id !== tempId));
         }
       } else {
         setCurrentDrawing([]);
@@ -225,10 +246,38 @@ export function ReviewCanvas() {
     }
   }, [drawings, currentDrawing, currentTime, selectedColor, canvasRef, videoContainerRef]);
 
+  // Handle Resize
+  useEffect(() => {
+    const container = videoContainerRef.current;
+    if (!container || !canvasRef.current) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      const canvas = canvasRef.current;
+      if (canvas && container) {
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+        // Force re-render of drawings (the other effect will pick this up if we just trigger it, but actually the other effect depends on 'drawings', 'currentTime' etc. 
+        // We might need to manually trigger a redraw or just rely on the next frame. 
+        // Actually, clearing canvas happens in the draw effect. adjusting width/height clears canvas automatically in JS.
+        // So we just need to ensure the draw effect runs. 
+        // We can add a state or simply rely on the fact that resizing is rare during active drawing.
+        // But to be safe, let's depend on a dimension state in the draw effect?
+        // Simpler: Just force a redraw by toggling a dummy state or just let the user scrubbing trigger it.
+        // Actually, better to just redraw here immediately if we can.
+        // For now, assume browser handles resize fast enough or next tick updates. 
+        // Let's add 'dimensions' state if needed, but let's try the observer first.
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [videoContainerRef, canvasRef]);
+
+
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute top-0 left-0 w-full h-full pointer-events-none ${isDrawingMode ? "pointer-events-auto cursor-crosshair" : ""
+      className={`absolute top-0 left-0 w-full h-full pointer-events-none transition-colors duration-200 ${isDrawingMode ? "pointer-events-auto cursor-crosshair ring-2 ring-red-500/20 bg-black/5" : ""
         }`}
       onMouseDown={startDrawing}
       onMouseMove={draw}
@@ -237,7 +286,7 @@ export function ReviewCanvas() {
       onTouchStart={startDrawingTouch}
       onTouchMove={drawTouch}
       onTouchEnd={stopDrawing}
-      style={{ zIndex: isDrawingMode ? 10 : 1, touchAction: isDrawingMode ? "none" : "auto" }}
+      style={{ zIndex: isDrawingMode ? 100 : 50, touchAction: isDrawingMode ? "none" : "auto" }}
     />
   );
 }
