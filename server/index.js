@@ -141,12 +141,32 @@ if (fs.existsSync(ANEXOS_PATH)) {
 // Serve static files em produção
 if (process.env.NODE_ENV === 'production') {
   const buildPath = path.join(__dirname, '../dist')
-  app.use(express.static(buildPath))
 
+  // 1. Assets com hash (JS/CSS/Images) -> Cache Imutável (1 ano)
+  app.use(express.static(buildPath, {
+    maxAge: '1y',
+    immutable: true,
+    index: false, // Desabilita index.html automático aqui para controlarmos o header
+    setHeaders: (res, path) => {
+      if (path.endsWith('.html')) {
+        // Se por acaso pedir um .html direto (ex: /index.html), não cachear
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      }
+    }
+  }))
+
+  // 2. Catch-all para SPA -> index.html (SEM CACHE)
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/')) {
       return next()
     }
+
+    // IMPORTANTE: Prevenir cache do index.html para evitar erros de MIME type 
+    // quando os assets (JS/CSS) mudam de hash após novo deploy.
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     res.sendFile(path.join(buildPath, 'index.html'))
   })
 }
