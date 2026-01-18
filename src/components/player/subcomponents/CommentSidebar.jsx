@@ -732,9 +732,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
           console.error("Erro ao limpar desenhos:", error);
           toast.error("Erro ao limpar desenhos", { id: deleteToast });
           // Restore on error (simplified, might be tricky if user drew more, but acceptable)
-          fetchComments(); // Re-fetch to be safe? Re-fetch drawings actually.
-          // Since we don't have fetchDrawings exposed here (it's in ReviewCanvas), we rely on page reload or just accept state desync in error case.
-          // Ideally we would trigger a refresh.
+          // Restore on error by adding back the drawings that were removed.
+          setDrawings((prev) => [...prev, ...currentFrameDrawings]);
         }
       }
     });
