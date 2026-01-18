@@ -24,6 +24,7 @@ export function ReviewCanvas() {
   const { token } = useAuth();
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentDrawing, setCurrentDrawing] = useState([]);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   const isGuest = isPublic || !token;
   const currentVideoId = currentVideo.id;
@@ -197,10 +198,11 @@ export function ReviewCanvas() {
 
     const ctx = canvas.getContext("2d");
 
-    // Resize logic
-    canvas.width = container.offsetWidth;
-    canvas.height = container.offsetHeight;
-
+    // Resize logic handled by ResizeObserver
+    // canvas.width/height updates clear the canvas, so we only need to clear if not resizing
+    // But since we removed resize here, we rely on the observer.
+    // However, we still need to clear the canvas for every frame redrawn due to other deps (like currentTime)
+    // Actually, if we don't resize, we MUST clear.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Filter drawings near current time (0.1s tolerance)
@@ -244,7 +246,7 @@ export function ReviewCanvas() {
       });
       ctx.stroke();
     }
-  }, [drawings, currentDrawing, currentTime, selectedColor, canvasRef, videoContainerRef]);
+  }, [drawings, currentDrawing, currentTime, selectedColor, canvasRef, videoContainerRef, dimensions]);
 
   // Handle Resize
   useEffect(() => {
@@ -254,18 +256,10 @@ export function ReviewCanvas() {
     const resizeObserver = new ResizeObserver(() => {
       const canvas = canvasRef.current;
       if (canvas && container) {
-        canvas.width = container.offsetWidth;
-        canvas.height = container.offsetHeight;
-        // Force re-render of drawings (the other effect will pick this up if we just trigger it, but actually the other effect depends on 'drawings', 'currentTime' etc. 
-        // We might need to manually trigger a redraw or just rely on the next frame. 
-        // Actually, clearing canvas happens in the draw effect. adjusting width/height clears canvas automatically in JS.
-        // So we just need to ensure the draw effect runs. 
-        // We can add a state or simply rely on the fact that resizing is rare during active drawing.
-        // But to be safe, let's depend on a dimension state in the draw effect?
-        // Simpler: Just force a redraw by toggling a dummy state or just let the user scrubbing trigger it.
-        // Actually, better to just redraw here immediately if we can.
-        // For now, assume browser handles resize fast enough or next tick updates. 
-        // Let's add 'dimensions' state if needed, but let's try the observer first.
+        const { offsetWidth, offsetHeight } = container;
+        canvas.width = offsetWidth;
+        canvas.height = offsetHeight;
+        setDimensions({ width: offsetWidth, height: offsetHeight });
       }
     });
 
