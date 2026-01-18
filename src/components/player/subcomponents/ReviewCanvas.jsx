@@ -198,10 +198,11 @@ export function ReviewCanvas() {
 
     const ctx = canvas.getContext("2d");
 
-    // Resize logic
-    canvas.width = container.offsetWidth;
-    canvas.height = container.offsetHeight;
-
+    // Resize logic handled by ResizeObserver
+    // canvas.width/height updates clear the canvas, so we only need to clear if not resizing
+    // But since we removed resize here, we rely on the observer.
+    // However, we still need to clear the canvas for every frame redrawn due to other deps (like currentTime)
+    // Actually, if we don't resize, we MUST clear.
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Filter drawings near current time (0.1s tolerance)
@@ -255,9 +256,10 @@ export function ReviewCanvas() {
     const resizeObserver = new ResizeObserver(() => {
       const canvas = canvasRef.current;
       if (canvas && container) {
-        canvas.width = container.offsetWidth;
-        canvas.height = container.offsetHeight;
-        setDimensions({ width: container.offsetWidth, height: container.offsetHeight });
+        const { offsetWidth, offsetHeight } = container;
+        canvas.width = offsetWidth;
+        canvas.height = offsetHeight;
+        setDimensions({ width: offsetWidth, height: offsetHeight });
       }
     });
 
