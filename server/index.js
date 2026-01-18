@@ -151,6 +151,8 @@ if (process.env.NODE_ENV === 'production') {
       if (path.endsWith('.html')) {
         // Se por acaso pedir um .html direto (ex: /index.html), não cachear
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
       }
     }
   }))
