@@ -77,7 +77,7 @@ class GoogleDriveManager {
             fields: 'name',
           });
           folderName = folderMetadata.data.name || 'copy';
-        } catch (e) {
+        } catch (_e) {
           // Use default if can't get folder name
         }
 

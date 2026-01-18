@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Minimize2, Maximize2, Loader2, CheckCircle2, AlertCircle, File } from "lucide-react";
 
@@ -8,7 +8,6 @@ export function UploadProgressWidget({ uploads, onClose }) {
 
     if (activeUploads.length === 0) return null;
 
-    const totalProgress = activeUploads.reduce((acc, curr) => acc + curr.progress, 0) / activeUploads.length;
     const isComplete = activeUploads.every(u => u.status === 'success' || u.status === 'error');
 
     return (
@@ -106,6 +105,7 @@ export function UploadProgressWidget({ uploads, onClose }) {
     );
 }
 
+// eslint-disable-next-line no-unused-vars
 function ButtonIcon({ icon: Icon, onClick }) {
     return (
         <button

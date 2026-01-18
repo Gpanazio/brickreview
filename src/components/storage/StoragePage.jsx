@@ -451,7 +451,7 @@ export function StoragePage() {
             try {
               const res = JSON.parse(xhr.responseText);
               errorMsg = res.error || errorMsg;
-            } catch (e) { }
+            } catch (_e) { /* Ignore JSON parse errors */ }
 
             setUploadProgress((prev) => ({
               ...prev,
