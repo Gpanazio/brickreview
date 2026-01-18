@@ -35,7 +35,8 @@ export function FileViewer({ file, isOpen, onClose, token }) {
         }
     };
 
-    // Reusable error display component
+    // Reusable error display component (reserved for future use)
+    // eslint-disable-next-line no-unused-vars
     const renderErrorState = (errorMessage) => (
         <div className="flex flex-col items-center gap-4">
             <div className="w-20 h-20 bg-zinc-900 flex items-center justify-center rounded-lg">

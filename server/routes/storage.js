@@ -516,7 +516,7 @@ router.get('/public/files', async (req, res) => {
     // Verify folder exists and is accessible
     try {
       await googleDriveManager.getFileMetadata(folderId);
-    } catch (e) {
+    } catch (_e) {
       return res.status(404).json({ error: 'Folder not found or not accessible' });
     }
 
@@ -536,7 +536,7 @@ router.get('/public/files', async (req, res) => {
             webViewLink: metadata.webViewLink,
             thumbnailLink: metadata.thumbnailLink || null
           };
-        } catch (error) {
+        } catch (_error) {
           return file;
         }
       })
