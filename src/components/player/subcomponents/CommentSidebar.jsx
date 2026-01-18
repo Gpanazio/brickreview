@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import EmojiPicker from "emoji-picker-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Constants
 const DEFAULT_RANGE_DURATION_SECONDS = 5;
@@ -438,15 +439,15 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
     const handleMouseMove = (e) => {
       if (!isScrubbing) return;
       e.preventDefault();
-      
+
       const deltaX = e.clientX - scrubRef.current.startX;
       const sensitivity = 0.1; // 10px = 1s
-      
+
       const newValue = Math.max(
         currentTime + 0.1, // Minimum is slightly after current time
         scrubRef.current.startValue + deltaX * sensitivity
       );
-      
+
       setRangeEndTime(newValue);
     };
 
@@ -817,7 +818,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
               />
             )}
 
-            <div className="relative">
+            <div className="relative w-full bg-[#0a0a0a] border border-zinc-800 focus-within:border-red-600 transition-colors">
               {attachedFile && (
                 <div className="absolute bottom-full left-0 mb-2 flex items-center gap-2 bg-red-600/10 border border-red-600/20 px-2 py-1">
                   <Paperclip className="w-3 h-3 text-red-500" />
@@ -839,7 +840,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   if (isDrawingMode) setIsDrawingMode(false);
                 }}
                 placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
-                className="w-full bg-[#0a0a0a] border border-zinc-800 p-3 pb-12 text-sm text-white focus:outline-none focus:border-red-600 transition-colors resize-none h-24"
+                className="w-full bg-transparent border-none p-3 pb-12 text-sm text-white focus:ring-0 focus:outline-none transition-colors resize-none h-24"
                 disabled={isGuest && !canComment}
               />
 
@@ -849,11 +850,10 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors ${
-                        hasTimestamp
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                      className={`p-2 rounded-sm transition-colors ${hasTimestamp
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        }`}
                       onClick={() => setHasTimestamp(!hasTimestamp)}
                       title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
                     >
@@ -888,32 +888,34 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className={`p-2 rounded-sm transition-colors ${
-                        attachedFile
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      }`}
+                      className={`p-2 rounded-sm transition-colors ${attachedFile
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        }`}
                       title="Anexar arquivo"
                     >
                       <Paperclip className="w-4 h-4" />
                     </button>
 
                     <div className="relative">
-                      <button
-                        type="button"
-                        className={`p-2 rounded-sm transition-colors ${
-                          showEmojiPicker
-                            ? "text-yellow-500 bg-yellow-500/10"
-                            : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        title="Adicionar emoji"
-                      >
-                        <Smile className="w-4 h-4" />
-                      </button>
-
-                      {showEmojiPicker && (
-                        <div className="absolute bottom-full left-0 mb-2 z-50">
+                      <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className={`p-2 rounded-sm transition-colors ${showEmojiPicker
+                              ? "text-yellow-500 bg-yellow-500/10"
+                              : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                              }`}
+                            title="Adicionar emoji"
+                          >
+                            <Smile className="w-4 h-4" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          side="top"
+                          align="start"
+                          className="w-auto p-0 border-none bg-transparent shadow-none"
+                        >
                           <ErrorBoundary>
                             <EmojiPicker
                               onEmojiClick={(emojiData) => {
@@ -925,17 +927,16 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                               height={400}
                             />
                           </ErrorBoundary>
-                        </div>
-                      )}
+                        </PopoverContent>
+                      </Popover>
                     </div>
 
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors ${
-                        isDrawingMode
-                          ? "text-red-500 bg-red-500/10"
-                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                      } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
+                      className={`p-2 rounded-sm transition-colors ${isDrawingMode
+                        ? "text-red-500 bg-red-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
                       onClick={() => {
                         if (!isComparing) setIsDrawingMode(!isDrawingMode);
                       }}
@@ -983,11 +984,10 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                           <button
                             key={color}
                             type="button"
-                            className={`w-6 h-6 rounded-sm border transition-all ${
-                              selectedColor === color
-                                ? "border-white scale-110"
-                                : "border-zinc-700 hover:border-zinc-500"
-                            }`}
+                            className={`w-6 h-6 rounded-sm border transition-all ${selectedColor === color
+                              ? "border-white scale-110"
+                              : "border-zinc-700 hover:border-zinc-500"
+                              }`}
                             style={{ backgroundColor: color }}
                             onClick={() => setSelectedColor(color)}
                             title={`Cor: ${color}`}

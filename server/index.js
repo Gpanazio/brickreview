@@ -157,6 +157,12 @@ if (process.env.NODE_ENV === 'production') {
     }
   }))
 
+  // 1.5 Strict 404 for missing assets (prevents index.html fallback for scripts)
+  app.use('/assets', (req, res) => {
+    console.warn(`[404] Asset missing: ${req.path}`);
+    res.status(404).send('Asset not found');
+  });
+
   // 2. Catch-all para SPA -> index.html (SEM CACHE)
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/')) {
