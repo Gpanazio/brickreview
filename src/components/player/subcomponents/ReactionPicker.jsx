@@ -1,4 +1,4 @@
-import { Smile, ThumbsUp, ThumbsDown, Heart, Flame, Rocket, Eye, CheckCircle2, XCircle, PartyPopper } from "lucide-react";
+// Imports removed as they were unused
 
 
 const REACTIONS = [
