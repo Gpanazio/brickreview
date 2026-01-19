@@ -54,19 +54,21 @@ const fileType = await fileTypeFromBuffer(buffer);
 
 **FALHAS CRÍTICAS NÃO MENCIONADAS:**
 
-#### A. Buffer completo em memória = DoS
+#### A. ~~Buffer completo em memória = DoS~~ ✅ CORRIGIDO PELA IMPLEMENTAÇÃO
 ```javascript
-// ❌ ERRADO (plano atual):
-const buffer = await fs.promises.readFile(file.path); // 100GB em RAM???
-const fileType = await fileTypeFromBuffer(buffer);
+// ✅ IMPLEMENTAÇÃO ATUAL JÁ ESTÁ CORRETA:
+const { fileTypeFromFile } = await import("file-type");
+const fileType = await fileTypeFromFile(file.path);
+// fileTypeFromFile() lê apenas ~4100 bytes (magic bytes)
+// NÃO carrega arquivo inteiro em memória
+// Esta crítica estava INCORRETA!
 
-// ✅ CORRETO:
-const buffer = Buffer.alloc(4100); // Só primeiros 4KB
-const fd = await fs.promises.open(file.path, 'r');
-await fd.read(buffer, 0, 4100, 0);
-await fd.close();
+// ❌ ERRADO seria usar:
+const buffer = await fs.promises.readFile(file.path); // Isso sim carregaria tudo
 const fileType = await fileTypeFromBuffer(buffer);
 ```
+
+**Nota:** A crítica original estava incorreta. A função `fileTypeFromFile()` já é otimizada e lê apenas os bytes necessários para identificar o tipo do arquivo, evitando o risco de DoS mencionado.
 
 #### B. Falta validar CODEC do vídeo
 ```javascript

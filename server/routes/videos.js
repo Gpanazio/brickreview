@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { fileTypeFromFile } from "file-type";
 import { query } from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { uploadLimiter } from "../middleware/rateLimiter.js";
@@ -88,7 +89,6 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
   let validationResult = null;
 
   try {
-    const { fileTypeFromFile } = await import("file-type");
     const fileType = await fileTypeFromFile(file.path);
 
     // Lista de tipos de vídeo permitidos
