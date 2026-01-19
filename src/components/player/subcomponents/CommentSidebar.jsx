@@ -925,11 +925,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
               />
 
 
-              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between z-40">
-                <div className="flex items-center gap-1">
+              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between gap-2 z-40">
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent flex-1 min-w-0">
                   <button
                     type="button"
-                    className={`p-2 rounded-sm transition-colors ${hasTimestamp
+                    className={`p-2 rounded-sm transition-colors flex-shrink-0 ${hasTimestamp
                       ? "text-red-500 bg-red-500/10"
                       : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
                       }`}
@@ -942,7 +942,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   {hasTimestamp && (
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}`}
+                      className={`p-2 rounded-sm transition-colors flex items-center gap-1 flex-shrink-0 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}`}
                       onClick={() => {
                         if (!isRangeMode) {
                           setRangeEndTime(currentTime + DEFAULT_RANGE_DURATION_SECONDS);
@@ -962,7 +962,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   {/* Range Scrubber */}
                   {hasTimestamp && isRangeMode && (
                     <div
-                      className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 hover:border-red-600 hover:bg-zinc-800 transition-all select-none cursor-ew-resize active:bg-red-900/20"
+                      className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 hover:border-red-600 hover:bg-zinc-800 transition-all select-none cursor-ew-resize active:bg-red-900/20 flex-shrink-0"
                       onMouseDown={handleScrubStart}
                       title="Arraste para ajustar o tempo final"
                     >
@@ -985,7 +985,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className={`p-2 rounded-sm transition-colors ${attachedFile
+                    className={`p-2 rounded-sm transition-colors flex-shrink-0 ${attachedFile
                       ? "text-red-500 bg-red-500/10"
                       : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
                       }`}
@@ -994,23 +994,10 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                     <Paperclip className="w-4 h-4" />
                   </button>
 
-                  {/* Quick Reactions */}
-                  {["🎬", "📽️", "🍿", "🎞️"].map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      className="p-1.5 hover:bg-zinc-800 rounded-sm transition-colors text-base leading-none"
-                      onClick={() => setNewComment(newComment + emoji)}
-                      title={`Adicionar ${emoji}`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     <button
                       type="button"
-                      className={`p-2 rounded-sm transition-colors ${showEmojiPicker
+                      className={`p-2 rounded-sm transition-colors flex-shrink-0 ${showEmojiPicker
                         ? "text-yellow-500 bg-yellow-500/10"
                         : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
                         }`}
@@ -1021,7 +1008,24 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                     </button>
 
                     {showEmojiPicker && (
-                      <div className="absolute bottom-full left-0 mb-2 z-50">
+                      <div className="absolute bottom-full left-0 mb-2 z-50 bg-zinc-900 border border-zinc-800 rounded-sm overflow-hidden">
+                        {/* Quick Reactions */}
+                        <div className="flex items-center gap-1 p-2 border-b border-zinc-800 bg-zinc-950">
+                          {["🎬", "📽️", "🍿", "🎞️"].map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              className="p-2 hover:bg-zinc-800 rounded-sm transition-colors text-xl leading-none"
+                              onClick={() => {
+                                setNewComment(newComment + emoji);
+                                setShowEmojiPicker(false);
+                              }}
+                              title={`Adicionar ${emoji}`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                         <ErrorBoundary>
                           <EmojiPicker
                             onEmojiClick={(emojiData) => {
@@ -1053,7 +1057,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   </button>
 
                   {isDrawingMode && (
-                    <div className="flex items-center gap-1 ml-2 border-l border-zinc-800 pl-2">
+                    <div className="flex items-center gap-1 ml-2 border-l border-zinc-800 pl-2 flex-shrink-0">
                       {["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"].map(
                         (color) => (
                           <button
