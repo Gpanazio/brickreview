@@ -179,28 +179,34 @@ export function StoragePage() {
   };
 
   const handleMoveItem = async (itemId, destinationFolderId) => {
-    try {
-      const response = await fetch("/api/storage/move", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          fileId: itemId,
-          destinationFolderId,
-        }),
-      });
+    // If itemId is an array, it's a bulk move
+    const itemsToMove = Array.isArray(itemId) ? itemId : [itemId];
 
-      if (response.ok) {
-        toast.success("Item movido com sucesso");
-        fetchFiles(currentFolder?.id);
-      } else {
-        toast.error("Erro ao mover item");
-      }
+    // Optimistic UI update (optional - complex due to SWR-like fetch)
+    // For now we just rely on toast and refresh
+
+    try {
+      const promises = itemsToMove.map(id =>
+        fetch("/api/storage/move", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            fileId: id,
+            destinationFolderId,
+          }),
+        })
+      );
+
+      await Promise.all(promises);
+      toast.success(`${itemsToMove.length} item(s) movido(s) com sucesso`);
+      fetchFiles(currentFolder?.id);
+      setSelectedIds(new Set()); // Clear selection after move
     } catch (error) {
-      console.error("Error moving item:", error);
-      toast.error("Erro ao mover item");
+      console.error("Error moving items:", error);
+      toast.error("Erro ao mover itens");
     }
   };
 
@@ -488,26 +494,44 @@ export function StoragePage() {
   };
 
   const handleDelete = async (fileId, fileName) => {
+    // Check if it's a bulk delete
+    const isBulk = Array.isArray(fileId);
+    const count = isBulk ? fileId.length : 1;
+    const displayName = isBulk ? `${count} itens` : `"${fileName}"`;
+
     setConfirmDialog({
       isOpen: true,
-      title: "Excluir Arquivo",
-      message: `Tem certeza que deseja excluir "${fileName}"?`,
+      title: isBulk ? "Excluir Itens" : "Excluir Arquivo",
+      message: `Tem certeza que deseja excluir ${displayName}?`,
       onConfirm: async () => {
         try {
-          const response = await fetch(`/api/storage/drive-files/${fileId}`, {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (response.ok) {
-            toast.success("Arquivo excluído com sucesso!");
-            fetchFiles();
+          // If array, delete all
+          if (isBulk) {
+            const promises = fileId.map(id =>
+              fetch(`/api/storage/drive-files/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+              })
+            );
+            await Promise.all(promises);
+            toast.success(`${count} itens excluídos com sucesso!`);
+            setSelectedIds(new Set());
           } else {
-            toast.error("Erro ao excluir arquivo");
+            // Single delete
+            const response = await fetch(`/api/storage/drive-files/${fileId}`, {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.ok) {
+              toast.success("Item excluído com sucesso!");
+            } else {
+              toast.error("Erro ao excluir item");
+            }
           }
+          fetchFiles(currentFolder?.id);
         } catch (error) {
           console.error("Delete error:", error);
-          toast.error("Erro ao excluir arquivo");
+          toast.error("Erro ao excluir");
         }
       },
     });
@@ -641,6 +665,45 @@ export function StoragePage() {
             }}
           />
         )}
+
+        {/* Floating Bulk Action Bar */}
+        <AnimatePresence>
+          {selectedIds.size > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0a0a0a] border border-zinc-800 p-2 shadow-2xl rounded-full"
+            >
+              <div className="px-4 border-r border-zinc-800 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+                <span className="text-xs text-zinc-300 font-bold uppercase tracking-wider">
+                  {selectedIds.size} Selecionado{selectedIds.size > 1 ? 's' : ''}
+                </span>
+              </div>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDelete(Array.from(selectedIds), "Itens selecionados")}
+                className="hover:bg-red-500/10 hover:text-red-500 h-8 rounded-full px-4 text-[10px] font-black uppercase tracking-widest text-zinc-400"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-2" />
+                Excluir
+              </Button>
+
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedIds(new Set())}
+                className="hover:bg-zinc-800 h-8 rounded-full px-3 text-zinc-500 hover:text-zinc-300"
+              >
+                <span className="sr-only">Cancelar</span>
+                ✕
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Drop Zone Overlay */}
         <AnimatePresence>
           {isDraggingFile && (
@@ -693,13 +756,21 @@ export function StoragePage() {
                       setDragOverBreadcrumb(null);
                       if (crumb.id === currentFolder?.id) return;
 
-                      const data = e.dataTransfer.getData("application/x-drive-item");
+                      const data = e.dataTransfer.getData("application/x-drive-items"); // Use plural
                       if (data) {
-                        const item = JSON.parse(data);
-                        // Avoid moving folder into itself or its direct parent (if redundant)
-                        if (item.id !== crumb.id) {
-                          handleMoveItem(item.id, crumb.id);
-                        }
+                        try {
+                          const items = JSON.parse(data);
+                          if (Array.isArray(items)) {
+                            // Correctly handle multiple items move
+                            const idsToMove = items
+                              .filter(item => item.id !== crumb.id)
+                              .map(item => item.id);
+
+                            if (idsToMove.length > 0) {
+                              handleMoveItem(idsToMove, crumb.id);
+                            }
+                          }
+                        } catch (err) { console.error("Drop error", err); }
                       }
                     }}
                   >
@@ -741,7 +812,14 @@ export function StoragePage() {
                             onDoubleClick={() => handleFolderClick(folder)}
                             draggable
                             onDragStart={(e) => {
-                              e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: folder.id, type: 'folder' }));
+                              // Check if dragging a selected item
+                              const itemsToDrag = selectedIds.has(folder.id)
+                                ? Array.from(selectedIds).map(id => ({ id, type: 'folder' })) // Simplify type assumption or lookup
+                                : [{ id: folder.id, type: 'folder' }];
+
+                              e.dataTransfer.setData("application/x-drive-items", JSON.stringify(itemsToDrag));
+                              // Also set legacy for compatibility if needed, using first item
+                              e.dataTransfer.setData("application/x-drive-item", JSON.stringify(itemsToDrag[0]));
                             }}
                             onDragOver={(e) => {
                               e.preventDefault();
@@ -756,12 +834,18 @@ export function StoragePage() {
                               e.preventDefault();
                               e.stopPropagation();
                               setDragOverFolder(null);
-                              const data = e.dataTransfer.getData("application/x-drive-item");
-                              if (data) {
-                                const item = JSON.parse(data);
-                                if (item.id !== folder.id) { // Prevent dropping folder into itself
-                                  handleMoveItem(item.id, folder.id);
-                                }
+                              const dataItems = e.dataTransfer.getData("application/x-drive-items");
+                              if (dataItems) {
+                                try {
+                                  const items = JSON.parse(dataItems);
+                                  const idsToMove = items
+                                    .filter(item => item.id !== folder.id)
+                                    .map(item => item.id);
+
+                                  if (idsToMove.length > 0) {
+                                    handleMoveItem(idsToMove, folder.id);
+                                  }
+                                } catch (err) { console.error(err); }
                               }
                             }}
                           >
@@ -876,7 +960,13 @@ export function StoragePage() {
                               onDoubleClick={() => setPreviewFile(file)}
                               draggable
                               onDragStart={(e) => {
-                                e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
+                                // Check if dragging a selected item
+                                const itemsToDrag = selectedIds.has(file.id)
+                                  ? Array.from(selectedIds).map(id => ({ id, type: 'file' })) // Simplify type assumption
+                                  : [{ id: file.id, type: 'file' }];
+
+                                e.dataTransfer.setData("application/x-drive-items", JSON.stringify(itemsToDrag));
+                                e.dataTransfer.setData("application/x-drive-item", JSON.stringify(itemsToDrag[0]));
                               }}
                             >
                               <div className="flex items-center gap-4">
@@ -970,7 +1060,13 @@ export function StoragePage() {
                               onDoubleClick={() => setPreviewFile(file)}
                               draggable
                               onDragStart={(e) => {
-                                e.dataTransfer.setData("application/x-drive-item", JSON.stringify({ id: file.id, type: 'file' }));
+                                // Check if dragging a selected item
+                                const itemsToDrag = selectedIds.has(file.id)
+                                  ? Array.from(selectedIds).map(id => ({ id, type: 'file' })) // Simplify type assumption
+                                  : [{ id: file.id, type: 'file' }];
+
+                                e.dataTransfer.setData("application/x-drive-items", JSON.stringify(itemsToDrag));
+                                e.dataTransfer.setData("application/x-drive-item", JSON.stringify(itemsToDrag[0]));
                               }}
                             >
                               <div className="flex flex-col gap-3">
