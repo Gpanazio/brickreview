@@ -271,7 +271,9 @@ export function ReviewCanvas() {
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute top-0 left-0 w-full h-full pointer-events-none transition-colors duration-200 ${isDrawingMode ? "pointer-events-auto cursor-crosshair ring-2 ring-red-500/20 bg-black/5" : ""
+      className={`absolute top-0 left-0 w-full h-full transition-colors duration-200 ${isDrawingMode
+        ? "pointer-events-auto cursor-crosshair ring-2 ring-red-500/20 bg-black/5"
+        : "pointer-events-none"
         }`}
       onMouseDown={startDrawing}
       onMouseMove={draw}

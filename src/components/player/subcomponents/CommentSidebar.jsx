@@ -443,10 +443,9 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       const deltaX = e.clientX - scrubRef.current.startX;
       const sensitivity = 0.02; // 50px = 1s
 
-      const newValue = Math.max(
-        currentTime + 0.1, // Minimum is slightly after current time
-        scrubRef.current.startValue + deltaX * sensitivity
-      );
+      // Allow bidirectional scrubbing - clamp between 0 and video duration
+      const rawValue = scrubRef.current.startValue + deltaX * sensitivity;
+      const newValue = Math.max(0, Math.min(rawValue, currentVideo.duration || 0));
 
       setRangeEndTime(newValue);
 
@@ -508,11 +507,25 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       if (isGuest && sharePassword) headers["x-share-password"] = sharePassword;
       if (!isGuest) headers["Authorization"] = `Bearer ${token}`;
 
+      // Handle range mode - ensure start < end even if user dragged left
+      let finalTimestamp = hasTimestamp ? currentTime : null;
+      let finalTimestampEnd = null;
+
+      if (hasTimestamp && isRangeMode && rangeEndTime !== null) {
+        // If user dragged left (rangeEndTime < currentTime), swap them
+        if (rangeEndTime < currentTime) {
+          finalTimestamp = rangeEndTime;
+          finalTimestampEnd = currentTime;
+        } else {
+          finalTimestampEnd = rangeEndTime;
+        }
+      }
+
       const body = {
         video_id: currentVideoId,
         content: newComment,
-        timestamp: hasTimestamp ? currentTime : null,
-        timestamp_end: hasTimestamp && isRangeMode && rangeEndTime !== null ? rangeEndTime : null,
+        timestamp: finalTimestamp,
+        timestamp_end: finalTimestampEnd,
       };
 
       if (isGuest) body.visitor_name = visitorName;
