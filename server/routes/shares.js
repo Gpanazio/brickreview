@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { query } from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
@@ -7,7 +8,6 @@ import {
   requireProjectAccessFromFolder,
   requireProjectAccessFromVideo,
 } from "../utils/permissions.js";
-import { v4 as uuidv4 } from "uuid";
 import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js";
 import { attachmentUpload } from "../utils/attachmentStorage.js";
 
@@ -145,8 +145,8 @@ router.post("/", authenticateToken, async (req, res) => {
       if (!(await requireProjectAccessFromVideo(req, res, videoId))) return;
     }
 
-    // Gera um token curto usando a primeira parte de um UUID
-    const token = uuidv4().split("-")[0];
+    // Gera um token seguro de 32 caracteres (128 bits de entropia)
+    const token = crypto.randomBytes(16).toString("hex");
     let expires_at = null;
     if (expires_in_days) {
       expires_at = new Date();

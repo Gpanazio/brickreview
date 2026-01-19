@@ -89,6 +89,9 @@ app.get('/api/health', (req, res) => {
   })
 })
 
+// Rate limiters
+import { authLimiter, shareLimiter, apiLimiter } from './middleware/rateLimiter.js'
+
 // Routes
 import authRoutes from './routes/auth.js'
 import projectsRoutes from './routes/projects.js'
@@ -108,13 +111,19 @@ import portfolioSharesRoutes from './routes/portfolio-shares.js'
 // TODO: Import other routes
 // import notificationsRoutes from './routes/notifications.js'
 
-app.use('/api/auth', authRoutes)
+// Aplicar rate limiters específicos
+app.use('/api/auth', authLimiter, authRoutes)
+app.use('/api/shares', shareLimiter, sharesRoutes)
+app.use('/api/portfolio/shares', shareLimiter, portfolioSharesRoutes)
+
+// Aplicar rate limiter geral para todas as outras rotas da API
+app.use('/api', apiLimiter)
+
 app.use('/api/projects', projectsRoutes)
 app.use('/api/folders', foldersRoutes)
 app.use('/api/videos', videosRoutes)
 app.use('/api/comments', commentsRoutes)
 app.use('/api/reviews', reviewsRoutes)
-app.use('/api/shares', sharesRoutes)
 app.use('/api/files', filesRoutes)
 app.use('/api/drawings', drawingsRoutes)
 app.use('/api/images', imagesRoutes)
@@ -122,7 +131,6 @@ app.use('/api/storage', storageRoutes)
 app.use('/api/drive', driveRoutes)
 app.use('/api/portfolio', portfolioRoutes)
 app.use('/api/portfolio/collections', portfolioCollectionsRoutes)
-app.use('/api/portfolio/shares', portfolioSharesRoutes)
 // app.use('/api/notifications', notificationsRoutes)
 
 // Serve comment attachments from Railway Volume
