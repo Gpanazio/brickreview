@@ -108,7 +108,14 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
       });
 
       // Limpa arquivo temporário e retorna erro
-      await fs.promises.unlink(file.path);
+      try {
+        await fs.promises.unlink(file.path);
+      } catch (unlinkErr) {
+        logger.error("VIDEO_UPLOAD", "Failed to cleanup temporary file after invalid type detection", {
+          path: file.path,
+          error: unlinkErr.message,
+        });
+      }
 
       return res.status(400).json({
         error: "Tipo de arquivo não permitido",
