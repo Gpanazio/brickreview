@@ -84,6 +84,9 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
   }
 
   // Validar tipo real do arquivo (não confiar no MIME type do cliente)
+  let shouldCleanupFile = false;
+  let validationResult = null;
+
   try {
     const { fileTypeFromFile } = await import("file-type");
     const fileType = await fileTypeFromFile(file.path);
@@ -100,43 +103,54 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
     ];
 
     if (!fileType || !allowedVideoTypes.includes(fileType.mime)) {
-      // Limpar arquivo temporário
-      try {
-        await fs.promises.unlink(file.path);
-      } catch (unlinkErr) {
-        logger.error("VIDEO_UPLOAD", "Failed to cleanup invalid file", {
-          error: unlinkErr.message,
-        });
-      }
-
-      return res.status(400).json({
+      shouldCleanupFile = true;
+      validationResult = {
+        success: false,
+        status: 400,
         error: "Tipo de arquivo não permitido",
         message: "Apenas arquivos de vídeo são aceitos",
         detectedType: fileType?.mime || "desconhecido",
+      };
+    } else {
+      logger.info("VIDEO_UPLOAD", "File type validated", {
+        filename: file.originalname,
+        detectedType: fileType.mime,
       });
+      validationResult = { success: true };
     }
-
-    logger.info("VIDEO_UPLOAD", "File type validated", {
-      filename: file.originalname,
-      detectedType: fileType.mime,
-    });
   } catch (validationError) {
     logger.error("VIDEO_UPLOAD", "File type validation failed", {
       error: validationError.message,
     });
 
-    // Limpar arquivo temporário
-    try {
-      await fs.promises.unlink(file.path);
-    } catch (unlinkErr) {
-      logger.error("VIDEO_UPLOAD", "Failed to cleanup file after validation error", {
-        error: unlinkErr.message,
-      });
-    }
-
-    return res.status(500).json({
+    shouldCleanupFile = true;
+    validationResult = {
+      success: false,
+      status: 500,
       error: "Erro ao validar arquivo",
       message: "Não foi possível verificar o tipo do arquivo",
+    };
+  } finally {
+    // Cleanup centralizado: executa apenas se validação falhou
+    if (shouldCleanupFile) {
+      try {
+        await fs.promises.unlink(file.path);
+        logger.info("VIDEO_UPLOAD", "Temporary file cleaned up after validation failure");
+      } catch (unlinkErr) {
+        logger.error("VIDEO_UPLOAD", "Failed to cleanup temporary file", {
+          path: file.path,
+          error: unlinkErr.message,
+        });
+      }
+    }
+  }
+
+  // Se validação falhou, retorna erro
+  if (!validationResult.success) {
+    return res.status(validationResult.status).json({
+      error: validationResult.error,
+      message: validationResult.message,
+      ...(validationResult.detectedType && { detectedType: validationResult.detectedType }),
     });
   }
 
