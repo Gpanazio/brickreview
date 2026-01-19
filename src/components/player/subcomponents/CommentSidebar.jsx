@@ -512,13 +512,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       let finalTimestampEnd = null;
 
       if (hasTimestamp && isRangeMode && rangeEndTime !== null) {
-        // If user dragged left (rangeEndTime < currentTime), swap them
-        if (rangeEndTime < currentTime) {
-          finalTimestamp = rangeEndTime;
-          finalTimestampEnd = currentTime;
-        } else {
-          finalTimestampEnd = rangeEndTime;
-        }
+        finalTimestamp = Math.min(currentTime, rangeEndTime);
+        finalTimestampEnd = Math.max(currentTime, rangeEndTime);
       }
 
       const body = {
