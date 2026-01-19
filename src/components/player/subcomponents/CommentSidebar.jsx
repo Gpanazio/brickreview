@@ -1099,6 +1099,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   Enviar
                 </button>
               </div>
+            </div>
           </form>
 
           <ConfirmDialog
@@ -1114,6 +1115,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
             cancelText="Cancelar"
             variant="danger"
           />
-        </div >
-      );
+        </div>
+      )}
+    </div>
+  );
 }

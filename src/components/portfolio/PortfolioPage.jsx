@@ -805,7 +805,6 @@ export function PortfolioPage() {
               </div>
             )}
           </div>
-        </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
         <ContextMenuItem
