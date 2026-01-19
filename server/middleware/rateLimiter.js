@@ -15,9 +15,16 @@ export const authLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  // Rate limit por username se disponível, senão por IP
+  // Rate limit por username se disponível
+  // Se não houver username, deixa o middleware usar o IP padrão
   keyGenerator: (req) => {
-    return req.body?.username || req.ip;
+    // Se tem username, usa ele como chave (não depende de IP)
+    if (req.body?.username) {
+      return `username:${req.body.username}`;
+    }
+    // Se não tem username, retorna undefined para usar o comportamento padrão
+    // que trata IPv6 corretamente
+    return undefined;
   },
   // Só conta falhas de login
   skipSuccessfulRequests: true,
@@ -25,7 +32,7 @@ export const authLimiter = rateLimit({
 
 /**
  * Rate limiter para rotas de compartilhamento público
- * - Limita por token + IP
+ * - Limita por token (se disponível)
  * - Permite 30 requisições por minuto
  */
 export const shareLimiter = rateLimit({
@@ -39,13 +46,18 @@ export const shareLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const token = req.params.token || req.query.token;
-    return token ? `${token}:${req.ip}` : req.ip;
+    // Se tem token, usa ele como chave (independe de IP)
+    if (token) {
+      return `share:${token}`;
+    }
+    // Se não tem token, usa comportamento padrão (IP)
+    return undefined;
   },
 });
 
 /**
  * Rate limiter geral para API
- * - Limita por IP ou usuário autenticado
+ * - Limita por usuário autenticado ou IP
  * - Permite 100 requisições por minuto
  */
 export const apiLimiter = rateLimit({
@@ -58,14 +70,18 @@ export const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    // Usa user ID se autenticado, senão IP
-    return req.user?.id?.toString() || req.ip;
+    // Se autenticado, usa user ID (independe de IP)
+    if (req.user?.id) {
+      return `user:${req.user.id}`;
+    }
+    // Se não autenticado, usa comportamento padrão (IP)
+    return undefined;
   },
 });
 
 /**
  * Rate limiter para uploads
- * - Limita por usuário
+ * - Limita por usuário autenticado
  * - Permite 10 uploads por hora
  */
 export const uploadLimiter = rateLimit({
@@ -78,6 +94,11 @@ export const uploadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.user?.id?.toString() || req.ip;
+    // Uploads sempre requerem autenticação, então usa user ID
+    if (req.user?.id) {
+      return `upload:${req.user.id}`;
+    }
+    // Fallback para IP se não autenticado (não deveria acontecer)
+    return undefined;
   },
 });
