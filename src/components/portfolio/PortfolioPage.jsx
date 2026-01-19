@@ -27,18 +27,9 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { FolderPlus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -815,143 +806,144 @@ export function PortfolioPage() {
             )}
           </div>
         </div>
-        <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
-          <ContextMenuItem
-            className="focus:bg-red-600 focus:text-white cursor-pointer"
-            onClick={() => toast.info("Funcionalidade de pastas em breve")}
-          >
-            <FolderPlus className="w-4 h-4 mr-2" />
-            Nova Pasta
-          </ContextMenuItem>
-          <ContextMenuItem
-            className="focus:bg-red-600 focus:text-white cursor-pointer"
-            onClick={() => setUploadModalOpen(true)}
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Upload de Vídeo
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+        <ContextMenuItem
+          className="focus:bg-red-600 focus:text-white cursor-pointer"
+          onClick={() => toast.info("Funcionalidade de pastas em breve")}
+        >
+          <FolderPlus className="w-4 h-4 mr-2" />
+          Nova Pasta
+        </ContextMenuItem>
+        <ContextMenuItem
+          className="focus:bg-red-600 focus:text-white cursor-pointer"
+          onClick={() => setUploadModalOpen(true)}
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Upload de Vídeo
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
 
-      {/* Video Detail Modal (Preserved) */}
-      <AnimatePresence>
-        {showModal && selectedVideo && (
-          <Dialog open={showModal} onOpenChange={setShowModal}>
-            {/* Re-using the same modal structure as before but adapted for Dialog if possible or just custom overlay */}
-            {/* NOTE: simpler to just use the custom overlay from before to ensure it works exactly as intended */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-              onClick={() => setShowModal(false)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="glass-panel border border-zinc-800/50 rounded-none max-w-6xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="brick-title text-xl text-white">{selectedVideo.title}</h2>
-                    <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white"><X className="w-6 h-6" /></button>
+      {/* Video Detail Modal (Preserved) */ }
+  <AnimatePresence>
+    {showModal && selectedVideo && (
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        {/* Re-using the same modal structure as before but adapted for Dialog if possible or just custom overlay */}
+        {/* NOTE: simpler to just use the custom overlay from before to ensure it works exactly as intended */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="glass-panel border border-zinc-800/50 rounded-none max-w-6xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="brick-title text-xl text-white">{selectedVideo.title}</h2>
+                <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white"><X className="w-6 h-6" /></button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <div className="bg-black aspect-video">
+                    <video src={selectedVideo.direct_url} controls className="w-full h-full" />
                   </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2">
-                      <div className="bg-black aspect-video">
-                        <video src={selectedVideo.direct_url} controls className="w-full h-full" />
-                      </div>
+                </div>
+                <div className="space-y-4">
+                  {/* Links Section */}
+                  <div className="glass-panel border border-zinc-800/30 rounded-none p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Code className="w-4 h-4 text-red-500" />
+                      <h3 className="brick-title text-sm uppercase">Links</h3>
                     </div>
-                    <div className="space-y-4">
-                      {/* Links Section */}
-                      <div className="glass-panel border border-zinc-800/30 rounded-none p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Code className="w-4 h-4 text-red-500" />
-                          <h3 className="brick-title text-sm uppercase">Links</h3>
-                        </div>
-                        <div className="space-y-3">
-                          <div>
-                            <p className="text-[10px] uppercase text-zinc-500 mb-1">Public Player</p>
-                            <div className="relative">
-                              <input readOnly value={`${window.location.origin}/portfolio/player/${selectedVideo.id}`} className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 pr-8" />
-                              <button onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${selectedVideo.id}`, 'direct')} className="absolute right-2 top-2 text-zinc-400 hover:text-white">
-                                {copiedLink === 'direct' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                              </button>
-                            </div>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase text-zinc-500 mb-1">Embed Code</p>
-                            <div className="relative">
-                              <textarea
-                                readOnly
-                                value={`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
-                                className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 h-20 resize-none pr-8"
-                              />
-                              <button onClick={() => handleCopyLink(`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`, 'embed')} className="absolute right-2 top-2 text-zinc-400 hover:text-white">
-                                {copiedLink === 'embed' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                              </button>
-                            </div>
-                          </div>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-[10px] uppercase text-zinc-500 mb-1">Public Player</p>
+                        <div className="relative">
+                          <input readOnly value={`${window.location.origin}/portfolio/player/${selectedVideo.id}`} className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 pr-8" />
+                          <button onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${selectedVideo.id}`, 'direct')} className="absolute right-2 top-2 text-zinc-400 hover:text-white">
+                            {copiedLink === 'direct' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                          </button>
                         </div>
                       </div>
-
-                      {/* Protection Section */}
-                      <div className="glass-panel border border-zinc-800/30 rounded-none p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="brick-title text-sm uppercase">Proteção</h3>
-                          {selectedVideo.is_password_protected ? <Lock className="w-4 h-4 text-yellow-500" /> : <Unlock className="w-4 h-4 text-zinc-500" />}
+                      <div>
+                        <p className="text-[10px] uppercase text-zinc-500 mb-1">Embed Code</p>
+                        <div className="relative">
+                          <textarea
+                            readOnly
+                            value={`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
+                            className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 h-20 resize-none pr-8"
+                          />
+                          <button onClick={() => handleCopyLink(`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`, 'embed')} className="absolute right-2 top-2 text-zinc-400 hover:text-white">
+                            {copiedLink === 'embed' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                          </button>
                         </div>
-                        <Button onClick={() => setEditingVideo(selectedVideo)} size="sm" className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border-none">
-                          <Edit3 className="w-3 h-3 mr-2" /> Editar Senha
-                        </Button>
                       </div>
                     </div>
                   </div>
+
+                  {/* Protection Section */}
+                  <div className="glass-panel border border-zinc-800/30 rounded-none p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="brick-title text-sm uppercase">Proteção</h3>
+                      {selectedVideo.is_password_protected ? <Lock className="w-4 h-4 text-yellow-500" /> : <Unlock className="w-4 h-4 text-zinc-500" />}
+                    </div>
+                    <Button onClick={() => setEditingVideo(selectedVideo)} size="sm" className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border-none">
+                      <Edit3 className="w-3 h-3 mr-2" /> Editar Senha
+                    </Button>
+                  </div>
                 </div>
-              </motion.div>
-            </motion.div>
-          </Dialog>
-        )}
-      </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      </Dialog>
+    )}
+  </AnimatePresence>
 
-      {/* Edit Password Modal */}
-      <AnimatePresence>
-        {editingVideo && (
-          <Dialog open={!!editingVideo} onOpenChange={() => setEditingVideo(null)}>
-            <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white sm:max-w-md">
-              <DialogHeader><DialogTitle className="brick-title">Senha do Vídeo</DialogTitle></DialogHeader>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const password = e.target.password.value;
-                if (password) handleUpdatePassword(editingVideo.id, password);
-              }} className="space-y-4">
-                <Input type="password" name="password" placeholder="Nova Senha" required className="glass-input border-none" />
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1 glass-button-primary border-none">Salvar</Button>
-                  {editingVideo.is_password_protected && (
-                    <Button type="button" variant="destructive" onClick={() => handleUpdatePassword(editingVideo.id, null, true)} className="flex-1">Remover Senha</Button>
-                  )}
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
-      </AnimatePresence>
+  {/* Edit Password Modal */ }
+  <AnimatePresence>
+    {editingVideo && (
+      <Dialog open={!!editingVideo} onOpenChange={() => setEditingVideo(null)}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white sm:max-w-md">
+          <DialogHeader><DialogTitle className="brick-title">Senha do Vídeo</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const password = e.target.password.value;
+            if (password) handleUpdatePassword(editingVideo.id, password);
+          }} className="space-y-4">
+            <Input type="password" name="password" placeholder="Nova Senha" required className="glass-input border-none" />
+            <div className="flex gap-2">
+              <Button type="submit" className="flex-1 glass-button-primary border-none">Salvar</Button>
+              {editingVideo.is_password_protected && (
+                <Button type="button" variant="destructive" onClick={() => handleUpdatePassword(editingVideo.id, null, true)} className="flex-1">Remover Senha</Button>
+              )}
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    )}
+  </AnimatePresence>
 
-      {/* Confirm Dialog */}
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
-        onConfirm={() => confirmDialog.onConfirm?.()}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        confirmText="Excluir"
-        cancelText="Cancelar"
-        variant="danger"
-      />
+  {/* Confirm Dialog */ }
+  <ConfirmDialog
+    isOpen={confirmDialog.isOpen}
+    onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+    onConfirm={() => confirmDialog.onConfirm?.()}
+    title={confirmDialog.title}
+    message={confirmDialog.message}
+    confirmText="Excluir"
+    cancelText="Cancelar"
+    variant="danger"
+  />
 
-    </div>
+    </div >
   );
 }
