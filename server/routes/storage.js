@@ -5,6 +5,9 @@ import r2Manager from '../utils/r2-manager.js';
 import hybridStorageManager from '../utils/hybrid-storage.js';
 import googleDriveManager from '../utils/google-drive.js';
 import pool from '../db.js';
+import fs from 'fs';
+import path from 'path';
+import { generateThumbnail } from '../utils/video.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -262,13 +265,51 @@ router.post('/upload-to-drive', authenticateToken, upload.single('file'), async 
 
     const { originalname, buffer, mimetype } = req.file;
     const { parentId } = req.body;
+    let thumbnailBuffer = null;
+
+    // If it's a video, try to generate a thumbnail
+    if (mimetype.startsWith('video/')) {
+      try {
+        const tempDir = path.resolve('temp-uploads');
+        if (!fs.existsSync(tempDir)) {
+          fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        const tempVideoId = `upload-${Date.now()}`;
+        const tempVideoPath = path.join(tempDir, `${tempVideoId}-${originalname}`);
+        const thumbFilename = `${tempVideoId}-thumb.jpg`;
+
+        // Write buffer to temp file
+        fs.writeFileSync(tempVideoPath, buffer);
+
+        // Generate thumbnail
+        const thumbPath = await generateThumbnail(tempVideoPath, tempDir, thumbFilename);
+
+        // Read thumbnail buffer
+        if (fs.existsSync(thumbPath)) {
+          thumbnailBuffer = fs.readFileSync(thumbPath);
+
+          // Cleanup thumbnail
+          fs.unlinkSync(thumbPath);
+        }
+
+        // Cleanup video
+        if (fs.existsSync(tempVideoPath)) {
+          fs.unlinkSync(tempVideoPath);
+        }
+      } catch (err) {
+        console.error('Failed to generate thumbnail for upload:', err);
+        // Continue upload even if thumbnail fails
+      }
+    }
 
     // Upload directly to Google Drive
     const driveFile = await googleDriveManager.uploadFile(
       originalname,
       buffer,
       mimetype,
-      parentId
+      parentId,
+      thumbnailBuffer
     );
 
     res.json({

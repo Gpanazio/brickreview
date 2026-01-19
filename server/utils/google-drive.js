@@ -50,7 +50,7 @@ class GoogleDriveManager {
    * Upload file to Google Drive
    * If a file with the same name exists in the target folder, adds folder name suffix
    */
-  async uploadFile(fileName, fileBuffer, mimeType, parentId = null) {
+  async uploadFile(fileName, fileBuffer, mimeType, parentId = null, thumbnailBuffer = null) {
     if (!this.isEnabled()) {
       throw new Error('Google Drive is not enabled');
     }
@@ -107,6 +107,15 @@ class GoogleDriveManager {
         name: finalFileName,
         parents: [targetFolder],
       };
+
+      if (thumbnailBuffer) {
+        fileMetadata.contentHints = {
+          thumbnail: {
+            image: thumbnailBuffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_'),
+            mimeType: 'image/jpeg',
+          },
+        };
+      }
 
       const media = {
         mimeType: mimeType,
