@@ -4,6 +4,7 @@ import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { query } from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
+import { uploadLimiter } from "../middleware/rateLimiter.js";
 import { requireProjectAccess, requireProjectAccessFromVideo } from "../utils/permissions.js";
 import r2Client from "../utils/r2.js";
 import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js";
@@ -44,7 +45,7 @@ const upload = multer({
  * @route POST /api/videos/upload
  * @desc Upload: Uploads original to R2 and marks as ready (no queue processing)
  */
-router.post("/upload", authenticateToken, upload.single("video"), async (req, res) => {
+router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"), async (req, res) => {
   // Increase timeout for large file upload to R2
   res.setTimeout(3600000); // 1 hour
 
@@ -80,6 +81,63 @@ router.post("/upload", authenticateToken, upload.single("video"), async (req, re
   const folderId = folder_id ? Number(folder_id) : null;
   if (folder_id && !Number.isInteger(folderId)) {
     return res.status(400).json({ error: "folder_id inválido" });
+  }
+
+  // Validar tipo real do arquivo (não confiar no MIME type do cliente)
+  try {
+    const { fileTypeFromFile } = await import("file-type");
+    const fileType = await fileTypeFromFile(file.path);
+
+    // Lista de tipos de vídeo permitidos
+    const allowedVideoTypes = [
+      "video/mp4",
+      "video/quicktime",
+      "video/x-msvideo",
+      "video/x-matroska",
+      "video/webm",
+      "video/x-flv",
+      "video/x-m4v",
+    ];
+
+    if (!fileType || !allowedVideoTypes.includes(fileType.mime)) {
+      // Limpar arquivo temporário
+      try {
+        await fs.promises.unlink(file.path);
+      } catch (unlinkErr) {
+        logger.error("VIDEO_UPLOAD", "Failed to cleanup invalid file", {
+          error: unlinkErr.message,
+        });
+      }
+
+      return res.status(400).json({
+        error: "Tipo de arquivo não permitido",
+        message: "Apenas arquivos de vídeo são aceitos",
+        detectedType: fileType?.mime || "desconhecido",
+      });
+    }
+
+    logger.info("VIDEO_UPLOAD", "File type validated", {
+      filename: file.originalname,
+      detectedType: fileType.mime,
+    });
+  } catch (validationError) {
+    logger.error("VIDEO_UPLOAD", "File type validation failed", {
+      error: validationError.message,
+    });
+
+    // Limpar arquivo temporário
+    try {
+      await fs.promises.unlink(file.path);
+    } catch (unlinkErr) {
+      logger.error("VIDEO_UPLOAD", "Failed to cleanup file after validation error", {
+        error: unlinkErr.message,
+      });
+    }
+
+    return res.status(500).json({
+      error: "Erro ao validar arquivo",
+      message: "Não foi possível verificar o tipo do arquivo",
+    });
   }
 
   try {

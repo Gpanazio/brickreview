@@ -42,6 +42,7 @@ import { ProjectCoverPlaceholder } from "./components/ui/ProjectCoverPlaceholder
 import { ProjectSettingsModal } from "./components/projects/ProjectSettingsModal";
 import { ProjectListItem } from "./components/projects/ProjectListItem";
 import { PageLoader } from "./components/ui/PageLoader";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const APP_VERSION = "1.2.0-perf";
 console.log("BRICK Review Version:", APP_VERSION);
@@ -64,11 +65,12 @@ const isDefaultUrl = (url) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <UploadProvider>
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <UploadProvider>
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
               {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
               <Route path="/share/:token" element={<ShareViewPage />} />
               <Route path="/storage/s/:id" element={<SharedStoragePage />} />
@@ -83,6 +85,7 @@ function App() {
         </BrowserRouter>
       </UploadProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
