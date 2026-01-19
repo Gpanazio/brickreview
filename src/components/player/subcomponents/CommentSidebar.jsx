@@ -445,7 +445,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
       // Allow bidirectional scrubbing - clamp between 0 and video duration
       const rawValue = scrubRef.current.startValue + deltaX * sensitivity;
-      const newValue = Math.max(0, rawValue); // Only prevent negative values
+      const newValue = Math.max(0, Math.min(rawValue, currentVideo.duration || 0));
 
       setRangeEndTime(newValue);
 
