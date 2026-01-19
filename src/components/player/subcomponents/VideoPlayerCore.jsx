@@ -176,13 +176,15 @@ export function VideoPlayerCore() {
           // Added pointer-events-none and opacity-0 when drawing to get out of the way
           aria-label={isPlaying ? "Pause" : "Play"}
         >
-          <div className="w-12 h-24 md:w-20 md:h-40 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 hover:bg-red-600 hover:border-red-500 hover:scale-105 shadow-2xl group rounded-none">
-            {isPlaying ? (
-              <Pause className="w-5 h-5 md:w-8 md:h-8 text-white fill-white" />
-            ) : (
-              <Play className="w-5 h-5 md:w-8 md:h-8 text-white fill-white ml-1" />
-            )}
-          </div>
+          {!isDrawingMode && (
+            <div className="w-8 h-16 md:w-12 md:h-24 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 hover:bg-white/10 hover:border-white/20 hover:scale-105 shadow-2xl group rounded-none">
+              {isPlaying ? (
+                <Pause className="w-4 h-4 md:w-6 md:h-6 text-white fill-white" />
+              ) : (
+                <Play className="w-4 h-4 md:w-6 md:h-6 text-white fill-white ml-1" />
+              )}
+            </div>
+          )}
         </button>
       )}
     </div>

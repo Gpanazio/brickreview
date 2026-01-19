@@ -896,41 +896,36 @@ export function StoragePage() {
                                     </span>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <MoreVertical className="w-4 h-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
-                                      <DropdownMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
-                                        <Download className="mr-2 h-4 w-4" /> Baixar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleShare(file)}>
-                                        <Share2 className="mr-2 h-4 w-4" /> Compartilhar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => openRenameDialog(file)}>
-                                        <Pencil className="mr-2 h-4 w-4" /> Renomear
-                                      </DropdownMenuItem>
-                                      <ContextMenuSeparator className="bg-zinc-800" />
-                                      <DropdownMenuItem
-                                        className="text-red-600 focus:text-red-500"
-                                        onClick={() => handleDelete(file.id, file.name)}
-                                      >
-                                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                <div className="flex items-center gap-2 opacity-40 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => { e.stopPropagation(); handleShare(file); }}
+                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                                  >
+                                    <Share2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => { e.stopPropagation(); window.open(file.webViewLink, "_blank"); }}
+                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(file.id, file.name); }}
+                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
                                 </div>
                               </div>
                             </motion.div>
                           </ContextMenuTrigger>
+
                           <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
                             <ContextMenuItem onClick={() => window.open(file.webViewLink, "_blank")}>
                               <Download className="mr-2 h-4 w-4" /> Abrir / Baixar
@@ -1055,7 +1050,15 @@ export function StoragePage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => window.open(file.webViewLink, "_blank")}
+                                    onClick={(e) => { e.stopPropagation(); handleShare(file); }}
+                                    className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800 flex-1"
+                                  >
+                                    <Share2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => { e.stopPropagation(); window.open(file.webViewLink, "_blank"); }}
                                     className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800 flex-1"
                                   >
                                     <Download className="w-4 h-4" />
@@ -1225,7 +1228,7 @@ export function StoragePage() {
         cancelText="Cancelar"
         variant="danger"
       />
-    </div>
+    </div >
   );
 }
 

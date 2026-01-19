@@ -286,7 +286,7 @@ export function SettingsPage() {
               <div className="flex items-center gap-3 mb-2">
                 <HardDrive className="w-5 h-5 text-zinc-500" />
                 <h3 className="brick-title text-md uppercase tracking-tighter text-white">
-                  Google Drive (Backup)
+                  Storage
                 </h3>
               </div>
 
@@ -299,10 +299,10 @@ export function SettingsPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h4 className="brick-title text-md text-white mb-1">
-                      {storageStats.drive.name || 'Google Drive'}
+                      {storageStats.drive.name || 'Storage'}
                     </h4>
                     <p className="brick-tech text-[9px] text-zinc-500 uppercase tracking-widest">
-                      Backup de Longo Prazo
+                      Armazenamento de Longo Prazo
                     </p>
                   </div>
                   {storageStats.drive.error && (
@@ -357,7 +357,7 @@ export function SettingsPage() {
                       <p className="brick-tech text-[8px] text-zinc-600 uppercase tracking-widest mb-0.5">
                         Tipo
                       </p>
-                      <p className="text-sm text-zinc-300 font-bold">Backup</p>
+                      <p className="text-sm text-zinc-300 font-bold">Storage</p>
                     </div>
                   </div>
                 </div>
@@ -369,7 +369,7 @@ export function SettingsPage() {
           <div className="bg-zinc-950/30 border border-zinc-800/30 rounded-none p-4">
             <p className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest text-center">
               {storageStats?.drive.enabled
-                ? "R2: Cache Rápido (20GB) • Drive: Backup Automático (20TB) • Estatísticas em tempo real"
+                ? "R2: Cache Rápido (20GB) • Storage: (20TB) • Estatísticas em tempo real"
                 : "Cloudflare R2 Free Plan: 10GB por bucket • As estatísticas são atualizadas em tempo real"}
             </p>
           </div>

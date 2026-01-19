@@ -118,14 +118,38 @@ export function Timeline() {
 
       <div
         ref={timelineRef}
-        className="w-full h-2 hover:h-3 bg-zinc-800 cursor-pointer relative transition-all duration-200 ease-out z-20 group/redline touch-none"
+        className="w-full h-2 hover:h-3 bg-white/20 cursor-pointer relative transition-all duration-200 ease-out z-20 group/redline touch-none"
         onClick={handleSeek}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         onTouchStart={handleTouchSeek}
         onTouchMove={handleTouchSeek}
       >
-        <div className="absolute inset-0 bg-zinc-900" />
+        <div className="absolute inset-0 bg-transparent" />
+
+        {/* Highlight Active Range on Scrubber */}
+        {activeRange && (
+          (() => {
+            const comment = comments.find(c => c.id === activeRange.commentId);
+            if (comment) {
+              const range = getCommentRange(comment);
+              if (range && range.end !== null && duration > 0) {
+                const startPercent = (range.start / duration) * 100;
+                const widthPercent = ((range.end - range.start) / duration) * 100;
+                return (
+                  <div
+                    className="absolute top-0 h-full bg-white/40 border-x border-white/60 z-10 pointer-events-none"
+                    style={{
+                      left: `${startPercent}%`,
+                      width: `${widthPercent}%`
+                    }}
+                  />
+                );
+              }
+            }
+            return null;
+          })()
+        )}
 
         <div
           className="absolute top-0 left-0 h-full bg-red-600 transition-[width] duration-75 ease-linear shadow-[0_0_10px_rgba(220,38,38,0.5)]"
@@ -174,9 +198,9 @@ export function Timeline() {
             >
               {hasRange && (
                 <div
-                  className={`absolute h-2 rounded-sm backdrop-blur-sm transition-colors pointer-events-auto ${isActive
-                    ? "bg-red-600/40 border border-red-600/50"
-                    : "bg-white/20 hover:bg-white/30 border border-white/10"
+                  className={`absolute h-1.5 rounded-full backdrop-blur-sm transition-all cursor-ew-resize ${isActive
+                    ? "bg-red-600 border border-red-500 shadow-[0_0_10px_rgba(220,38,38,0.6)] z-20 h-2"
+                    : "bg-white/20 hover:bg-white/30"
                     }`}
                   style={{
                     left: 0,
@@ -194,7 +218,7 @@ export function Timeline() {
                   transition-all duration-200 ease-out
                   border border-black/50 shadow-sm pointer-events-auto
                   ${isActive
-                    ? "w-3 h-3 bg-red-600 scale-110 shadow-[0_0_8px_rgba(220,38,38,0.6)] ring-2 ring-red-900"
+                    ? "w-4 h-4 bg-red-600 scale-110 shadow-[0_0_12px_rgba(220,38,38,0.8)] ring-2 ring-white ring-offset-1 ring-offset-black z-30"
                     : "w-1.5 h-1.5 bg-zinc-400 group-hover/marker:bg-white group-hover/marker:scale-150"
                   }
                   rounded-full
