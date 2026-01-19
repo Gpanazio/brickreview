@@ -32,6 +32,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { FolderPlus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -602,204 +609,229 @@ export function PortfolioPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Show message if empty */}
-          {folders.length === 0 && videos.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center h-64 border border-zinc-900 bg-zinc-950/20">
-              <p className="text-zinc-500 uppercase tracking-[0.3em] font-black text-[10px]">
-                Pasta Vazia
-              </p>
-            </div>
-          )}
-
-          {/* Folders Information */}
-          {folders.length > 0 && (
-            <div>
-              <h2 className="brick-title text-xs text-zinc-500 uppercase tracking-widest font-bold mb-4">Pastas</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {folders.map(folder => (
-                  <ContextMenu key={folder.id}>
-                    <ContextMenuTrigger>
-                      <div
-                        onClick={() => handleNavigateFolder(folder)}
-                        className="glass-panel border border-zinc-800/30 rounded-none p-4 flex items-center gap-3 cursor-pointer hover:border-red-600/30 transition-all group"
-                      >
-                        <Folder className="w-5 h-5 text-zinc-500 group-hover:text-red-500 transition-colors" />
-                        <span className="text-sm font-medium text-zinc-300 group-hover:text-white truncate flex-1">{folder.name}</span>
-
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-sm"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
-                              <DropdownMenuItem onClick={() => handleNavigateFolder(folder)}>
-                                <Folder className="mr-2 h-4 w-4" /> Abrir
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator className="bg-zinc-800" />
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-500"
-                                onClick={() => handleDeleteFolder(folder)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    </ContextMenuTrigger>
-                    <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                      <ContextMenuItem onClick={() => handleDeleteFolder(folder)} className="text-red-500 focus:text-red-500">
-                        <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                      </ContextMenuItem>
-                    </ContextMenuContent>
-                  </ContextMenu>
-                ))}
+      <ContextMenu>
+        <ContextMenuTrigger className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
+          <div className="max-w-7xl mx-auto space-y-8">
+            {/* Show message if empty */}
+            {folders.length === 0 && videos.length === 0 && !loading && (
+              <div className="flex flex-col items-center justify-center h-64 border border-zinc-900 bg-zinc-950/20">
+                <p className="text-zinc-500 uppercase tracking-[0.3em] font-black text-[10px]">
+                  Pasta Vazia
+                </p>
+                <Button
+                  size="sm"
+                  onClick={() => setUploadModalOpen(true)}
+                  className="mt-6 glass-button-primary border-none rounded-none px-8 py-6 h-auto"
+                >
+                  Fazer seu primeiro upload
+                </Button>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Videos Grid/List */}
-          {videos.length > 0 && (
-            <div>
-              <h2 className="brick-title text-xs text-zinc-500 uppercase tracking-widest font-bold mb-4">Vídeos</h2>
-              {viewMode === "list" ? (
-                <div className="space-y-2">
-                  {videos.map(video => (
-                    <ContextMenu key={video.id}>
+            {/* Folders Information */}
+            {folders.length > 0 && (
+              <div>
+                <h2 className="brick-title text-xs text-zinc-500 uppercase tracking-widest font-bold mb-4">Pastas</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {folders.map(folder => (
+                    <ContextMenu key={folder.id}>
                       <ContextMenuTrigger>
                         <div
-                          onClick={() => handleVideoClick(video)}
-                          className="glass-panel border border-zinc-800/30 rounded-none p-4 hover:border-red-600/30 transition-all cursor-pointer flex items-center gap-4"
+                          onClick={() => handleNavigateFolder(folder)}
+                          className="glass-panel border border-zinc-800/30 rounded-none p-4 flex items-center gap-3 cursor-pointer hover:border-red-600/30 transition-all group"
                         >
-                          <div className="w-16 h-9 bg-zinc-900 flex-shrink-0">
-                            {video.thumbnail_url && <img src={video.thumbnail_url} className="w-full h-full object-cover" />}
-                          </div>
-                          <span className="text-sm text-white flex-1 truncate">{video.title}</span>
-                          <div className="flex items-center gap-4 text-zinc-500 text-xs">
-                            <span className="hidden md:inline">{formatDuration(video.duration)}</span>
-                            <span className="hidden md:flex items-center gap-1"><Eye className="w-3 h-3" /> {video.view_count}</span>
+                          <Folder className="w-5 h-5 text-zinc-500 group-hover:text-red-500 transition-colors" />
+                          <span className="text-sm font-medium text-zinc-300 group-hover:text-white truncate flex-1">{folder.name}</span>
 
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                                  >
-                                    <MoreVertical className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
-                                  <DropdownMenuItem onClick={() => handleVideoClick(video)}>
-                                    <Play className="mr-2 h-4 w-4" /> Assistir / Detalhes
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${video.id}`, 'direct')}>
-                                    <Copy className="mr-2 h-4 w-4" /> Copiar Link
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator className="bg-zinc-800" />
-                                  <DropdownMenuItem
-                                    className="text-red-600 focus:text-red-500"
-                                    onClick={() => handleDeleteVideo(video)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-sm"
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                                <DropdownMenuItem onClick={() => handleNavigateFolder(folder)}>
+                                  <Folder className="mr-2 h-4 w-4" /> Abrir
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-zinc-800" />
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-500"
+                                  onClick={() => handleDeleteFolder(folder)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                        <ContextMenuItem onClick={() => handleDeleteVideo(video)} className="text-red-500">
+                        <ContextMenuItem onClick={() => handleDeleteFolder(folder)} className="text-red-500 focus:text-red-500">
                           <Trash2 className="w-4 h-4 mr-2" /> Excluir
                         </ContextMenuItem>
                       </ContextMenuContent>
                     </ContextMenu>
                   ))}
                 </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {videos.map(video => (
-                    <ContextMenu key={video.id}>
-                      <ContextMenuTrigger>
-                        <div
-                          onClick={() => handleVideoClick(video)}
-                          className="glass-panel border border-zinc-800/30 rounded-none overflow-hidden hover:border-red-600/30 transition-all group cursor-pointer relative"
-                        >
-                          <div className="relative aspect-video bg-zinc-900">
-                            {video.thumbnail_url ? (
-                              <img src={video.thumbnail_url} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center"><Film className="w-8 h-8 text-zinc-600" /></div>
-                            )}
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <Play className="w-10 h-10 text-white" />
-                            </div>
-                            <div className="absolute bottom-1 right-1 bg-black/80 px-1 text-[9px] text-white">{formatDuration(video.duration)}</div>
+              </div>
+            )}
 
-                            {/* Action Menu (Visible on mobile, hover on desktop) */}
-                            <div
-                              className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-6 w-6 text-white bg-black/50 hover:bg-black/80 rounded-sm"
-                                  >
-                                    <MoreVertical className="w-4 h-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
-                                  <DropdownMenuItem onClick={() => handleVideoClick(video)}>
-                                    <Play className="mr-2 h-4 w-4" /> Assistir
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${video.id}`, 'direct')}>
-                                    <Copy className="mr-2 h-4 w-4" /> Copiar Link
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator className="bg-zinc-800" />
-                                  <DropdownMenuItem
-                                    className="text-red-600 focus:text-red-500"
-                                    onClick={() => handleDeleteVideo(video)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+            {/* Videos Grid/List */}
+            {videos.length > 0 && (
+              <div>
+                <h2 className="brick-title text-xs text-zinc-500 uppercase tracking-widest font-bold mb-4">Vídeos</h2>
+                {viewMode === "list" ? (
+                  <div className="space-y-2">
+                    {videos.map(video => (
+                      <ContextMenu key={video.id}>
+                        <ContextMenuTrigger>
+                          <div
+                            onClick={() => handleVideoClick(video)}
+                            className="glass-panel border border-zinc-800/30 rounded-none p-4 hover:border-red-600/30 transition-all cursor-pointer flex items-center gap-4"
+                          >
+                            <div className="w-16 h-9 bg-zinc-900 flex-shrink-0">
+                              {video.thumbnail_url && <img src={video.thumbnail_url} className="w-full h-full object-cover" />}
+                            </div>
+                            <span className="text-sm text-white flex-1 truncate">{video.title}</span>
+                            <div className="flex items-center gap-4 text-zinc-500 text-xs">
+                              <span className="hidden md:inline">{formatDuration(video.duration)}</span>
+                              <span className="hidden md:flex items-center gap-1"><Eye className="w-3 h-3" /> {video.view_count}</span>
+
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                                    >
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                                    <DropdownMenuItem onClick={() => handleVideoClick(video)}>
+                                      <Play className="mr-2 h-4 w-4" /> Assistir / Detalhes
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${video.id}`, 'direct')}>
+                                      <Copy className="mr-2 h-4 w-4" /> Copiar Link
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="bg-zinc-800" />
+                                    <DropdownMenuItem
+                                      className="text-red-600 focus:text-red-500"
+                                      onClick={() => handleDeleteVideo(video)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </div>
                           </div>
-                          <div className="p-3">
-                            <h4 className="text-xs text-white truncate font-medium mb-1">{video.title}</h4>
-                            <div className="flex justify-between items-center text-[9px] text-zinc-500 uppercase tracking-wider">
-                              <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {video.view_count}</span>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                          <ContextMenuItem onClick={() => handleDeleteVideo(video)} className="text-red-500">
+                            <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {videos.map(video => (
+                      <ContextMenu key={video.id}>
+                        <ContextMenuTrigger>
+                          <div
+                            onClick={() => handleVideoClick(video)}
+                            className="glass-panel border border-zinc-800/30 rounded-none overflow-hidden hover:border-red-600/30 transition-all group cursor-pointer relative"
+                          >
+                            <div className="relative aspect-video bg-zinc-900">
+                              {video.thumbnail_url ? (
+                                <img src={video.thumbnail_url} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center"><Film className="w-8 h-8 text-zinc-600" /></div>
+                              )}
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Play className="w-10 h-10 text-white" />
+                              </div>
+                              <div className="absolute bottom-1 right-1 bg-black/80 px-1 text-[9px] text-white">{formatDuration(video.duration)}</div>
+
+                              {/* Action Menu (Visible on mobile, hover on desktop) */}
+                              <div
+                                className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-white bg-black/50 hover:bg-black/80 rounded-sm"
+                                    >
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300" align="end">
+                                    <DropdownMenuItem onClick={() => handleVideoClick(video)}>
+                                      <Play className="mr-2 h-4 w-4" /> Assistir
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${video.id}`, 'direct')}>
+                                      <Copy className="mr-2 h-4 w-4" /> Copiar Link
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="bg-zinc-800" />
+                                    <DropdownMenuItem
+                                      className="text-red-600 focus:text-red-500"
+                                      onClick={() => handleDeleteVideo(video)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                            <div className="p-3">
+                              <h4 className="text-xs text-white truncate font-medium mb-1">{video.title}</h4>
+                              <div className="flex justify-between items-center text-[9px] text-zinc-500 uppercase tracking-wider">
+                                <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {video.view_count}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
-                        <ContextMenuItem onClick={() => handleDeleteVideo(video)} className="text-red-500">
-                          <Trash2 className="w-4 h-4 mr-2" /> Excluir
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                          <ContextMenuItem onClick={() => handleDeleteVideo(video)} className="text-red-500">
+                            <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+        <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+          <ContextMenuItem
+            className="focus:bg-red-600 focus:text-white cursor-pointer"
+            onClick={() => toast.info("Funcionalidade de pastas em breve")}
+          >
+            <FolderPlus className="w-4 h-4 mr-2" />
+            Nova Pasta
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="focus:bg-red-600 focus:text-white cursor-pointer"
+            onClick={() => setUploadModalOpen(true)}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Upload de Vídeo
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
       {/* Video Detail Modal (Preserved) */}
       <AnimatePresence>

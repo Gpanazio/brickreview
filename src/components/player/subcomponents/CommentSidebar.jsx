@@ -924,117 +924,43 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                 disabled={isGuest && !canComment}
               />
 
-              <div className="border-t border-zinc-800 bg-[#0a0a0a] p-2 flex flex-col gap-2">
-                {/* Main toolbar */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      className={`p-2 rounded-sm transition-colors ${hasTimestamp
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
-                      onClick={() => setHasTimestamp(!hasTimestamp)}
-                      title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
-                    >
-                      {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                    </button>
 
-                    {hasTimestamp && (
-                      <button
-                        type="button"
-                        className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}`}
-                        onClick={() => {
-                          if (!isRangeMode) {
-                            setRangeEndTime(currentTime + DEFAULT_RANGE_DURATION_SECONDS);
-                          } else {
-                            setRangeEndTime(null);
-                          }
-                          setIsRangeMode(!isRangeMode);
-                        }}
-                      >
-                        <span className="text-[10px] font-black uppercase border border-current px-1">
-                          Range
-                        </span>
-                      </button>
-                    )}
-
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      onChange={(e) => setAttachedFile(e.target.files[0])}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`p-2 rounded-sm transition-colors ${attachedFile
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
-                      title="Anexar arquivo"
-                    >
-                      <Paperclip className="w-4 h-4" />
-                    </button>
-
-                    <div className="relative">
-                      <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                            className={`p-2 rounded-sm transition-colors ${showEmojiPicker
-                              ? "text-yellow-500 bg-yellow-500/10"
-                              : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                              }`}
-                            title="Adicionar emoji"
-                          >
-                            <Smile className="w-4 h-4" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          side="top"
-                          align="start"
-                          className="w-auto p-0 border-none bg-transparent shadow-none"
-                        >
-                          <ReactionPicker
-                            onSelect={(reaction) => {
-                              setNewComment(newComment + reaction.emoji);
-                              setShowEmojiPicker(false);
-                            }}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <button
-                      type="button"
-                      className={`p-2 rounded-sm transition-colors ${isDrawingMode
-                        ? "text-red-500 bg-red-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
-                      onClick={() => {
-                        if (!isComparing) setIsDrawingMode(!isDrawingMode);
-                      }}
-                      title="Desenhar no frame"
-                      disabled={isComparing}
-                    >
-                      <PencilIcon className="w-4 h-4" />
-                    </button>
-                  </div>
-
+              <div className="absolute bottom-0 left-0 right-0 border-t border-zinc-800 bg-[#0a0a0a] p-2 flex items-center justify-between z-40">
+                <div className="flex items-center gap-1">
                   <button
-                    type="submit"
-                    disabled={!newComment.trim() || (isGuest && !canComment)}
-                    className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors cursor-pointer"
+                    type="button"
+                    className={`p-2 rounded-sm transition-colors ${hasTimestamp
+                      ? "text-red-500 bg-red-500/10"
+                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      }`}
+                    onClick={() => setHasTimestamp(!hasTimestamp)}
+                    title={hasTimestamp ? "Remover timestamp" : "Adicionar timestamp"}
                   >
-                    Enviar
+                    {hasTimestamp ? <Clock className="w-4 h-4" /> : <X className="w-4 h-4" />}
                   </button>
-                </div>
 
-                {/* Range end time scrubber - shown when range mode is active */}
-                {hasTimestamp && isRangeMode && (
-                  <div className="flex items-center gap-2 px-2 py-1 bg-zinc-900/50 rounded-sm border border-zinc-800">
-                    <span className="text-[10px] text-zinc-500 uppercase font-bold">Range:</span>
+                  {hasTimestamp && (
+                    <button
+                      type="button"
+                      className={`p-2 rounded-sm transition-colors flex items-center gap-1 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}`}
+                      onClick={() => {
+                        if (!isRangeMode) {
+                          setRangeEndTime(currentTime + DEFAULT_RANGE_DURATION_SECONDS);
+                        } else {
+                          setRangeEndTime(null);
+                        }
+                        setIsRangeMode(!isRangeMode);
+                      }}
+                      title="Definir intervalo (Range)"
+                    >
+                      <span className="text-[10px] font-black uppercase border border-current px-1">
+                        Range
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Range Scrubber */}
+                  {hasTimestamp && isRangeMode && (
                     <div
                       className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-900 px-2 py-1 rounded-sm border border-zinc-800 hover:border-red-600 hover:bg-zinc-800 transition-all select-none cursor-ew-resize active:bg-red-900/20"
                       onMouseDown={handleScrubStart}
@@ -1046,20 +972,94 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                       </span>
                       <span className="text-zinc-600">s</span>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Drawing colors - shown when drawing mode is active */}
-                {isDrawingMode && (
-                  <div className="flex items-center gap-2 px-2 py-1 bg-zinc-900/50 rounded-sm border border-zinc-800">
-                    <span className="text-[10px] text-zinc-500 uppercase font-bold">Cores:</span>
-                    <div className="flex items-center gap-1">
-                      {DRAWING_COLORS.map(
+                  <div className="h-4 w-[1px] bg-zinc-800 mx-1" />
+
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={(e) => setAttachedFile(e.target.files[0])}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`p-2 rounded-sm transition-colors ${attachedFile
+                      ? "text-red-500 bg-red-500/10"
+                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      }`}
+                    title="Anexar arquivo"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </button>
+
+                  {/* Quick Reactions */}
+                  {["🎬", "📽️", "🍿", "🎞️"].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className="p-1.5 hover:bg-zinc-800 rounded-sm transition-colors text-base leading-none"
+                      onClick={() => setNewComment(newComment + emoji)}
+                      title={`Adicionar ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className={`p-2 rounded-sm transition-colors ${showEmojiPicker
+                        ? "text-yellow-500 bg-yellow-500/10"
+                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                        }`}
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      title="Adicionar emoji"
+                    >
+                      <Smile className="w-4 h-4" />
+                    </button>
+
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-full left-0 mb-2 z-50">
+                        <ErrorBoundary>
+                          <EmojiPicker
+                            onEmojiClick={(emojiData) => {
+                              setNewComment(newComment + emojiData.emoji);
+                              setShowEmojiPicker(false);
+                            }}
+                            theme="dark"
+                            width={300}
+                            height={400}
+                          />
+                        </ErrorBoundary>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className={`p-2 rounded-sm transition-colors ${isDrawingMode
+                      ? "text-red-500 bg-red-500/10"
+                      : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                      } ${isComparing ? "opacity-40 cursor-not-allowed" : ""}`}
+                    onClick={() => {
+                      if (!isComparing) setIsDrawingMode(!isDrawingMode);
+                    }}
+                    title="Desenhar no frame"
+                    disabled={isComparing}
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                  </button>
+
+                  {isDrawingMode && (
+                    <div className="flex items-center gap-1 ml-2 border-l border-zinc-800 pl-2">
+                      {["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#0000FF", "#FFFFFF"].map(
                         (color) => (
                           <button
                             key={color}
                             type="button"
-                            className={`w-6 h-6 rounded-sm border transition-all ${selectedColor === color
+                            className={`w-4 h-4 rounded-full border transition-all ${selectedColor === color
                               ? "border-white scale-110"
                               : "border-zinc-700 hover:border-zinc-500"
                               }`}
@@ -1072,49 +1072,48 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
                       <button
                         type="button"
-                        className="p-2 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1"
+                        className="p-1.5 rounded-sm text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors ml-1"
                         onClick={handleUndoDrawing}
                         title="Desfazer último traço"
                       >
-                        <Undo2 className="w-4 h-4" />
+                        <Undo2 className="w-3 h-3" />
                       </button>
 
                       <button
                         type="button"
-                        className="p-2 rounded-sm text-zinc-500 hover:text-red-500 hover:bg-zinc-800 transition-colors"
+                        className="p-1.5 rounded-sm text-zinc-500 hover:text-red-500 hover:bg-zinc-800 transition-colors"
                         onClick={handleClearFrame}
                         title="Limpar todos os desenhos do frame"
                       >
-                        <Eraser className="w-4 h-4" />
+                        <Eraser className="w-3 h-3" />
                       </button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!newComment.trim() || (isGuest && !canComment)}
+                  className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-sm transition-colors cursor-pointer"
+                >
+                  Enviar
+                </button>
               </div>
-            </div>
-
-            {isGuest && !canComment && (
-              <p className="text-xs text-zinc-600 italic">
-                Este compartilhamento é somente visualização.
-              </p>
-            )}
           </form>
-        </div>
-      )}
 
-      <ConfirmDialog
-        isOpen={confirmDialog.isOpen}
-        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
-        onConfirm={() => {
-          confirmDialog.onConfirm?.();
-          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
-        }}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        confirmText="Confirmar"
-        cancelText="Cancelar"
-        variant="danger"
-      />
-    </div>
-  );
+          <ConfirmDialog
+            isOpen={confirmDialog.isOpen}
+            onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+            onConfirm={() => {
+              confirmDialog.onConfirm?.();
+              setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+            }}
+            title={confirmDialog.title}
+            message={confirmDialog.message}
+            confirmText="Confirmar"
+            cancelText="Cancelar"
+            variant="danger"
+          />
+        </div >
+      );
 }

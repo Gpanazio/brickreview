@@ -12,6 +12,7 @@ export function PortfolioPlayerPage() {
   const { id } = useParams();
   const [video, setVideo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false); // Add state for custom button play/pause
   const [isPasswordProtected, setIsPasswordProtected] = useState(false);
   const [password, setPassword] = useState("");
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
@@ -110,6 +111,11 @@ export function PortfolioPlayerPage() {
           options: [1080, 720, 480],
         },
       });
+
+      // Sync state with Plyr events
+      playerRef.current.on("play", () => setIsPlaying(true));
+      playerRef.current.on("pause", () => setIsPlaying(false));
+      playerRef.current.on("ended", () => setIsPlaying(false));
 
       // Cleanup on unmount
       return () => {
@@ -263,25 +269,16 @@ export function PortfolioPlayerPage() {
         .pp-player-wrapper video {
            object-fit: contain;
            max-height: 75vh;
+           cursor: pointer; 
         }
         /* Custom Plyr Theme for Portfolio */
         .pp-player-wrapper .plyr--video .plyr__controls {
            padding-left: 20px;
            padding-right: 20px;
         }
+        /* Hide default Plyr big play button */
         .pp-player-wrapper .plyr__control--overlaid {
-          background: rgba(220, 38, 38, 0.9);
-          width: 60px;
-          height: 60px;
-        }
-        .pp-player-wrapper .plyr__control--overlaid:hover {
-          background: #dc2626;
-        }
-        @media (max-width: 768px) {
-           .pp-player-wrapper .plyr__control--overlaid {
-              width: 40px;
-              height: 40px;
-           }
+          display: none !important;
         }
       `}</style>
       {/* Header */}
@@ -326,7 +323,10 @@ export function PortfolioPlayerPage() {
             {/* Video Player */}
             <div className="pp-video-container">
               <div
-                className="pp-player-wrapper"
+                className="pp-player-wrapper relative group/player"
+                onClick={() => {
+                  if (playerRef.current) playerRef.current.togglePlay();
+                }}
                 style={{
                   aspectRatio: videoDimensions ? `${videoDimensions.width} / ${videoDimensions.height}` : "16 / 9",
                   maxWidth: videoDimensions && (videoDimensions.height > videoDimensions.width) ? "50vh" : "100%"
@@ -345,6 +345,35 @@ export function PortfolioPlayerPage() {
                     });
                   }}
                 />
+
+                {/* Custom Play/Pause Overlay */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (playerRef.current) {
+                        playerRef.current.togglePlay();
+                      }
+                    }}
+                    className={`pointer-events-auto transition-opacity duration-200 ${isPlaying ? "opacity-0 hover:opacity-100" : "opacity-100"
+                      }`}
+                  >
+                    <div className="w-8 h-16 md:w-12 md:h-24 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all duration-300 hover:bg-white/10 hover:border-white/20 hover:scale-105 shadow-2xl group rounded-none">
+                      {isPlaying ? (
+                        <div className="w-4 h-4 md:w-6 md:h-6 bg-white fill-white flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pause w-full h-full text-white"><rect width="4" height="16" x="6" y="4" /><rect width="4" height="16" x="14" y="4" /></svg>
+                        </div>
+                      ) : (
+                        <div className="w-4 h-4 md:w-6 md:h-6 bg-transparent flex items-center justify-center ml-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-play w-full h-full text-white"><polygon points="6 3 20 12 6 21 6 3" /></svg>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
 
