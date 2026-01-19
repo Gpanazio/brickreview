@@ -71,20 +71,20 @@ function App() {
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-              {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
-              <Route path="/share/:token" element={<ShareViewPage />} />
-              <Route path="/storage/s/:id" element={<SharedStoragePage />} />
-              <Route path="/portfolio/player/:id" element={<PortfolioPlayerPage />} />
-              <Route path="/portfolio/c/:token" element={<SharedCollectionPage />} />
+                {/* Rota pública de Share Links (deve vir antes das rotas protegidas) */}
+                <Route path="/share/:token" element={<ShareViewPage />} />
+                <Route path="/storage/s/:id" element={<SharedStoragePage />} />
+                <Route path="/portfolio/player/:id" element={<PortfolioPlayerPage />} />
+                <Route path="/portfolio/c/:token" element={<SharedCollectionPage />} />
 
-              {/* Rotas Principais do App */}
-              <Route path="/*" element={<AppContent />} />
-            </Routes>
-          </Suspense>
-          <Toaster position="top-right" />
-        </BrowserRouter>
-      </UploadProvider>
-    </AuthProvider>
+                {/* Rotas Principais do App */}
+                <Route path="/*" element={<AppContent />} />
+              </Routes>
+            </Suspense>
+            <Toaster position="top-right" />
+          </BrowserRouter>
+        </UploadProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
@@ -322,7 +322,9 @@ function ProjectsPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
-      setProjects(Array.isArray(data) ? data : []);
+      // Handle both paginated response { data: [...], pagination: {...} } and array response
+      const projectsArray = Array.isArray(data) ? data : (data.data || []);
+      setProjects(projectsArray);
     } catch (error) {
       console.error("Erro ao buscar projetos:", error);
     } finally {
