@@ -3,6 +3,7 @@ import { query } from "../db.js";
 import { authenticateToken } from "../middleware/auth.js";
 import { requireProjectAccess } from "../utils/permissions.js";
 import { attachmentUpload } from "../utils/attachmentStorage.js";
+import { validateId } from "../utils/validateId.js";
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ const router = express.Router();
 router.get("/video/:videoId", authenticateToken, async (req, res) => {
   try {
     const videoId = Number(req.params.videoId);
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: "videoId inválido" });
     }
 
@@ -56,7 +57,7 @@ router.post('/', authenticateToken, attachmentUpload.single('file'), async (req,
 
   try {
     const videoId = Number(video_id);
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: "video_id inválido" });
     }
 
@@ -106,7 +107,7 @@ router.patch("/:id", authenticateToken, async (req, res) => {
 
   try {
     const commentId = Number(req.params.id);
-    if (!Number.isInteger(commentId)) {
+    if (!validateId(commentId)) {
       return res.status(400).json({ error: "ID de comentário inválido" });
     }
 
@@ -154,7 +155,7 @@ router.patch("/:id", authenticateToken, async (req, res) => {
 router.delete("/:id", authenticateToken, async (req, res) => {
   try {
     const commentId = Number(req.params.id);
-    if (!Number.isInteger(commentId)) {
+    if (!validateId(commentId)) {
       return res.status(400).json({ error: "ID de comentário inválido" });
     }
 

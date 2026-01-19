@@ -258,6 +258,14 @@ function VideoPlayerContent({
     setIsLoadingVideo(true);
     setVideoUrl(null); // Limpa URL atual para forçar loading
 
+    // Resetar estado ao trocar versão (#9 fix)
+    setComments([]);
+    setDrawings([]);
+    setCurrentTime(0);
+    if (playerRef.current?.plyr) {
+      playerRef.current.plyr.currentTime = 0;
+    }
+
     // setCurrentVideoId(versionId); // Removed as it's derived
     const selectedVersion = allVersions.find((v) => v.id === versionId);
     if (selectedVersion) {

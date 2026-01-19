@@ -17,6 +17,7 @@ import { FEATURES } from "../config/features.js";
 import { logger } from "../utils/logger.js";
 import { processVideo } from "../../scripts/process-video-metadata.js";
 import googleDriveManager from "../utils/google-drive.js";
+import { validateId } from "../utils/validateId.js";
 
 const router = express.Router();
 
@@ -73,14 +74,14 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
   }
 
   const projectId = Number(project_id);
-  if (!Number.isInteger(projectId)) {
+  if (!validateId(projectId)) {
     return res.status(400).json({ error: "project_id inválido" });
   }
 
   if (!(await requireProjectAccess(req, res, projectId))) return;
 
   const folderId = folder_id ? Number(folder_id) : null;
-  if (folder_id && !Number.isInteger(folderId)) {
+  if (folder_id && !validateId(folderId)) {
     return res.status(400).json({ error: "folder_id inválido" });
   }
 
@@ -279,7 +280,7 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
     const videoId = Number(req.params.id);
     const { quality } = req.query; // 'original' or 'proxy' (default)
 
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
 
@@ -372,7 +373,7 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
 router.get("/:id/download", authenticateToken, async (req, res) => {
   try {
     const videoId = Number(req.params.id);
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
 
@@ -452,7 +453,7 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const videoId = Number(req.params.id);
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
 
@@ -495,7 +496,7 @@ router.patch("/:id/move", authenticateToken, async (req, res) => {
     const { folder_id, project_id } = req.body;
     const videoId = Number(req.params.id);
 
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
 
@@ -554,7 +555,7 @@ router.post("/:id/create-version", authenticateToken, async (req, res) => {
     const { parent_video_id } = req.body;
     const childVideoId = Number(req.params.id);
 
-    if (!Number.isInteger(childVideoId)) {
+    if (!validateId(childVideoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
 
@@ -637,7 +638,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
   try {
     const videoId = Number(id);
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
 
@@ -666,7 +667,7 @@ router.post("/:id/restore", authenticateToken, async (req, res) => {
 
   try {
     const videoId = Number(id);
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
 

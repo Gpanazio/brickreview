@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import { requireProjectAccessFromVideo } from '../utils/permissions.js'
+import { validateId } from '../utils/validateId.js';
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
   try {
     const videoId = Number(video_id)
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: 'video_id inválido' })
     }
 
@@ -50,7 +51,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/:video_id', authenticateToken, async (req, res) => {
   try {
     const videoId = Number(req.params.video_id)
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: 'video_id inválido' })
     }
 

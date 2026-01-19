@@ -10,6 +10,7 @@ import {
 } from "../utils/permissions.js";
 import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js";
 import { attachmentUpload } from "../utils/attachmentStorage.js";
+import { validateId } from "../utils/validateId.js";
 
 const router = express.Router();
 
@@ -63,7 +64,7 @@ async function loadShare(req, res, token) {
 // Helper para verificar se o share permite acesso a um vídeo específico (incluindo versões)
 async function checkShareAccess(share, videoId) {
   const videoIdInt = Number(videoId);
-  if (!Number.isInteger(videoIdInt)) return false;
+  if (!validateId(videoIdInt)) return false;
 
   const videoResult = await query(
     "SELECT id, parent_video_id, project_id, folder_id FROM brickreview_videos WHERE id = $1",
@@ -127,19 +128,19 @@ router.post("/", authenticateToken, async (req, res) => {
     // Verifica se usuário tem acesso ao recurso compartilhado
     if (project_id) {
       const projectId = Number(project_id);
-      if (!Number.isInteger(projectId)) {
+      if (!validateId(projectId)) {
         return res.status(400).json({ error: "project_id inválido" });
       }
       if (!(await requireProjectAccess(req, res, projectId))) return;
     } else if (folder_id) {
       const folderId = Number(folder_id);
-      if (!Number.isInteger(folderId)) {
+      if (!validateId(folderId)) {
         return res.status(400).json({ error: "folder_id inválido" });
       }
       if (!(await requireProjectAccessFromFolder(req, res, folderId))) return;
     } else if (video_id) {
       const videoId = Number(video_id);
-      if (!Number.isInteger(videoId)) {
+      if (!validateId(videoId)) {
         return res.status(400).json({ error: "video_id inválido" });
       }
       if (!(await requireProjectAccessFromVideo(req, res, videoId))) return;
@@ -247,7 +248,7 @@ router.get("/:token/comments/video/:videoId", async (req, res) => {
     if (!share) return;
 
     const videoIdInt = Number(videoId);
-    if (!Number.isInteger(videoIdInt)) {
+    if (!validateId(videoIdInt)) {
       return res.status(400).json({ error: "videoId inválido" });
     }
 
@@ -285,7 +286,7 @@ router.get("/:token/drawings/video/:videoId", async (req, res) => {
     if (!share) return;
 
     const videoIdInt = Number(videoId);
-    if (!Number.isInteger(videoIdInt)) {
+    if (!validateId(videoIdInt)) {
       return res.status(400).json({ error: "videoId inválido" });
     }
 
@@ -318,7 +319,7 @@ router.get("/:token/video/:videoId/stream", async (req, res) => {
     if (!share) return;
 
     const videoIdInt = Number(videoId);
-    if (!Number.isInteger(videoIdInt)) {
+    if (!validateId(videoIdInt)) {
       return res.status(400).json({ error: "videoId inválido" });
     }
 
@@ -504,7 +505,7 @@ router.get("/:token/video/:videoId/download", async (req, res) => {
     if (!share) return;
 
     const videoIdInt = Number(videoId);
-    if (!Number.isInteger(videoIdInt)) {
+    if (!validateId(videoIdInt)) {
       return res.status(400).json({ error: "videoId inválido" });
     }
 
@@ -545,7 +546,7 @@ router.delete("/:token/comments/:id", async (req, res) => {
     if (!share) return;
 
     const commentId = Number(id);
-    if (!Number.isInteger(commentId)) {
+    if (!validateId(commentId)) {
       return res.status(400).json({ error: "ID de comentário inválido" });
     }
 
@@ -584,7 +585,7 @@ router.patch("/:token/comments/:id", async (req, res) => {
     if (!share) return;
 
     const commentId = Number(id);
-    if (!Number.isInteger(commentId)) {
+    if (!validateId(commentId)) {
       return res.status(400).json({ error: "ID de comentário inválido" });
     }
 

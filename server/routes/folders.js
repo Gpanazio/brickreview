@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import { requireProjectAccess, requireProjectAccessFromFolder } from '../utils/permissions.js'
+import { validateId } from '../utils/validateId.js';
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ const router = express.Router();
 router.get('/project/:projectId', authenticateToken, async (req, res) => {
   try {
     const projectId = Number(req.params.projectId)
-    if (!Number.isInteger(projectId)) {
+    if (!validateId(projectId)) {
       return res.status(400).json({ error: 'projectId inválido' })
     }
 
@@ -60,7 +61,7 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const folderId = Number(req.params.id)
-    if (!Number.isInteger(folderId)) {
+    if (!validateId(folderId)) {
       return res.status(400).json({ error: 'ID de pasta inválido' })
     }
 
@@ -115,14 +116,14 @@ router.post('/', authenticateToken, async (req, res) => {
 
   try {
     const projectId = Number(project_id)
-    if (!Number.isInteger(projectId)) {
+    if (!validateId(projectId)) {
       return res.status(400).json({ error: 'project_id inválido' })
     }
 
     if (!(await requireProjectAccess(req, res, projectId))) return
 
     const parentFolderId = parent_folder_id ? Number(parent_folder_id) : null
-    if (parent_folder_id && !Number.isInteger(parentFolderId)) {
+    if (parent_folder_id && !validateId(parentFolderId)) {
       return res.status(400).json({ error: 'parent_folder_id inválido' })
     }
 
@@ -174,7 +175,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
   try {
     const folderId = Number(req.params.id)
-    if (!Number.isInteger(folderId)) {
+    if (!validateId(folderId)) {
       return res.status(400).json({ error: 'ID de pasta inválido' })
     }
 
@@ -206,7 +207,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const folderId = Number(req.params.id)
-    if (!Number.isInteger(folderId)) {
+    if (!validateId(folderId)) {
       return res.status(400).json({ error: 'ID de pasta inválido' })
     }
 
@@ -244,7 +245,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
  */
 router.post('/:id/restore', authenticateToken, async (req, res) => {
   const folderId = Number(req.params.id)
-  if (!Number.isInteger(folderId)) {
+  if (!validateId(folderId)) {
     return res.status(400).json({ error: 'ID de pasta inválido' })
   }
 
@@ -282,7 +283,7 @@ router.post('/:id/move', authenticateToken, async (req, res) => {
 
   try {
     const folderId = Number(req.params.id)
-    if (!Number.isInteger(folderId)) {
+    if (!validateId(folderId)) {
       return res.status(400).json({ error: 'ID de pasta inválido' })
     }
 

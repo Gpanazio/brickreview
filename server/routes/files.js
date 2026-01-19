@@ -12,6 +12,7 @@ import r2Client from "../utils/r2.js";
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
+import { validateId } from "../utils/validateId.js";
 
 const router = express.Router();
 
@@ -93,14 +94,14 @@ router.post("/upload", authenticateToken, upload.single("file"), async (req, res
   }
 
   const projectId = Number(project_id);
-  if (!Number.isInteger(projectId)) {
+  if (!validateId(projectId)) {
     return res.status(400).json({ error: "project_id inválido" });
   }
 
   if (!(await requireProjectAccess(req, res, projectId))) return;
 
   const folderId = folder_id ? Number(folder_id) : null;
-  if (folder_id && !Number.isInteger(folderId)) {
+  if (folder_id && !validateId(folderId)) {
     return res.status(400).json({ error: "folder_id inválido" });
   }
 
@@ -211,7 +212,7 @@ router.post("/upload", authenticateToken, upload.single("file"), async (req, res
 router.get("/folder/:folderId", authenticateToken, async (req, res) => {
   try {
     const folderId = Number(req.params.folderId);
-    if (!Number.isInteger(folderId)) {
+    if (!validateId(folderId)) {
       return res.status(400).json({ error: "folderId inválido" });
     }
 
@@ -238,7 +239,7 @@ router.get("/folder/:folderId", authenticateToken, async (req, res) => {
 router.get("/project/:projectId", authenticateToken, async (req, res) => {
   try {
     const projectId = Number(req.params.projectId);
-    if (!Number.isInteger(projectId)) {
+    if (!validateId(projectId)) {
       return res.status(400).json({ error: "projectId inválido" });
     }
 
@@ -265,7 +266,7 @@ router.get("/project/:projectId", authenticateToken, async (req, res) => {
 router.delete("/:id", authenticateToken, async (req, res) => {
   try {
     const fileId = Number(req.params.id);
-    if (!Number.isInteger(fileId)) {
+    if (!validateId(fileId)) {
       return res.status(400).json({ error: "ID de arquivo inválido" });
     }
 
@@ -297,7 +298,7 @@ router.patch("/:id/move", authenticateToken, async (req, res) => {
     const { folder_id, project_id } = req.body;
     const fileId = Number(req.params.id);
 
-    if (!Number.isInteger(fileId)) {
+    if (!validateId(fileId)) {
       return res.status(400).json({ error: "ID de arquivo inválido" });
     }
 
@@ -347,7 +348,7 @@ router.patch("/:id/move", authenticateToken, async (req, res) => {
 router.post("/:id/restore", authenticateToken, async (req, res) => {
   try {
     const fileId = Number(req.params.id);
-    if (!Number.isInteger(fileId)) {
+    if (!validateId(fileId)) {
       return res.status(400).json({ error: "ID de arquivo inválido" });
     }
 

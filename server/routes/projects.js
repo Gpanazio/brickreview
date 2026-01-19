@@ -8,6 +8,7 @@ import r2Client from "../utils/r2.js";
 import path from "path";
 import fs from "fs";
 import { logger } from "../utils/logger.js";
+import { validateId } from "../utils/validateId.js";
 
 const router = express.Router();
 
@@ -43,24 +44,52 @@ const uploadImage = multer({
 
 /**
  * @route GET /api/projects
- * @desc Get all projects for the current user
+ * @desc Get all projects for the current user (with pagination)
  */
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const { recent } = req.query;
-    // Se for admin, vê todos. Se for cliente, vê apenas onde é membro.
-    let projects;
-    let limitClause = recent === "true" ? " LIMIT 5" : "";
+    const { recent, page, limit } = req.query;
 
-    // Todos os usuários logados podem ver todos os projetos (que não foram deletados)
-    projects = await query(`
+    // Modo recente: retorna apenas 5 projetos
+    if (recent === "true") {
+      const projects = await query(`
+        SELECT * FROM brickreview_projects_with_stats 
+        WHERE deleted_at IS NULL
+        ORDER BY updated_at DESC
+        LIMIT 5
+      `);
+      return res.json(projects.rows);
+    }
+
+    // Paginação (#31 fix)
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+    const offset = (pageNum - 1) * limitNum;
+
+    // Conta total de projetos
+    const countResult = await query(`
+      SELECT COUNT(*) FROM brickreview_projects WHERE deleted_at IS NULL
+    `);
+    const total = parseInt(countResult.rows[0].count);
+    const totalPages = Math.ceil(total / limitNum);
+
+    // Busca projetos paginados
+    const projects = await query(`
       SELECT * FROM brickreview_projects_with_stats 
       WHERE deleted_at IS NULL
       ORDER BY updated_at DESC
-      ${limitClause}
-    `);
+      LIMIT $1 OFFSET $2
+    `, [limitNum, offset]);
 
-    res.json(projects.rows);
+    res.json({
+      data: projects.rows,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages
+      }
+    });
   } catch (error) {
     console.error("Erro ao buscar projetos:", error);
     res.status(500).json({ error: "Erro ao buscar projetos" });
@@ -113,7 +142,7 @@ router.post("/", authenticateToken, async (req, res) => {
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const projectId = Number(req.params.id);
-    if (!Number.isInteger(projectId)) {
+    if (!validateId(projectId)) {
       return res.status(400).json({ error: "ID de projeto inválido" });
     }
 
@@ -158,7 +187,7 @@ router.patch("/:id", authenticateToken, async (req, res) => {
   const { name, description, client_name, status } = req.body;
 
   const projectId = Number(req.params.id);
-  if (!Number.isInteger(projectId)) {
+  if (!validateId(projectId)) {
     return res.status(400).json({ error: "ID de projeto inválido" });
   }
 
@@ -195,7 +224,7 @@ router.patch("/:id", authenticateToken, async (req, res) => {
  */
 router.delete("/:id", authenticateToken, async (req, res) => {
   const projectId = Number(req.params.id);
-  if (!Number.isInteger(projectId)) {
+  if (!validateId(projectId)) {
     return res.status(400).json({ error: "ID de projeto inválido" });
   }
 
@@ -253,7 +282,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
  */
 router.post("/:id/restore", authenticateToken, async (req, res) => {
   const projectId = Number(req.params.id);
-  if (!Number.isInteger(projectId)) {
+  if (!validateId(projectId)) {
     return res.status(400).json({ error: "ID de projeto inválido" });
   }
 
@@ -304,7 +333,7 @@ router.post("/:id/cover", authenticateToken, uploadImage.single("cover"), async 
     return res.status(400).json({ error: "Nenhuma imagem foi enviada" });
   }
 
-  if (!Number.isInteger(projectId)) {
+  if (!validateId(projectId)) {
     fs.unlinkSync(file.path);
     return res.status(400).json({ error: "ID de projeto inválido" });
   }
@@ -374,7 +403,7 @@ router.post("/:id/cover-url", authenticateToken, async (req, res) => {
   const projectId = Number(req.params.id);
   const { url } = req.body || {};
 
-  if (!Number.isInteger(projectId)) {
+  if (!validateId(projectId)) {
     return res.status(400).json({ error: "ID de projeto inválido" });
   }
 

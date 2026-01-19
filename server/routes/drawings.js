@@ -2,6 +2,7 @@ import express from 'express';
 import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import { isAdmin, requireProjectAccess, requireProjectAccessFromVideo } from '../utils/permissions.js'
+import { validateId } from '../utils/validateId.js';
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
   try {
     const videoId = Number(video_id)
-    if (!Number.isInteger(videoId)) {
+    if (!validateId(videoId)) {
       return res.status(400).json({ error: 'video_id inválido' })
     }
 
@@ -45,7 +46,7 @@ router.post('/', authenticateToken, async (req, res) => {
  */
 router.get('/video/:videoId', authenticateToken, async (req, res) => {
   const videoId = Number(req.params.videoId)
-  if (!Number.isInteger(videoId)) {
+  if (!validateId(videoId)) {
     return res.status(400).json({ error: 'videoId inválido' })
   }
 
@@ -86,7 +87,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
   try {
     const drawingId = Number(id)
-    if (!Number.isInteger(drawingId)) {
+    if (!validateId(drawingId)) {
       return res.status(400).json({ error: 'ID de desenho inválido' })
     }
 
