@@ -25,6 +25,9 @@ export function ReviewCanvas() {
   const [isDrawing, setIsDrawing] = useState(false);
   // Use ref for current drawing points to avoid re-renders during drawing
   const currentDrawingRef = useRef([]);
+  const pendingPointsRef = useRef([]);
+  const rafRef = useRef(null);
+  const cachedRectRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   const isGuest = isPublic || !token;
@@ -86,6 +89,36 @@ export function ReviewCanvas() {
     ctx.stroke();
   };
 
+  // Batch rendering helper
+  const renderBatch = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const points = pendingPointsRef.current;
+    if (points.length === 0) {
+      rafRef.current = null;
+      return;
+    }
+
+    const ctx = canvas.getContext("2d");
+
+    // Start from the last committed point
+    let lastPoint = currentDrawingRef.current.length > 0
+      ? currentDrawingRef.current[currentDrawingRef.current.length - 1]
+      : null;
+
+    points.forEach(newPoint => {
+      if (lastPoint) {
+        drawLine(ctx, lastPoint, newPoint, selectedColor);
+      }
+      currentDrawingRef.current.push(newPoint);
+      lastPoint = newPoint;
+    });
+
+    pendingPointsRef.current = [];
+    rafRef.current = null;
+  };
+
   // Canvas drawing handlers
   const startDrawing = (e) => {
     if (!isDrawingMode) return;
@@ -93,9 +126,15 @@ export function ReviewCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Cache rect to prevent reflows during draw
     const rect = canvas.getBoundingClientRect();
+    cachedRectRef.current = rect;
+
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
+
+    // Reset pending points
+    pendingPointsRef.current = [];
 
     // Start new stroke
     currentDrawingRef.current = [{ x, y }];
@@ -112,22 +151,21 @@ export function ReviewCanvas() {
   const draw = (e) => {
     if (!isDrawing || !isDrawingMode) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const rect = cachedRectRef.current; // Use cached rect
+    if (!canvas || !rect) return;
 
-    const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
 
     const newPoint = { x, y };
-    const points = currentDrawingRef.current;
 
-    if (points.length > 0) {
-      const lastPoint = points[points.length - 1];
-      const ctx = canvas.getContext("2d");
-      drawLine(ctx, lastPoint, newPoint, selectedColor);
+    // Add to pending batch
+    pendingPointsRef.current.push(newPoint);
+
+    // Schedule render if not already scheduled
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(renderBatch);
     }
-
-    currentDrawingRef.current.push(newPoint);
   };
 
   // Touch handlers need similar updates
@@ -137,11 +175,15 @@ export function ReviewCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const touch = e.touches[0];
+    // Cache rect
     const rect = canvas.getBoundingClientRect();
+    cachedRectRef.current = rect;
+
+    const touch = e.touches[0];
     const x = (touch.clientX - rect.left) / rect.width;
     const y = (touch.clientY - rect.top) / rect.height;
 
+    pendingPointsRef.current = [];
     currentDrawingRef.current = [{ x, y }];
 
     const ctx = canvas.getContext("2d");
@@ -155,23 +197,20 @@ export function ReviewCanvas() {
   const drawTouch = (e) => {
     if (!isDrawing || !isDrawingMode) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const rect = cachedRectRef.current;
+    if (!canvas || !rect) return;
 
     const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
     const x = (touch.clientX - rect.left) / rect.width;
     const y = (touch.clientY - rect.top) / rect.height;
 
     const newPoint = { x, y };
-    const points = currentDrawingRef.current;
 
-    if (points.length > 0) {
-      const lastPoint = points[points.length - 1];
-      const ctx = canvas.getContext("2d");
-      drawLine(ctx, lastPoint, newPoint, selectedColor);
+    pendingPointsRef.current.push(newPoint);
+
+    if (!rafRef.current) {
+      rafRef.current = requestAnimationFrame(renderBatch);
     }
-
-    currentDrawingRef.current.push(newPoint);
   };
 
 
@@ -183,6 +222,15 @@ export function ReviewCanvas() {
   }, [isPlaying, isDrawingMode, setIsDrawingMode]);
 
   const stopDrawing = async () => {
+    // Flush any pending points
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (pendingPointsRef.current.length > 0) {
+      renderBatch();
+    }
+
     if (!isDrawing) return;
     setIsDrawing(false);
 

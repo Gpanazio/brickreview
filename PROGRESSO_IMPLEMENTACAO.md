@@ -313,7 +313,7 @@ found 0 vulnerabilities
 
 
 #### #8 - Canvas Render Excessivo
-**Status:** ⏸️ **PENDENTE**
+**Status:** ✅ **COMPLETO**
 **Prioridade:** 🟠 ALTA
 **Estimativa:** 2h
 
@@ -321,23 +321,23 @@ found 0 vulnerabilities
 ```javascript
 // ReviewCanvas.jsx:87
 const draw = (e) => {
-  // setState em mousemove = centenas de renders/segundo
-  setCurrentDrawing([...currentDrawing, { x, y }]);
+  // Executava getBoundingClientRect a cada frame (Reflow)
+  // Desenhava síncronamente bloqueando a thread
 };
 ```
 
-**Correção:**
+**Correção Implementada:**
 ```javascript
-const drawRef = useRef(null);
+const pendingPointsRef = useRef([]);
+const cachedRectRef = useRef(null);
+const rafRef = useRef(null);
 
-const draw = (e) => {
-  if (drawRef.current) {
-    cancelAnimationFrame(drawRef.current);
-  }
+// 1. Otimização de Layout: Cache do getBoundingClientRect no startDrawing
+// 2. Otimização de Render: Batching via requestAnimationFrame
 
-  drawRef.current = requestAnimationFrame(() => {
-    // Atualiza canvas
-  });
+const renderBatch = () => {
+  // Processa todos os pontos pendentes em um único frame
+  // Remove gargalo de desenho síncrono
 };
 ```
 
