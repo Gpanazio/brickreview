@@ -14,7 +14,7 @@ import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import { addVideoJobSafe } from "../queue/index.js";
 import { FEATURES } from "../config/features.js";
-import { logger } from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import { processVideo } from "../../scripts/process-video-metadata.js";
 import googleDriveManager from "../utils/google-drive.js";
 import { validateId } from "../utils/validateId.js";

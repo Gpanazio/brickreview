@@ -1,6 +1,6 @@
 import { Queue } from "bullmq";
 import connection from "./connection.js";
-import { logger } from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import { FEATURES } from "../config/features.js";
 
 export const videoProcessingQueue = new Queue("video-processing", {

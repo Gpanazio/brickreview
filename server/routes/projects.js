@@ -7,7 +7,7 @@ import { requireProjectAccess } from "../utils/permissions.js";
 import r2Client from "../utils/r2.js";
 import path from "path";
 import fs from "fs";
-import { logger } from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import { validateId } from "../utils/validateId.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import AppError from "../utils/AppError.js";

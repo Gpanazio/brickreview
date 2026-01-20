@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger.js';
+import logger from '../utils/logger.js';
 
 const sendErrorDev = (err, res) => {
     res.status(err.statusCode).json({
