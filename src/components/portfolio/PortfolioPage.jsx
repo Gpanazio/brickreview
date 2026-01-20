@@ -89,6 +89,12 @@ export function PortfolioPage() {
   });
   const [copiedLink, setCopiedLink] = useState(null);
 
+  // Create Folder/Rename/Move States
+  const [renameDialog, setRenameDialog] = useState({ open: false, item: null, type: null, newName: "" });
+  const [moveDialog, setMoveDialog] = useState({ open: false, item: null, type: null });
+  const [allFolders, setAllFolders] = useState([]); // For move dialog
+
+
   const fileInputRef = useRef(null);
 
   const fetchContents = useCallback(async () => {
@@ -256,16 +262,11 @@ export function PortfolioPage() {
     if (uploadData.description) {
       formData.append("description", uploadData.description);
     }
-    // Only difference: pass current collection ID!
-    // But endpoint doesn't support collection_id in upload yet?
-    // Let's check server/routes/portfolio.js again...
-    // The POST /upload route doesn't read collection_id from body.
-    // I should probably fix that next, but for now let's upload to root and move?
-    // User wants "structure". Uploading directly to folder is expected.
-    // I'll assume I update the backend later or now.
-    // Actually, I can add it to formData, but if backend ignores it, it goes to root.
-    // Let's modify backend to support it if I can.
-    // For now I'll just push the code as is and maybe update backend after.
+
+    // Add current folder ID if available
+    if (currentFolder?.id) {
+      formData.append("collection_id", currentFolder.id);
+    }
 
     try {
       const response = await fetch("/api/portfolio/upload", {
@@ -275,21 +276,7 @@ export function PortfolioPage() {
       });
 
       if (response.ok) {
-        // If we are in a folder, we need to move the video there immediately after upload
-        // because upload creates it in root (unless I fix backend).
-        // Let's hack it for now: after upload, if currentFolder, move it.
         const data = await response.json();
-
-        if (currentFolder && data.video) {
-          await fetch(`/api/portfolio/collections/videos/${data.video.id}/move`, {
-            method: 'PATCH',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ collection_id: currentFolder.id })
-          });
-        }
 
         toast.success("Vídeo enviado com sucesso!");
         setUploadModalOpen(false);
@@ -375,6 +362,110 @@ export function PortfolioPage() {
     } catch (_error) {
       toast.error("Erro ao atualizar senha");
     }
+  };
+
+  // --- Rename Logic ---
+  const handleRename = async (e) => {
+    e.preventDefault();
+    const { item, type, newName } = renameDialog;
+    if (!newName.trim() || !item) return;
+
+    try {
+      const endpoint = type === 'folder'
+        ? `/api/portfolio/collections/${item.id}`
+        : `/api/portfolio/videos/${item.id}`;
+
+      const body = {
+        [type === 'folder' ? 'name' : 'title']: newName
+      };
+
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        toast.success("Item renomeado com sucesso!");
+        setRenameDialog({ open: false, item: null, type: null, newName: "" });
+        fetchContents();
+      } else {
+        toast.error("Erro ao renomear");
+      }
+    } catch (error) {
+      console.error("Rename error:", error);
+      toast.error("Erro ao renomear");
+    }
+  };
+
+  const openRenameDialog = (item, type) => {
+    setRenameDialog({
+      open: true,
+      item,
+      type,
+      newName: type === 'folder' ? item.name : item.title
+    });
+  };
+
+  // --- Move Logic ---
+  const fetchAllFolders = async () => {
+    try {
+      const response = await fetch("/api/portfolio/collections", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAllFolders(data.collections);
+      }
+    } catch (error) {
+      console.error("Error fetching all folders:", error);
+    }
+  };
+
+  const handleMove = async (targetFolderId) => {
+    const { item, type } = moveDialog;
+    if (!item) return;
+
+    try {
+      let endpoint;
+      let body;
+
+      if (type === 'folder') {
+        endpoint = `/api/portfolio/collections/${item.id}/move`;
+        body = { parent_collection_id: targetFolderId };
+      } else {
+        endpoint = `/api/portfolio/collections/videos/${item.id}/move`;
+        body = { collection_id: targetFolderId };
+      }
+
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        toast.success("Item movido com sucesso!");
+        setMoveDialog({ open: false, item: null, type: null });
+        fetchContents();
+      } else {
+        toast.error("Erro ao mover item");
+      }
+    } catch (error) {
+      console.error("Move error:", error);
+      toast.error("Erro ao mover item");
+    }
+  };
+
+  const openMoveDialog = (item, type) => {
+    fetchAllFolders();
+    setMoveDialog({ open: true, item, type });
   };
 
   const formatDuration = (seconds) => {
@@ -664,6 +755,13 @@ export function PortfolioPage() {
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                        <ContextMenuItem onClick={() => openRenameDialog(folder, 'folder')}>
+                          <Edit3 className="w-4 h-4 mr-2" /> Renomear
+                        </ContextMenuItem>
+                        <ContextMenuItem onClick={() => openMoveDialog(folder, 'folder')}>
+                          <CornerUpLeft className="w-4 h-4 mr-2" /> Mover para...
+                        </ContextMenuItem>
+                        <ContextMenuSeparator className="bg-zinc-800" />
                         <ContextMenuItem onClick={() => handleDeleteFolder(folder)} className="text-red-500 focus:text-red-500">
                           <Trash2 className="w-4 h-4 mr-2" /> Excluir
                         </ContextMenuItem>
@@ -727,6 +825,13 @@ export function PortfolioPage() {
                           </div>
                         </ContextMenuTrigger>
                         <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                          <ContextMenuItem onClick={() => openRenameDialog(video, 'video')}>
+                            <Edit3 className="w-4 h-4 mr-2" /> Renomear
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => openMoveDialog(video, 'video')}>
+                            <CornerUpLeft className="w-4 h-4 mr-2" /> Mover para...
+                          </ContextMenuItem>
+                          <ContextMenuSeparator className="bg-zinc-800" />
                           <ContextMenuItem onClick={() => handleDeleteVideo(video)} className="text-red-500">
                             <Trash2 className="w-4 h-4 mr-2" /> Excluir
                           </ContextMenuItem>
@@ -796,6 +901,13 @@ export function PortfolioPage() {
                           </div>
                         </ContextMenuTrigger>
                         <ContextMenuContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
+                          <ContextMenuItem onClick={() => openRenameDialog(video, 'video')}>
+                            <Edit3 className="w-4 h-4 mr-2" /> Renomear
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => openMoveDialog(video, 'video')}>
+                            <CornerUpLeft className="w-4 h-4 mr-2" /> Mover para...
+                          </ContextMenuItem>
+                          <ContextMenuSeparator className="bg-zinc-800" />
                           <ContextMenuItem onClick={() => handleDeleteVideo(video)} className="text-red-500">
                             <Trash2 className="w-4 h-4 mr-2" /> Excluir
                           </ContextMenuItem>
@@ -807,143 +919,195 @@ export function PortfolioPage() {
               </div>
             )}
           </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
-        <ContextMenuItem
-          className="focus:bg-red-600 focus:text-white cursor-pointer"
-          onClick={() => toast.info("Funcionalidade de pastas em breve")}
-        >
-          <FolderPlus className="w-4 h-4 mr-2" />
-          Nova Pasta
-        </ContextMenuItem>
-        <ContextMenuItem
-          className="focus:bg-red-600 focus:text-white cursor-pointer"
-          onClick={() => setUploadModalOpen(true)}
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          Upload de Vídeo
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-
-      {/* Video Detail Modal (Preserved) */ }
-  <AnimatePresence>
-    {showModal && selectedVideo && (
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        {/* Re-using the same modal structure as before but adapted for Dialog if possible or just custom overlay */}
-        {/* NOTE: simpler to just use the custom overlay from before to ensure it works exactly as intended */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setShowModal(false)}
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="glass-panel border border-zinc-800/50 rounded-none max-w-6xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar"
-            onClick={e => e.stopPropagation()}
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-zinc-300">
+          <ContextMenuItem
+            className="focus:bg-red-600 focus:text-white cursor-pointer"
+            onClick={() => setCreateFolderOpen(true)}
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="brick-title text-xl text-white">{selectedVideo.title}</h2>
-                <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white"><X className="w-6 h-6" /></button>
-              </div>
+            <FolderPlus className="w-4 h-4 mr-2" />
+            Nova Pasta
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="focus:bg-red-600 focus:text-white cursor-pointer"
+            onClick={() => setUploadModalOpen(true)}
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            Upload de Vídeo
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <div className="bg-black aspect-video">
-                    <video src={selectedVideo.direct_url} controls className="w-full h-full" />
+      {/* Video Detail Modal (Preserved) */}
+      <AnimatePresence>
+        {showModal && selectedVideo && (
+          <Dialog open={showModal} onOpenChange={setShowModal}>
+            {/* Re-using the same modal structure as before but adapted for Dialog if possible or just custom overlay */}
+            {/* NOTE: simpler to just use the custom overlay from before to ensure it works exactly as intended */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+              onClick={() => setShowModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="glass-panel border border-zinc-800/50 rounded-none max-w-6xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="brick-title text-xl text-white">{selectedVideo.title}</h2>
+                    <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white"><X className="w-6 h-6" /></button>
                   </div>
-                </div>
-                <div className="space-y-4">
-                  {/* Links Section */}
-                  <div className="glass-panel border border-zinc-800/30 rounded-none p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Code className="w-4 h-4 text-red-500" />
-                      <h3 className="brick-title text-sm uppercase">Links</h3>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                      <div className="bg-black aspect-video">
+                        <video src={selectedVideo.direct_url} controls className="w-full h-full" />
+                      </div>
                     </div>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-[10px] uppercase text-zinc-500 mb-1">Public Player</p>
-                        <div className="relative">
-                          <input readOnly value={`${window.location.origin}/portfolio/player/${selectedVideo.id}`} className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 pr-8" />
-                          <button onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${selectedVideo.id}`, 'direct')} className="absolute right-2 top-2 text-zinc-400 hover:text-white">
-                            {copiedLink === 'direct' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                          </button>
+                    <div className="space-y-4">
+                      {/* Links Section */}
+                      <div className="glass-panel border border-zinc-800/30 rounded-none p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Code className="w-4 h-4 text-red-500" />
+                          <h3 className="brick-title text-sm uppercase">Links</h3>
+                        </div>
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-[10px] uppercase text-zinc-500 mb-1">Public Player</p>
+                            <div className="relative">
+                              <input readOnly value={`${window.location.origin}/portfolio/player/${selectedVideo.id}`} className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 pr-8" />
+                              <button onClick={() => handleCopyLink(`${window.location.origin}/portfolio/player/${selectedVideo.id}`, 'direct')} className="absolute right-2 top-2 text-zinc-400 hover:text-white">
+                                {copiedLink === 'direct' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase text-zinc-500 mb-1">Embed Code</p>
+                            <div className="relative">
+                              <textarea
+                                readOnly
+                                value={`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
+                                className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 h-20 resize-none pr-8"
+                              />
+                              <button onClick={() => handleCopyLink(`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`, 'embed')} className="absolute right-2 top-2 text-zinc-400 hover:text-white">
+                                {copiedLink === 'embed' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] uppercase text-zinc-500 mb-1">Embed Code</p>
-                        <div className="relative">
-                          <textarea
-                            readOnly
-                            value={`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`}
-                            className="w-full bg-zinc-900/50 border border-zinc-800 p-2 text-xs text-zinc-400 h-20 resize-none pr-8"
-                          />
-                          <button onClick={() => handleCopyLink(`<iframe src="${window.location.origin}/portfolio/player/${selectedVideo.id}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`, 'embed')} className="absolute right-2 top-2 text-zinc-400 hover:text-white">
-                            {copiedLink === 'embed' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                          </button>
+
+                      {/* Protection Section */}
+                      <div className="glass-panel border border-zinc-800/30 rounded-none p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="brick-title text-sm uppercase">Proteção</h3>
+                          {selectedVideo.is_password_protected ? <Lock className="w-4 h-4 text-yellow-500" /> : <Unlock className="w-4 h-4 text-zinc-500" />}
                         </div>
+                        <Button onClick={() => setEditingVideo(selectedVideo)} size="sm" className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border-none">
+                          <Edit3 className="w-3 h-3 mr-2" /> Editar Senha
+                        </Button>
                       </div>
                     </div>
                   </div>
-
-                  {/* Protection Section */}
-                  <div className="glass-panel border border-zinc-800/30 rounded-none p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="brick-title text-sm uppercase">Proteção</h3>
-                      {selectedVideo.is_password_protected ? <Lock className="w-4 h-4 text-yellow-500" /> : <Unlock className="w-4 h-4 text-zinc-500" />}
-                    </div>
-                    <Button onClick={() => setEditingVideo(selectedVideo)} size="sm" className="w-full bg-zinc-800 hover:bg-zinc-700 text-white border-none">
-                      <Edit3 className="w-3 h-3 mr-2" /> Editar Senha
-                    </Button>
-                  </div>
                 </div>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      </Dialog>
-    )}
-  </AnimatePresence>
+              </motion.div>
+            </motion.div>
+          </Dialog>
+        )}
+      </AnimatePresence>
 
-  {/* Edit Password Modal */ }
-  <AnimatePresence>
-    {editingVideo && (
-      <Dialog open={!!editingVideo} onOpenChange={() => setEditingVideo(null)}>
+      {/* Edit Password Modal */}
+      <AnimatePresence>
+        {editingVideo && (
+          <Dialog open={!!editingVideo} onOpenChange={() => setEditingVideo(null)}>
+            <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white sm:max-w-md">
+              <DialogHeader><DialogTitle className="brick-title">Senha do Vídeo</DialogTitle></DialogHeader>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const password = e.target.password.value;
+                if (password) handleUpdatePassword(editingVideo.id, password);
+              }} className="space-y-4">
+                <Input type="password" name="password" placeholder="Nova Senha" required className="glass-input border-none" />
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1 glass-button-primary border-none">Salvar</Button>
+                  {editingVideo.is_password_protected && (
+                    <Button type="button" variant="destructive" onClick={() => handleUpdatePassword(editingVideo.id, null, true)} className="flex-1">Remover Senha</Button>
+                  )}
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </AnimatePresence>
+
+      {/* Rename Dialog */}
+      <Dialog open={renameDialog.open} onOpenChange={(open) => setRenameDialog(prev => ({ ...prev, open }))}>
         <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white sm:max-w-md">
-          <DialogHeader><DialogTitle className="brick-title">Senha do Vídeo</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            const password = e.target.password.value;
-            if (password) handleUpdatePassword(editingVideo.id, password);
-          }} className="space-y-4">
-            <Input type="password" name="password" placeholder="Nova Senha" required className="glass-input border-none" />
-            <div className="flex gap-2">
-              <Button type="submit" className="flex-1 glass-button-primary border-none">Salvar</Button>
-              {editingVideo.is_password_protected && (
-                <Button type="button" variant="destructive" onClick={() => handleUpdatePassword(editingVideo.id, null, true)} className="flex-1">Remover Senha</Button>
-              )}
-            </div>
+          <DialogHeader>
+            <DialogTitle className="brick-title uppercase">Renomear {renameDialog.type === 'folder' ? 'Pasta' : 'Vídeo'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleRename} className="space-y-4 pt-4">
+            <Input
+              value={renameDialog.newName}
+              onChange={(e) => setRenameDialog(prev => ({ ...prev, newName: e.target.value }))}
+              className="glass-input border-none rounded-none"
+              autoFocus
+            />
+            <Button type="submit" disabled={!renameDialog.newName.trim()} className="w-full glass-button-primary border-none rounded-none uppercase font-black">
+              Salvar
+            </Button>
           </form>
         </DialogContent>
       </Dialog>
-    )}
-  </AnimatePresence>
 
-  {/* Confirm Dialog */ }
-  <ConfirmDialog
-    isOpen={confirmDialog.isOpen}
-    onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
-    onConfirm={() => confirmDialog.onConfirm?.()}
-    title={confirmDialog.title}
-    message={confirmDialog.message}
-    confirmText="Excluir"
-    cancelText="Cancelar"
-    variant="danger"
-  />
+      {/* Move Dialog */}
+      <Dialog open={moveDialog.open} onOpenChange={(open) => setMoveDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 rounded-none text-white sm:max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="brick-title uppercase">Mover para...</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto custom-scrollbar pt-4 space-y-1">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start text-left font-mono text-xs h-9 ${!currentFolder ? 'bg-red-500/10 text-red-500' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+              onClick={() => handleMove(null)}
+            >
+              <Folder className="w-3 h-3 mr-2" /> / (Raiz)
+            </Button>
+            {allFolders
+              .filter(f => f.id !== moveDialog.item?.id) // Don't allow moving folder into itself
+              .map(folder => (
+                <Button
+                  key={folder.id}
+                  variant="ghost"
+                  className="w-full justify-start text-left font-mono text-xs h-9 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  onClick={() => handleMove(folder.id)}
+                >
+                  <Folder className="w-3 h-3 mr-2" />
+                  {folder.parent_collection_id ? '  ↳ ' : ''}{folder.name}
+                </Button>
+              ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={() => confirmDialog.onConfirm?.()}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="danger"
+      />
 
     </div >
   );

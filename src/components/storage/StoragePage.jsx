@@ -99,6 +99,7 @@ export function StoragePage() {
 
   useEffect(() => {
     fetchFiles(currentFolder?.id);
+    setSelectedIds(new Set()); // Ensure selection is cleared when navigating
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentFolder]);
 
@@ -246,15 +247,28 @@ export function StoragePage() {
     setNewName(item.name);
   };
 
-  const toggleSelection = (e, id) => {
+
+
+  const handleSelectionToggle = (e, id) => {
     e.stopPropagation();
-    const newSelected = new Set(e.metaKey || e.ctrlKey ? selectedIds : []);
+    const newSelected = new Set(selectedIds);
     if (newSelected.has(id)) {
       newSelected.delete(id);
     } else {
       newSelected.add(id);
     }
     setSelectedIds(newSelected);
+  };
+
+  const handleItemClick = (e, id) => {
+    e.stopPropagation();
+    // If holding meta/ctrl, toggle selection
+    if (e.metaKey || e.ctrlKey) {
+      handleSelectionToggle(e, id);
+      return;
+    }
+    // Otherwise select ONLY this item
+    setSelectedIds(new Set([id]));
   };
 
   const handleFileSelect = (e) => {
@@ -494,9 +508,14 @@ export function StoragePage() {
   };
 
   const handleDelete = async (fileId, fileName) => {
-    // Check if it's a bulk delete
-    const isBulk = Array.isArray(fileId);
-    const count = isBulk ? fileId.length : 1;
+    // Determine what to delete
+    // If the fileId passed is part of the current selection, delete ALL selected items
+    // If it's NOT part of the selection (or selection is empty), delete ONLY this fileId
+    const isSelected = selectedIds.has(fileId);
+    const itemsToDelete = isSelected && selectedIds.size > 0 ? Array.from(selectedIds) : [fileId];
+
+    const isBulk = itemsToDelete.length > 1;
+    const count = itemsToDelete.length;
     const displayName = isBulk ? `${count} itens` : `"${fileName}"`;
 
     setConfirmDialog({
@@ -507,7 +526,7 @@ export function StoragePage() {
         try {
           // If array, delete all
           if (isBulk) {
-            const promises = fileId.map(id =>
+            const promises = itemsToDelete.map(id =>
               fetch(`/api/storage/drive-files/${id}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
@@ -518,7 +537,7 @@ export function StoragePage() {
             setSelectedIds(new Set());
           } else {
             // Single delete
-            const response = await fetch(`/api/storage/drive-files/${fileId}`, {
+            const response = await fetch(`/api/storage/drive-files/${itemsToDelete[0]}`, {
               method: "DELETE",
               headers: { Authorization: `Bearer ${token}` },
             });
@@ -652,6 +671,12 @@ export function StoragePage() {
         onMouseMove={handleSelectionMouseMove}
         onMouseUp={handleSelectionMouseUp}
         onMouseLeave={handleSelectionMouseUp}
+        onClick={(e) => {
+          // Only clear if clicking directly on the container background, not on items
+          if (e.target === containerRef.current) {
+            setSelectedIds(new Set());
+          }
+        }}
       >
         {/* Selection Box */}
         {selectionBox && (
@@ -666,44 +691,6 @@ export function StoragePage() {
           />
         )}
 
-        {/* Floating Bulk Action Bar */}
-        <AnimatePresence>
-          {selectedIds.size > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#0a0a0a] border border-zinc-800 p-2 shadow-2xl rounded-full"
-            >
-              <div className="px-4 border-r border-zinc-800 flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
-                <span className="text-xs text-zinc-300 font-bold uppercase tracking-wider">
-                  {selectedIds.size} Selecionado{selectedIds.size > 1 ? 's' : ''}
-                </span>
-              </div>
-
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleDelete(Array.from(selectedIds), "Itens selecionados")}
-                className="hover:bg-red-500/10 hover:text-red-500 h-8 rounded-full px-4 text-[10px] font-black uppercase tracking-widest text-zinc-400"
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-2" />
-                Excluir
-              </Button>
-
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setSelectedIds(new Set())}
-                className="hover:bg-zinc-800 h-8 rounded-full px-3 text-zinc-500 hover:text-zinc-300"
-              >
-                <span className="sr-only">Cancelar</span>
-                ✕
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
         {/* Drop Zone Overlay */}
         <AnimatePresence>
           {isDraggingFile && (
@@ -806,10 +793,17 @@ export function StoragePage() {
                               if (el) itemsRef.current.set(folder.id, el);
                               else itemsRef.current.delete(folder.id);
                             }}
-                            className={`glass-panel border rounded-none p-4 flex items-center gap-3 cursor-pointer transition-all group ${selectedIds.has(folder.id) ? 'bg-white/10 border-red-600' : 'hover:bg-zinc-900/50 border-zinc-800/30 hover:border-zinc-700'
+                            className={`glass-panel border rounded-none p-4 flex items-center gap-3 cursor-pointer transition-all group relative ${selectedIds.has(folder.id) ? 'bg-red-500/10 border-red-600' : 'hover:bg-zinc-900/50 border-zinc-800/30 hover:border-zinc-700'
                               } ${dragOverFolder === folder.id ? 'border-red-600 bg-red-900/10' : ''}`}
-                            onClick={(e) => toggleSelection(e, folder.id)}
-                            onDoubleClick={() => handleFolderClick(folder)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (e.metaKey || e.ctrlKey) {
+                                handleSelectionToggle(e, folder.id);
+                              } else {
+                                handleFolderClick(folder);
+                                setSelectedIds(new Set()); // Start fresh in new folder
+                              }
+                            }}
                             draggable
                             onDragStart={(e) => {
                               // Check if dragging a selected item
@@ -849,7 +843,15 @@ export function StoragePage() {
                               }
                             }}
                           >
-                            <Folder className={`w-5 h-5 text-zinc-500 group-hover:text-white transition-colors ${dragOverFolder === folder.id ? 'text-red-500' : ''}`} />
+                            {/* Selection Checkbox */}
+                            <div
+                              onClick={(e) => handleSelectionToggle(e, folder.id)}
+                              className={`absolute top-2 left-2 z-10 p-1 rounded-full transition-all cursor-pointer ${selectedIds.has(folder.id) ? 'opacity-100 text-red-500' : 'opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white'}`}
+                            >
+                              <CheckCircle2 className={`w-4 h-4 ${selectedIds.has(folder.id) ? 'fill-current' : ''}`} />
+                            </div>
+
+                            <Folder className={`w-5 h-5 text-zinc-500 group-hover:text-white transition-colors ml-4 ${dragOverFolder === folder.id ? 'text-red-500' : ''}`} />
                             <span className="text-sm text-zinc-300 font-medium truncate group-hover:text-white flex-1">{folder.name}</span>
 
                             {/* Mobile/Desktop Action Menu */}
@@ -954,9 +956,9 @@ export function StoragePage() {
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.05 }}
-                              className={`glass-panel border rounded-none p-4 transition-all group cursor-pointer ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
+                              className={`glass-panel border rounded-none p-4 transition-all group cursor-pointer relative ${selectedIds.has(file.id) ? 'bg-red-500/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
                                 }`}
-                              onClick={(e) => toggleSelection(e, file.id)}
+                              onClick={(e) => handleItemClick(e, file.id)}
                               onDoubleClick={() => setPreviewFile(file)}
                               draggable
                               onDragStart={(e) => {
@@ -970,6 +972,14 @@ export function StoragePage() {
                               }}
                             >
                               <div className="flex items-center gap-4">
+                                {/* Selection Checkbox */}
+                                <div
+                                  onClick={(e) => handleSelectionToggle(e, file.id)}
+                                  className={`p-1 rounded-full transition-all cursor-pointer ${selectedIds.has(file.id) ? 'opacity-100 text-red-500' : 'opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white'}`}
+                                >
+                                  <CheckCircle2 className={`w-4 h-4 ${selectedIds.has(file.id) ? 'fill-current' : ''}`} />
+                                </div>
+
                                 <div className="w-10 h-10 bg-zinc-900/50 flex items-center justify-center flex-shrink-0">
                                   <FileIcon className="w-5 h-5 text-zinc-500" />
                                 </div>
@@ -1003,6 +1013,7 @@ export function StoragePage() {
                                   >
                                     <Download className="w-4 h-4" />
                                   </Button>
+                                  {/* Trash Icon now triggers single delete via context - but keeping it for single action convenience */}
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -1054,9 +1065,9 @@ export function StoragePage() {
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ delay: index * 0.05 }}
-                              className={`glass-panel border rounded-none p-4 transition-all group cursor-pointer ${selectedIds.has(file.id) ? 'bg-white/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
+                              className={`glass-panel border rounded-none p-4 transition-all group cursor-pointer relative ${selectedIds.has(file.id) ? 'bg-red-500/10 border-red-600' : 'border-zinc-800/30 hover:border-red-600/30'
                                 }`}
-                              onClick={(e) => toggleSelection(e, file.id)}
+                              onClick={(e) => handleItemClick(e, file.id)}
                               onDoubleClick={() => setPreviewFile(file)}
                               draggable
                               onDragStart={(e) => {
@@ -1069,6 +1080,14 @@ export function StoragePage() {
                                 e.dataTransfer.setData("application/x-drive-item", JSON.stringify(itemsToDrag[0]));
                               }}
                             >
+                              {/* Selection Checkbox */}
+                              <div
+                                onClick={(e) => handleSelectionToggle(e, file.id)}
+                                className={`absolute top-2 left-2 z-20 p-1 rounded-full bg-black/50 transition-all cursor-pointer ${selectedIds.has(file.id) ? 'opacity-100 text-red-500' : 'opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white'}`}
+                              >
+                                <CheckCircle2 className={`w-4 h-4 ${selectedIds.has(file.id) ? 'fill-current' : ''}`} />
+                              </div>
+
                               <div className="flex flex-col gap-3">
                                 <div
                                   className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center relative overflow-hidden"

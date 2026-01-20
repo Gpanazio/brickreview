@@ -122,6 +122,17 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       ]
     );
 
+    // If collection_id was provided, update it
+    if (req.body.collection_id) {
+      await pool.query(
+        'UPDATE portfolio_videos SET collection_id = $1 WHERE id = $2',
+        [req.body.collection_id, result.rows[0].id]
+      );
+      // Fetch updated video
+      const updatedResult = await pool.query('SELECT * FROM portfolio_videos WHERE id = $1', [result.rows[0].id]);
+      result.rows[0] = updatedResult.rows[0];
+    }
+
     const video = result.rows[0];
 
     // Generate embed code (for response only, not stored)
