@@ -1,14 +1,30 @@
 import rateLimit from "express-rate-limit";
+import featureFlags from "../utils/featureFlags.js";
+
+/**
+ * Wrapper que permite desabilitar rate limiting via feature flag
+ */
+const createLimiter = (config) => {
+  const limiter = rateLimit(config);
+
+  return (req, res, next) => {
+    // Se rate limiting estiver desabilitado, passa direto
+    if (!featureFlags.RATE_LIMITING_ENABLED) {
+      return next();
+    }
+    return limiter(req, res, next);
+  };
+};
 
 /**
  * Rate limiter para rotas de autenticação
  * - Limita por username (se disponível) ou IP
- * - Permite 5 tentativas a cada 15 minutos
+ * - Configurável via RATE_LIMIT_AUTH_MAX e RATE_LIMIT_AUTH_WINDOW_MS
  * - Só conta requisições com falha
  */
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 5, // 5 tentativas por janela
+export const authLimiter = createLimiter({
+  windowMs: featureFlags.RATE_LIMIT_AUTH_WINDOW_MS,
+  max: featureFlags.RATE_LIMIT_AUTH_MAX,
   message: {
     error: "Muitas tentativas de login. Tente novamente em 15 minutos.",
     code: "RATE_LIMIT_EXCEEDED",
@@ -35,9 +51,9 @@ export const authLimiter = rateLimit({
  * - Limita por token (se disponível)
  * - Permite 30 requisições por minuto
  */
-export const shareLimiter = rateLimit({
+export const shareLimiter = createLimiter({
   windowMs: 60 * 1000, // 1 minuto
-  max: 30, // 30 requisições por minuto
+  max: featureFlags.RATE_LIMIT_SHARE_MAX,
   message: {
     error: "Muitas requisições. Tente novamente em alguns instantes.",
     code: "RATE_LIMIT_EXCEEDED",
@@ -60,9 +76,9 @@ export const shareLimiter = rateLimit({
  * - Limita por usuário autenticado ou IP
  * - Permite 100 requisições por minuto
  */
-export const apiLimiter = rateLimit({
+export const apiLimiter = createLimiter({
   windowMs: 60 * 1000, // 1 minuto
-  max: 100, // 100 requisições por minuto
+  max: featureFlags.RATE_LIMIT_API_MAX,
   message: {
     error: "Muitas requisições. Tente novamente em alguns instantes.",
     code: "RATE_LIMIT_EXCEEDED",
@@ -84,9 +100,9 @@ export const apiLimiter = rateLimit({
  * - Limita por usuário autenticado
  * - Permite 10 uploads por hora
  */
-export const uploadLimiter = rateLimit({
+export const uploadLimiter = createLimiter({
   windowMs: 60 * 60 * 1000, // 1 hora
-  max: 10, // 10 uploads por hora
+  max: featureFlags.RATE_LIMIT_UPLOAD_MAX,
   message: {
     error: "Limite de uploads atingido. Tente novamente em 1 hora.",
     code: "UPLOAD_LIMIT_EXCEEDED",

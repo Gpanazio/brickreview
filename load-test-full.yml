@@ -1,0 +1,144 @@
+# =============================================================================
+# LOAD TESTING CONFIGURATION - BrickReview
+# =============================================================================
+# Executa testes de carga para validar a performance e estabilidade do sistema.
+#
+# Uso:
+#   npm run test:load:full    # Teste completo (staging/produção)
+#   npm run test:load         # Teste rápido (desenvolvimento)
+#
+# Fases do teste:
+#   1. Warm up: Aquecimento gradual do sistema
+#   2. Ramp up: Aumento gradual de carga
+#   3. Peak load: Carga máxima sustentada
+#   4. Stress: Teste de limite do sistema
+#
+# Métricas de sucesso:
+#   - p99 latência < 2000ms
+#   - Taxa de erro < 1%
+#   - Throughput > 50 req/s durante peak
+# =============================================================================
+
+config:
+  target: "{{ $processEnvironment.LOAD_TEST_TARGET || 'http://localhost:3002' }}"
+  phases:
+    # Fase 1: Warm up (1 minuto)
+    - duration: 60
+      arrivalRate: 2
+      name: "🔥 Warm up"
+    
+    # Fase 2: Ramp up (2 minutos)
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 30
+      name: "📈 Ramp up load"
+    
+    # Fase 3: Peak sustained load (3 minutos)
+    - duration: 180
+      arrivalRate: 30
+      name: "⚡ Peak load"
+    
+    # Fase 4: Stress test (1 minuto)
+    - duration: 60
+      arrivalRate: 50
+      name: "💥 Stress test"
+    
+    # Fase 5: Cool down
+    - duration: 30
+      arrivalRate: 10
+      rampTo: 1
+      name: "❄️ Cool down"
+
+  defaults:
+    headers:
+      Content-Type: "application/json"
+      User-Agent: "Artillery-LoadTest/1.0"
+  
+  # Plugins para métricas detalhadas
+  plugins:
+    expect: {}
+  
+  # Thresholds para validação automática
+  ensure:
+    p99: 2000    # 99th percentile deve ser < 2000ms
+    maxErrorRate: 1  # Taxa de erro máxima de 1%
+
+scenarios:
+  # ==========================================================================
+  # CENÁRIO 1: Health Check (crítico - monitoramento)
+  # ==========================================================================
+  - name: "Health Check"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200
+            - hasProperty: "status"
+
+  # ==========================================================================
+  # CENÁRIO 2: Navegação autenticada simulada
+  # ==========================================================================
+  - name: "Authenticated User Flow"
+    weight: 40
+    flow:
+      # Tenta fazer login (espera 401 ou 429)
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "loadtest_user_{{ $randomNumber(1000, 9999) }}"
+            password: "loadtest_password"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+          expect:
+            - statusCode: 
+                - 401
+                - 429
+      
+      # Health check como fallback
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200
+
+  # ==========================================================================
+  # CENÁRIO 3: Acesso a rotas protegidas sem auth
+  # ==========================================================================
+  - name: "Unauthorized Access Attempts"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/projects"
+          expect:
+            - statusCode:
+                - 401
+                - 403
+      
+      - get:
+          url: "/api/videos"
+          expect:
+            - statusCode:
+                - 401
+                - 403
+      
+      - get:
+          url: "/api/storage"
+          expect:
+            - statusCode:
+                - 401
+                - 403
+
+  # ==========================================================================
+  # CENÁRIO 4: Rate Limiting Validation
+  # ==========================================================================
+  - name: "Rate Limit Test"
+    weight: 10
+    flow:
+      - loop:
+          - post:
+              url: "/api/auth/login"
+              json:
+                username: "ratelimit_test"
+                password: "test123"
+        count: 10
