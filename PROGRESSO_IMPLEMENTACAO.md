@@ -539,10 +539,10 @@ const projects = await query(`
 - [x] Testes de funcionalidade
 - [x] Testes de segurança
 - [x] Testes de integração
-- [ ] Testes automatizados (Jest)
-- [ ] Testes E2E (Playwright)
-- [ ] Load testing
-- [ ] Security scanning (OWASP ZAP)
+- [x] Testes automatizados (Jest)
+- [x] Testes E2E (Playwright)
+- [x] Load testing
+- [x] Security scanning (OWASP ZAP)
 
 ### Documentação
 - [x] Plano de segurança completo
