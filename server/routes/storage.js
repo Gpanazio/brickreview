@@ -416,7 +416,8 @@ router.delete('/drive-files/:fileId', authenticateToken, async (req, res) => {
     // Also delete thumbnail from R2 if exists
     try {
       await deleteDriveThumbnail(fileId);
-    } catch (_thumbErr) {
+    } catch (thumbErr) {
+      console.error('Failed to delete thumbnail from R2:', thumbErr);
       // Ignore thumbnail deletion errors
     }
 
