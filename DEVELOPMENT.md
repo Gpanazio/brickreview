@@ -604,44 +604,109 @@ SELECT * FROM review_videos LIMIT 10;
 
 ---
 
-## Checklist de Features (para você ou outra IA)
+## 🎓 Padrões de Código e Boas Práticas
 
-### Backend
-- [ ] Autenticação com JWT
-- [ ] CRUD de projetos
-- [ ] CRUD de vídeos (com upload para R2)
-- [ ] CRUD de comentários
-- [ ] CRUD de aprovações
-- [ ] Sistema de notificações
-- [ ] Envio de emails (Resend)
-- [ ] FFmpeg processing
-- [ ] Versionamento de vídeos
+### Early Return vs Try-Catch-Finally
 
-### Frontend
-- [ ] Login/logout
-- [ ] Lista de projetos
-- [ ] Detalhes do projeto
-- [ ] Upload de vídeo
-- [ ] Video player
-- [ ] Timeline com comentários
-- [ ] Modal de comentário
-- [ ] Thread de respostas
-- [ ] Painel de aprovação
-- [ ] Notificações in-app
-- [ ] Comparação de versões
-- [ ] Dashboard de estatísticas
+**Use Try-Catch-Finally** para resource management complexo:
+```javascript
+// ✅ QUANDO USAR: Conexões, locks, arquivos abertos
+let connection;
+try {
+  connection = await db.connect();
+  await connection.query('...');
+} catch (error) {
+  // Handle error
+} finally {
+  // ✅ SEMPRE libera conexão
+  if (connection) await connection.close();
+}
+```
 
-### Deploy
-- [ ] Push para GitHub
-- [ ] Deploy no Railway
-- [ ] Configure environment variables
-- [ ] Setup PostgreSQL
-- [ ] Setup Cloudflare R2
-- [ ] Setup Resend
-- [ ] Testar end-to-end
+**Use Early Return** para validações simples:
+```javascript
+// ✅ QUANDO USAR: Validação de input, fail fast
+try {
+  const data = await validate(input);
+
+  if (!data.valid) {
+    // ✅ Retorna imediatamente - mais claro
+    return res.status(400).json({ error: "Invalid" });
+  }
+
+  // Continua processamento...
+} catch (error) {
+  return res.status(500).json({ error: "Failed" });
+}
+```
+
+### DRY vs Simplicidade
+
+> **"Simplicidade vence complexidade, mesmo quando a complexidade promete DRY perfeito."**
+
+- ❌ Não adicione complexidade (flags, variáveis de controle) para eliminar 3 linhas duplicadas
+- ✅ Vale a pena quando duplicação aumenta risco de bugs
+- ✅ Prefira código óbvio a código "inteligente"
+
+### Métricas de Qualidade de Código
+
+| Métrica | Ruim | Bom |
+|---------|------|-----|
+| **Nesting Depth** | >4 níveis | ≤3 níveis |
+| **Variáveis de controle** | Muitas flags | Fluxo direto |
+| **Complexidade cognitiva** | Alta | Baixa |
+| **Linhas por função** | >50 | ≤30 |
+
+### Checklist de Code Review
+
+- [ ] Validações usam early return?
+- [ ] Resources usam try-finally?
+- [ ] Complexidade é mínima necessária?
+- [ ] Código é fácil de entender?
+- [ ] Sem variáveis não utilizadas?
+- [ ] Console.logs removidos?
 
 ---
 
-**Última atualização:** 2026-01-09
-**Status:** Fase 1 concluída, pronto para Fase 2
-**Próximo passo:** Copiar componentes UI e setup Express
+## Checklist de Features (para você ou outra IA)
+
+### Backend
+- [x] Autenticação com JWT
+- [x] CRUD de projetos
+- [x] CRUD de vídeos (com upload para R2)
+- [x] CRUD de comentários
+- [x] CRUD de aprovações
+- [x] Sistema de notificações
+- [ ] Envio de emails (Resend)
+- [x] FFmpeg processing
+- [x] Versionamento de vídeos
+
+### Frontend
+- [x] Login/logout
+- [x] Lista de projetos
+- [x] Detalhes do projeto
+- [x] Upload de vídeo
+- [x] Video player
+- [x] Timeline com comentários
+- [x] Modal de comentário
+- [x] Thread de respostas
+- [x] Painel de aprovação
+- [ ] Notificações in-app
+- [x] Comparação de versões
+- [ ] Dashboard de estatísticas
+
+### Deploy
+- [x] Push para GitHub
+- [x] Deploy no Railway
+- [x] Configure environment variables
+- [x] Setup PostgreSQL
+- [x] Setup Cloudflare R2
+- [ ] Setup Resend
+- [x] Testar end-to-end
+
+---
+
+**Última atualização:** 2026-01-20
+**Status:** v0.5.0 em produção, segurança implementada
+**Próximo passo:** Sprint 3 - Logging, Error Handling, DB Optimization
+
