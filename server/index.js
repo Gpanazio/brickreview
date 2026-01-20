@@ -8,6 +8,10 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { initDatabase } from './database.js'
 import { validateEnvironment } from './utils/validateEnv.js'
+import { requestLogger } from './middleware/requestLogger.js'
+import { errorHandler } from './middleware/errorHandler.js'
+import { pool } from './db.js'
+import cache from './utils/cache.js'
 
 dotenv.config()
 
@@ -42,6 +46,10 @@ app.use((req, res, next) => {
   });
   next();
 });
+
+// Request Logging and ID generation
+app.use(requestLogger);
+
 const allowAnyOrigin = !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*'
 
 // Headers de Segurança e Performance
@@ -71,22 +79,48 @@ app.use(
   })
 )
 
-// Request logging em desenvolvimento
-if (process.env.NODE_ENV !== 'production') {
-  app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`)
-    next()
-  })
-}
+// Request logging legacy (removido em favor do requestLogger)
+// if (process.env.NODE_ENV !== 'production') { ... }
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({
+app.get('/api/health', async (req, res) => {
+  const health = {
     status: 'ok',
     service: 'brickreview',
     timestamp: new Date().toISOString(),
     version: '0.1.0',
-  })
+    checks: {
+      database: 'unknown',
+      redis: 'unknown'
+    }
+  };
+
+  try {
+    // Check DB
+    if (pool) {
+      const dbStart = Date.now();
+      await pool.query('SELECT 1');
+      health.checks.database = { status: 'healthy', latency: `${Date.now() - dbStart}ms` };
+    } else {
+      health.checks.database = { status: 'disabled' };
+    }
+
+    // Check Redis
+    const redis = cache.getClient();
+    if (redis) {
+      const redisStart = Date.now();
+      await redis.ping();
+      health.checks.redis = { status: 'healthy', latency: `${Date.now() - redisStart}ms` };
+    } else {
+      health.checks.redis = { status: 'disabled' };
+    }
+
+    res.json(health);
+  } catch (error) {
+    health.status = 'error';
+    health.error = error.message;
+    res.status(503).json(health);
+  }
 })
 
 // Rate limiters
@@ -199,14 +233,8 @@ app.use((req, res) => {
   })
 })
 
-// Error handler
-app.use((err, req, res, _next) => {
-  console.error('❌ Unhandled error:', err)
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-  })
-})
+// Global Error Handler
+app.use(errorHandler)
 
 // Initialize database and start server
 async function startServer() {

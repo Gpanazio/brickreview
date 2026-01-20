@@ -9,6 +9,9 @@ import path from "path";
 import fs from "fs";
 import { logger } from "../utils/logger.js";
 import { validateId } from "../utils/validateId.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
+import AppError from "../utils/AppError.js";
+import cache from "../utils/cache.js";
 
 const router = express.Router();
 
@@ -46,197 +49,201 @@ const uploadImage = multer({
  * @route GET /api/projects
  * @desc Get all projects for the current user (with pagination)
  */
-router.get("/", authenticateToken, async (req, res) => {
-  try {
-    const { recent, page, limit } = req.query;
+router.get("/", authenticateToken, asyncHandler(async (req, res) => {
+  const { recent, page, limit } = req.query;
+  const userId = req.user.id;
+  const cacheKey = `projects:list:${userId}:${recent || 'false'}:${page || 1}:${limit || 20}`;
 
-    // Modo recente: retorna apenas 5 projetos
-    if (recent === "true") {
-      const projects = await query(`
-        SELECT * FROM brickreview_projects_with_stats 
-        WHERE deleted_at IS NULL
-        ORDER BY updated_at DESC
-        LIMIT 5
-      `);
-      return res.json(projects.rows);
-    }
+  // Try cache first
+  const cachedData = await cache.get(cacheKey);
+  if (cachedData) {
+    return res.json(cachedData);
+  }
 
-    // Paginação (#31 fix)
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
-    const offset = (pageNum - 1) * limitNum;
-
-    // Conta total de projetos
-    const countResult = await query(`
-      SELECT COUNT(*) FROM brickreview_projects WHERE deleted_at IS NULL
-    `);
-    const total = parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(total / limitNum);
-
-    // Busca projetos paginados
+  // Modo recente: retorna apenas 5 projetos
+  if (recent === "true") {
     const projects = await query(`
       SELECT * FROM brickreview_projects_with_stats 
       WHERE deleted_at IS NULL
       ORDER BY updated_at DESC
-      LIMIT $1 OFFSET $2
-    `, [limitNum, offset]);
+      LIMIT 5
+    `);
 
-    res.json({
-      data: projects.rows,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages
-      }
-    });
-  } catch (error) {
-    console.error("Erro ao buscar projetos:", error);
-    res.status(500).json({ error: "Erro ao buscar projetos" });
+    await cache.set(cacheKey, projects.rows, 300); // 5 minutes
+    return res.json(projects.rows);
   }
-});
+
+  // Paginação (#31 fix)
+  const pageNum = Math.max(1, parseInt(page) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
+  const offset = (pageNum - 1) * limitNum;
+
+  // Conta total de projetos
+  const countResult = await query(`
+    SELECT COUNT(*) FROM brickreview_projects WHERE deleted_at IS NULL
+  `);
+  const total = parseInt(countResult.rows[0].count);
+  const totalPages = Math.ceil(total / limitNum);
+
+  // Busca projetos paginados
+  const projects = await query(`
+    SELECT * FROM brickreview_projects_with_stats 
+    WHERE deleted_at IS NULL
+    ORDER BY updated_at DESC
+    LIMIT $1 OFFSET $2
+  `, [limitNum, offset]);
+
+  const responseData = {
+    data: projects.rows,
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages
+    }
+  };
+
+  await cache.set(cacheKey, responseData, 300); // 5 minutes
+  res.json(responseData);
+}));
 
 /**
  * @route POST /api/projects
  * @desc Create a new project
  */
-router.post("/", authenticateToken, async (req, res) => {
+router.post("/", authenticateToken, asyncHandler(async (req, res) => {
   const { name, description, client_name } = req.body;
 
   if (!name) {
-    return res.status(400).json({ error: "Nome do projeto é obrigatório" });
+    throw new AppError("Nome do projeto é obrigatório", 400);
   }
 
-  try {
-    const result = await query(
-      `
-      INSERT INTO brickreview_projects (name, description, client_name, created_by)
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `,
-      [name, description, client_name, req.user.id]
-    );
+  const result = await query(
+    `
+    INSERT INTO brickreview_projects (name, description, client_name, created_by)
+    VALUES ($1, $2, $3, $4)
+    RETURNING *
+  `,
+    [name, description, client_name, req.user.id]
+  );
 
-    const newProject = result.rows[0];
+  const newProject = result.rows[0];
 
-    // Adiciona o criador como admin do projeto
-    await query(
-      `
-      INSERT INTO brickreview_project_members (project_id, user_id, role)
-      VALUES ($1, $2, 'admin')
-    `,
-      [newProject.id, req.user.id]
-    );
+  // Adiciona o criador como admin do projeto
+  await query(
+    `
+    INSERT INTO brickreview_project_members (project_id, user_id, role)
+    VALUES ($1, $2, 'admin')
+  `,
+    [newProject.id, req.user.id]
+  );
 
-    res.status(201).json(newProject);
-  } catch (error) {
-    console.error("Erro ao criar projeto:", error);
-    res.status(500).json({ error: "Erro ao criar projeto" });
-  }
-});
+  // Invalidate list cache for this user
+  await cache.flushPattern(`projects:list:${req.user.id}:*`);
+
+  res.status(201).json(newProject);
+}));
 
 /**
  * @route GET /api/projects/:id
  * @desc Get project details and its videos
  */
-router.get("/:id", authenticateToken, async (req, res) => {
-  try {
-    const projectId = Number(req.params.id);
-    if (!validateId(projectId)) {
-      return res.status(400).json({ error: "ID de projeto inválido" });
-    }
-
-    if (!(await requireProjectAccess(req, res, projectId))) return;
-
-    const projectResult = await query(
-      "SELECT * FROM brickreview_projects_with_stats WHERE id = $1",
-      [req.params.id]
-    );
-
-    if (projectResult.rows.length === 0) {
-      return res.status(404).json({ error: "Projeto não encontrado" });
-    }
-
-    const project = projectResult.rows[0];
-
-    // Busca vídeos do projeto
-    const videosResult = await query(
-      `
-      SELECT * FROM brickreview_videos_with_stats 
-      WHERE project_id = $1 
-      ORDER BY created_at DESC
-    `,
-      [projectId]
-    );
-
-    res.json({
-      ...project,
-      videos: videosResult.rows,
-    });
-  } catch (error) {
-    console.error("Erro ao buscar detalhes do projeto:", error);
-    res.status(500).json({ error: "Erro ao buscar detalhes do projeto" });
+router.get("/:id", authenticateToken, asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.id);
+  if (!validateId(projectId)) {
+    throw new AppError("ID de projeto inválido", 400);
   }
-});
+
+  if (!(await requireProjectAccess(req, res, projectId))) return; // permission check handles middleware response if false? 
+  // Wait, requireProjectAccess sends response if false. 
+  // But usage suggests it returns boolean. The existing code uses implicit return.
+  // The 'requireProjectAccess' seems to handle external response if fails.
+  // Ideally, requireProjectAccess should throw an error. But to keep refactor safe I'll keep it as is.
+  // NOTE: If I change permissions system later, I can improve this.
+
+  const projectResult = await query(
+    "SELECT * FROM brickreview_projects_with_stats WHERE id = $1",
+    [req.params.id]
+  );
+
+  if (projectResult.rows.length === 0) {
+    throw new AppError("Projeto não encontrado", 404);
+  }
+
+  const project = projectResult.rows[0];
+
+  // Busca vídeos do projeto
+  const videosResult = await query(
+    `
+    SELECT * FROM brickreview_videos_with_stats 
+    WHERE project_id = $1 
+    ORDER BY created_at DESC
+  `,
+    [projectId]
+  );
+
+  res.json({
+    ...project,
+    videos: videosResult.rows,
+  });
+}));
 
 /**
  * @route PATCH /api/projects/:id
  * @desc Update project details
  */
-router.patch("/:id", authenticateToken, async (req, res) => {
+router.patch("/:id", authenticateToken, asyncHandler(async (req, res) => {
   const { name, description, client_name, status } = req.body;
 
   const projectId = Number(req.params.id);
   if (!validateId(projectId)) {
-    return res.status(400).json({ error: "ID de projeto inválido" });
+    throw new AppError("ID de projeto inválido", 400);
   }
 
   if (!(await requireProjectAccess(req, res, projectId))) return;
 
-  try {
-    const result = await query(
-      `
-      UPDATE brickreview_projects
-      SET name = COALESCE($1, name),
-          description = COALESCE($2, description),
-          client_name = COALESCE($3, client_name),
-          status = COALESCE($4, status)
-      WHERE id = $5
-      RETURNING *
-    `,
-      [name, description, client_name, status, projectId]
-    );
+  const result = await query(
+    `
+    UPDATE brickreview_projects
+    SET name = COALESCE($1, name),
+        description = COALESCE($2, description),
+        client_name = COALESCE($3, client_name),
+        status = COALESCE($4, status)
+    WHERE id = $5
+    RETURNING *
+  `,
+    [name, description, client_name, status, projectId]
+  );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Projeto não encontrado" });
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error("Erro ao atualizar projeto:", error);
-    res.status(500).json({ error: "Erro ao atualizar projeto" });
+  if (result.rows.length === 0) {
+    throw new AppError("Projeto não encontrado", 404);
   }
-});
+
+  // Invalidate list cache for this user
+  await cache.flushPattern(`projects:list:${req.user.id}:*`);
+
+  res.json(result.rows[0]);
+}));
 
 /**
  * @route DELETE /api/projects/:id
  * @desc Delete project
  */
-router.delete("/:id", authenticateToken, async (req, res) => {
+router.delete("/:id", authenticateToken, asyncHandler(async (req, res) => {
   const projectId = Number(req.params.id);
   if (!validateId(projectId)) {
-    return res.status(400).json({ error: "ID de projeto inválido" });
+    throw new AppError("ID de projeto inválido", 400);
   }
 
   if (!(await requireProjectAccess(req, res, projectId))) return;
 
+  // Soft delete do projeto e de todos os itens vinculados
+  const now = new Date();
+
+  // Inicia uma transação
+  await query("BEGIN");
+
   try {
-    // Soft delete do projeto e de todos os itens vinculados
-    const now = new Date();
-
-    // Inicia uma transação
-    await query("BEGIN");
-
     // Marca projeto como deletado
     const result = await query(
       "UPDATE brickreview_projects SET deleted_at = $1 WHERE id = $2 RETURNING id",
@@ -245,7 +252,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     if (result.rows.length === 0) {
       await query("ROLLBACK");
-      return res.status(404).json({ error: "Projeto não encontrado" });
+      throw new AppError("Projeto não encontrado", 404);
     }
 
     // Marca pastas como deletadas
@@ -268,22 +275,24 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     await query("COMMIT");
 
+    // Invalidate list cache for this user
+    await cache.flushPattern(`projects:list:${req.user.id}:*`);
+
     res.json({ message: "Projeto enviado para a lixeira", id: projectId });
   } catch (error) {
     await query("ROLLBACK");
-    console.error("Erro ao remover projeto:", error);
-    res.status(500).json({ error: "Erro ao remover projeto" });
+    throw error;
   }
-});
+}));
 
 /**
  * @route POST /api/projects/:id/restore
  * @desc Restore a deleted project
  */
-router.post("/:id/restore", authenticateToken, async (req, res) => {
+router.post("/:id/restore", authenticateToken, asyncHandler(async (req, res) => {
   const projectId = Number(req.params.id);
   if (!validateId(projectId)) {
-    return res.status(400).json({ error: "ID de projeto inválido" });
+    throw new AppError("ID de projeto inválido", 400);
   }
 
   try {
@@ -296,7 +305,7 @@ router.post("/:id/restore", authenticateToken, async (req, res) => {
 
     if (result.rows.length === 0) {
       await query("ROLLBACK");
-      return res.status(404).json({ error: "Projeto não encontrado" });
+      throw new AppError("Projeto não encontrado", 404);
     }
 
     // Restaura pastas, vídeos e arquivos do projeto (que foram deletados no mesmo momento)
@@ -313,13 +322,16 @@ router.post("/:id/restore", authenticateToken, async (req, res) => {
     ]);
 
     await query("COMMIT");
+
+    // Invalidate list cache for this user
+    await cache.flushPattern(`projects:list:${req.user.id}:*`);
+
     res.json(result.rows[0]);
   } catch (error) {
     await query("ROLLBACK");
-    console.error("Erro ao restaurar projeto:", error);
-    res.status(500).json({ error: "Erro ao restaurar projeto" });
+    throw error;
   }
-});
+}));
 
 /**
  * @route POST /api/projects/:id/cover

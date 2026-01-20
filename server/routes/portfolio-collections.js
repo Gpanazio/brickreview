@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import { authenticateToken } from '../middleware/auth.js';
 import pool from '../db.js';
+import { validateId } from '../utils/validateId.js';
 
 const router = express.Router();
 
@@ -32,6 +33,10 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
 
     // Get collection
     const collectionResult = await pool.query(
@@ -101,6 +106,10 @@ router.post('/', authenticateToken, async (req, res) => {
 router.patch('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
     const { name, description, is_public } = req.body;
 
     const updates = [];
@@ -152,6 +161,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
+
     const result = await pool.query(
       'UPDATE portfolio_collections SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL RETURNING *',
       [id]
@@ -176,6 +189,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 router.patch('/:id/move', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
     const { parent_collection_id } = req.body;
 
     const result = await pool.query(
@@ -205,6 +222,10 @@ router.patch('/:id/move', authenticateToken, async (req, res) => {
 router.patch('/videos/:id/move', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'Invalid video ID' });
+    }
     const { collection_id } = req.body;
 
     const result = await pool.query(
@@ -234,6 +255,10 @@ router.patch('/videos/:id/move', authenticateToken, async (req, res) => {
 router.post('/:id/share', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'Invalid collection ID' });
+    }
     const { password, expires_in_days } = req.body;
 
     // Check if collection exists

@@ -2,6 +2,7 @@
 import express from "express";
 import db from "../db.js";
 import { authenticate } from "../middleware/auth.js";
+import { validateId } from "../utils/validateId.js";
 
 const router = express.Router();
 
@@ -31,6 +32,10 @@ router.get("/", authenticate, async (req, res) => {
 router.post("/:type/:id/restore", authenticate, async (req, res) => {
   const { type, id } = req.params;
   const { user } = req;
+
+  if (!validateId(id)) {
+    return res.status(400).json({ error: "Invalid item ID" });
+  }
 
   try {
     let tableName;
@@ -72,6 +77,10 @@ router.delete("/:type/:id/permanent", authenticate, async (req, res) => {
   const { type, id } = req.params;
   const { user } = req;
 
+  if (!validateId(id)) {
+    return res.status(400).json({ error: "Invalid item ID" });
+  }
+
   try {
     let tableName;
     switch (type) {
@@ -92,7 +101,7 @@ router.delete("/:type/:id/permanent", authenticate, async (req, res) => {
     }
 
     // Here you would also add the logic to delete files from R2
-    
+
     const result = await db.query(
       `DELETE FROM ${tableName} WHERE id = $1 AND user_id = $2`,
       [id, user.id]

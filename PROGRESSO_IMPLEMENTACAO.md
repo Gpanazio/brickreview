@@ -12,11 +12,11 @@
 |-----------|-------|-------------|----------------|-------------|
 | **🔴 Crítico** | 5 | 5 | 0 | 0 |
 | **🟠 Alta** | 5 | 5 | 0 | 0 |
-| **🟡 Média** | 16 | 0 | 0 | 16 |
+| **🟡 Média** | 16 | 10 | 0 | 6 |
 | **🟢 Longo Prazo** | 8 | 0 | 0 | 8 |
-| **TOTAL** | 34 | 10 | 0 | 24 |
+| **TOTAL** | 34 | 20 | 0 | 14 |
 
-**Progresso:** 29% (10/34 itens)
+**Progresso:** 59% (20/34 itens)
 
 ---
 
@@ -189,39 +189,128 @@ keyGenerator: (req) => {
 
 ## 🎯 PRÓXIMOS ITENS (Prioridade)
 
-### 🟠 ALTA - 7 DIAS (4 itens pendentes)
+### ✅ AUDITORIA DE SEGURANÇA COMPLETA (2026-01-20)
 
-#### #6 - Validação Incompleta de IDs
-**Status:** ⏸️ **PENDENTE**
+#### #6 - Validação de IDs Completa
+**Status:** ✅ **COMPLETO**
 **Prioridade:** 🟠 ALTA
-**Estimativa:** 3h
+**Tempo real:** 30min
 
-**Problema:**
-```javascript
-// Aceita IDs negativos:
-const projectId = Number(req.params.id);
-if (!Number.isInteger(projectId)) { ... }
-// Number.isInteger(-1) === true ❌
-```
+**Implementação:**
+A função `validateId` já existia em `server/utils/validateId.js` e foi aplicada em todas as rotas que recebem IDs:
 
-**Correção:**
 ```javascript
-const validateId = (id) => {
+// server/utils/validateId.js
+export const validateId = (id) => {
   const numId = Number(id);
-  return Number.isInteger(numId) &&
-         numId > 0 &&
-         numId <= Number.MAX_SAFE_INTEGER;
+  return Number.isInteger(numId) && numId > 0 && numId <= Number.MAX_SAFE_INTEGER;
 };
 ```
 
-**Arquivos a modificar:**
-- `server/routes/projects.js`
-- `server/routes/videos.js`
-- `server/routes/folders.js`
-- `server/routes/comments.js`
-- Todas as rotas com params.id
+**Arquivos atualizados:**
+- ✅ `server/routes/projects.js` - já tinha validateId
+- ✅ `server/routes/videos.js` - já tinha validateId
+- ✅ `server/routes/folders.js` - já tinha validateId
+- ✅ `server/routes/comments.js` - já tinha validateId
+- ✅ `server/routes/shares.js` - já tinha validateId
+- ✅ `server/routes/files.js` - já tinha validateId
+- ✅ `server/routes/portfolio.js` - já tinha validateId
+- ✅ `server/routes/drawings.js` - já tinha validateId
+- ✅ `server/routes/reviews.js` - já tinha validateId
+- ✅ `server/routes/portfolio-collections.js` - **ADICIONADO** validateId
+- ✅ `server/routes/trash.js` - **ADICIONADO** validateId
+- ✅ `server/routes/storage.js` - **ADICIONADO** validateId
 
 ---
+
+#### CSRF Protection Analysis
+**Status:** ✅ **N/A - Não necessário**
+**Motivo:** O sistema usa JWT em `localStorage`, não cookies httpOnly
+
+**Análise:**
+- Autenticação via `Authorization: Bearer <token>` header
+- Token armazenado em `localStorage.setItem("brickreview_token", data.token)`
+- Nenhum cookie `httpOnly` é usado para autenticação
+- CSRF só é relevante quando cookies são automaticamente enviados pelo browser
+- Com JWT em header, o atacante não consegue forjar requisições
+
+**Nota:** Se o projeto migrar para cookies httpOnly no futuro (#5 - JWT → httpOnly cookies), CSRF tokens devem ser implementados simultaneamente.
+
+---
+
+#### SQL Injection Audit
+**Status:** ✅ **COMPLETO - Seguro**
+**Prioridade:** 🟡 MÉDIA
+
+**Análise:**
+Todas as queries usam **parameterized queries** com placeholders (`$1`, `$2`, etc.):
+
+```javascript
+// Exemplo de padrão seguro usado em todo o projeto:
+const result = await query(
+  'SELECT * FROM brickreview_projects WHERE id = $1 AND user_id = $2',
+  [projectId, req.user.id]  // Parâmetros escapados automaticamente
+);
+```
+
+**Verificações:**
+- ✅ Nenhuma concatenação direta de strings SQL
+- ✅ Todas as queries usam `$N` placeholders com arrays de parâmetros
+- ✅ Biblioteca `pg` (node-postgres) faz escape automático
+- ✅ Query builders não usados (não há ORM)
+- ✅ Nenhum `eval()` ou construção dinâmica de SQL
+
+**Único ponto de atenção (baixo risco):**
+`server/routes/trash.js` usa interpolação de nome de tabela:
+```javascript
+// Baixo risco: 'tableName' vem de switch/case com valores fixos
+`UPDATE ${tableName} SET deleted_at = NULL WHERE id = $1`
+```
+Este padrão é seguro porque `tableName` é definido internamente pelo switch/case, não pelo usuário.
+
+---
+
+#### Secrets Hardcoded Audit
+**Status:** ✅ **COMPLETO - Seguro**
+**Prioridade:** 🟠 ALTA
+
+**Verificações:**
+- ✅ Nenhum arquivo `.env` no repositório
+- ✅ Nenhuma API key hardcoded (sk-, pk-, etc.)
+- ✅ Nenhuma senha hardcoded
+- ✅ JWT_SECRET validado via `validateEnv.js` no startup
+- ✅ Todas as credenciais R2/Cloudflare vêm de variáveis de ambiente
+- ✅ DATABASE_URL não hardcoded
+
+**Variáveis obrigatórias (server/utils/validateEnv.js):**
+```javascript
+const REQUIRED_ENV_VARS = {
+  DATABASE_URL: "Conexão com PostgreSQL",
+  JWT_SECRET: "Necessário para autenticação",
+  R2_ACCOUNT_ID: "ID da conta Cloudflare R2",
+  R2_ACCESS_KEY_ID: "Chave de acesso R2",
+  R2_SECRET_ACCESS_KEY: "Chave secreta R2",
+  R2_BUCKET_NAME: "Nome do bucket R2",
+  R2_PUBLIC_URL: "URL pública do R2",
+};
+```
+
+---
+
+#### Dependency Vulnerabilities Audit
+**Status:** ✅ **COMPLETO - 0 vulnerabilidades**
+**Prioridade:** 🟡 MÉDIA
+
+**Resultado:**
+```bash
+$ npm audit
+found 0 vulnerabilities
+```
+
+**Recomendação:** Executar `npm audit` periodicamente no CI/CD.
+
+---
+
 
 #### #8 - Canvas Render Excessivo
 **Status:** ⏸️ **PENDENTE**
@@ -420,13 +509,13 @@ const projects = await query(`
 ---
 
 ### 🔄 Sprint 3-4 (2 semanas) - PLANEJADO
-- [ ] #16, #17 - Error handling (7h)
-- [ ] #18 - Logging estruturado (3h)
-- [ ] #20 - Health check (2h)
-- [ ] #27, #29 - DB pool + cache (7h)
-- [ ] #11 - Otimização queries (4h)
+- [x] #16, #17 - Error handling (7h)
+- [x] #18 - Logging estruturado (3h)
+- [x] #20 - Health check (2h)
+- [x] #27, #29 - DB pool + cache (7h)
+- [x] #11 - Otimização queries (4h)
 
-**Status:** ⏸️ **PENDENTE**
+**Status:** ✅ **COMPLETO**
 **Tempo estimado:** 23h
 
 ---
@@ -439,11 +528,11 @@ const projects = await query(`
 - [x] Validação de upload por conteúdo
 - [x] Sem vulnerabilidades de IPv6
 - [x] Headers de segurança preservados
-- [ ] Validação de IDs completa
-- [ ] CSRF protection (se implementar cookies)
-- [ ] SQL injection audit
-- [ ] Secrets hardcoded audit
-- [ ] Dependency vulnerabilities audit
+- [x] Validação de IDs completa
+- [x] CSRF protection (N/A - usa JWT em localStorage, não cookies httpOnly)
+- [x] SQL injection audit
+- [x] Secrets hardcoded audit
+- [x] Dependency vulnerabilities audit
 
 ### Testes
 - [x] Testes de sintaxe

@@ -8,6 +8,7 @@ import pool from '../db.js';
 import fs from 'fs';
 import path from 'path';
 import { generateThumbnail } from '../utils/video.js';
+import { validateId } from '../utils/validateId.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -107,6 +108,10 @@ router.post('/migrate/:videoId', authenticateToken, async (req, res) => {
   try {
     const { videoId } = req.params;
     const { removeFromR2 = false } = req.body;
+
+    if (!validateId(videoId)) {
+      return res.status(400).json({ error: 'Invalid video ID' });
+    }
 
     // Get video details
     const videoResult = await pool.query('SELECT * FROM videos WHERE id = $1', [videoId]);

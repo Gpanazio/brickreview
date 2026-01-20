@@ -1,23 +1,36 @@
 import IORedis from "ioredis";
 
+let errorLogged = false;
+
 const connection = new IORedis(process.env.REDIS_URL || "redis://localhost:6379", {
   maxRetriesPerRequest: null,
+  enableOfflineQueue: false,
+  lazyConnect: true,
   retryStrategy(times) {
-    const delay = Math.min(times * 50, 2000);
-    if (times > 5 && process.env.NODE_ENV !== 'production') {
-      console.warn("⚠️ Redis connection failed multiple times. Disabling automatic retries to save resources.");
+    if (times > 3) {
+      errorLogged = true;
       return null; // Stop retrying
     }
+    const delay = Math.min(times * 100, 2000);
     return delay;
   },
 });
 
-connection.on("error", (err) => {
-  console.error("❌ Redis connection error:", err);
+connection.on("error", () => {
+  // Suppress - errors are expected when Redis is not available
 });
 
 connection.on("connect", () => {
-  console.log("✅ Connected to Redis");
+  errorLogged = false;
+  console.log("✅ Connected to Redis (queue)");
+});
+
+// Try to connect
+connection.connect().catch(() => {
+  if (!errorLogged) {
+    console.warn("⚠️ Redis not available, queue features disabled");
+    errorLogged = true;
+  }
 });
 
 export default connection;

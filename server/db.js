@@ -7,17 +7,19 @@ dotenv.config();
 const isProduction = process.env.NODE_ENV === "production";
 
 // No Railway, a DATABASE_URL já vem completa
-// Ex: postgresql://postgres:password@host:port/railway
 const connectionString = process.env.DATABASE_URL;
 
 export const pool = connectionString
   ? new Pool({
     connectionString: connectionString,
-    // Força SSL se estiver usando um banco remoto (Railway) mesmo em desenvolvimento
     ssl:
       connectionString.includes("railway.net") || isProduction
         ? { rejectUnauthorized: false }
         : false,
+    // Pool configuration
+    max: 20, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
   })
   : null;
 
