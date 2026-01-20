@@ -111,7 +111,7 @@ export const deleteDriveThumbnail = async (driveFileId) => {
     console.log(`🗑️ Deleted Drive thumbnail: ${key}`);
     return true;
   } catch (error) {
-    console.log(`ℹ️ No Drive thumbnail to delete for ${driveFileId}`);
-    return false;
+    console.error(`❌ Unexpected error deleting Drive thumbnail for ${driveFileId}:`, error);
+    throw error;
   }
 };

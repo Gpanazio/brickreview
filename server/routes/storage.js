@@ -691,9 +691,11 @@ router.get('/proxy/:fileId', authenticateToken, async (req, res) => {
  * @access Private
  */
 router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) => {
-  try {
-    const { fileId } = req.params;
+  const { fileId } = req.params;
+  let tempVideoPath;
+  let thumbPath;
 
+  try {
     if (!googleDriveManager.isEnabled()) {
       return res.status(503).json({ error: 'Google Drive is not enabled' });
     }
@@ -717,11 +719,9 @@ router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) =
 
     // Create temp directory
     const tempDir = path.resolve('temp-uploads');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    await fs.promises.mkdir(tempDir, { recursive: true });
 
-    const tempVideoPath = path.join(tempDir, `migrate-${fileId}-${Date.now()}.tmp`);
+    tempVideoPath = path.join(tempDir, `thumb-gen-${fileId}-${Date.now()}.tmp`);
 
     // Download video from Drive
     console.log(`⬇️ Downloading video ${fileId} for thumbnail generation...`);
@@ -732,19 +732,11 @@ router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) =
     // Generate thumbnail
     console.log(`🖼️ Generating thumbnail for ${fileId}...`);
     const thumbFilename = `thumb-${fileId}.jpg`;
-    const thumbPath = await generateThumbnail(tempVideoPath, tempDir, thumbFilename);
+    thumbPath = await generateThumbnail(tempVideoPath, tempDir, thumbFilename);
 
     // Read and upload thumbnail to R2
-    const thumbnailBuffer = fs.readFileSync(thumbPath);
+    const thumbnailBuffer = await fs.promises.readFile(thumbPath);
     const r2Url = await uploadDriveThumbnail(thumbnailBuffer, fileId);
-
-    // Cleanup temp files
-    if (fs.existsSync(tempVideoPath)) {
-      fs.unlinkSync(tempVideoPath);
-    }
-    if (fs.existsSync(thumbPath)) {
-      fs.unlinkSync(thumbPath);
-    }
 
     console.log(`✅ Thumbnail generated and uploaded for ${fileId}: ${r2Url}`);
 
@@ -756,6 +748,20 @@ router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) =
   } catch (error) {
     console.error('Generate thumbnail error:', error);
     res.status(500).json({ error: error.message || 'Failed to generate thumbnail' });
+  } finally {
+    // Cleanup temp files
+    try {
+      if (tempVideoPath) {
+        await fs.promises.unlink(tempVideoPath);
+      }
+      if (thumbPath) {
+        await fs.promises.unlink(thumbPath);
+      }
+    } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') {
+        console.error('Failed to cleanup temp files:', cleanupError);
+      }
+    }
   }
 });
 
