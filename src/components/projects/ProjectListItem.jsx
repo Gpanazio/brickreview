@@ -52,6 +52,7 @@ export function ProjectListItem({ project, onProjectUpdate }) {
                   alt={project.name}
                   className="w-full h-full object-cover"
                   onError={() => setImageError(true)}
+                  loading="lazy"
                 />
               ) : (
                 <ProjectCoverPlaceholder

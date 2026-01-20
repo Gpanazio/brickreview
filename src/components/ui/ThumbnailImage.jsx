@@ -32,6 +32,7 @@ export const ThumbnailImage = ({ src, fallbackSrc, alt, className }) => {
       alt={alt}
       className={className}
       onError={handleError}
+      loading="lazy"
     />
   );
 };

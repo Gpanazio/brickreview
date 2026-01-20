@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { validateId } from '../utils/validateId.js';
+import logger from '../utils/logger.js';
 
 
 const router = express.Router();
@@ -149,7 +150,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       },
     });
   } catch (error) {
-    console.error('Portfolio upload error:', error);
+    logger.error('PORTFOLIO', 'Upload error', { error: error.message });
 
     // Clean up temp file on error
     // Clean up temp files on error
@@ -160,7 +161,7 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
       // Note: localThumbnailPath variable scope issue here, handled by try/catch in original but safe to ignore specific thumbnail cleanup in catch block if we don't have the var ref easily, or we can improve scope. 
       // For now, let's just leave tempFile cleanup. Thumbnail cleanup is less critical in catch.
     } catch (cleanupError) {
-      console.error('Cleanup error:', cleanupError);
+      logger.error('PORTFOLIO', 'Cleanup error', { error: cleanupError.message });
     }
 
     res.status(500).json({ error: error.message || 'Failed to upload video to portfolio' });
@@ -228,7 +229,7 @@ router.get('/videos', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching portfolio videos:', error);
+    logger.error('PORTFOLIO', 'Error fetching videos', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch portfolio videos' });
   }
 });
@@ -263,7 +264,7 @@ router.get('/videos/:id', authenticateToken, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching portfolio video:', error);
+    logger.error('PORTFOLIO', 'Error fetching video', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch portfolio video' });
   }
 });
@@ -300,7 +301,7 @@ router.get('/videos/:id/public', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error fetching public portfolio video:', error);
+    logger.error('PORTFOLIO', 'Error fetching public video', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch portfolio video' });
   }
 });
@@ -363,7 +364,7 @@ router.patch('/videos/:id', authenticateToken, async (req, res) => {
 
     res.json({ success: true, video: result.rows[0] });
   } catch (error) {
-    console.error('Error updating portfolio video:', error);
+    logger.error('PORTFOLIO', 'Error updating video', { error: error.message });
     res.status(500).json({ error: 'Failed to update portfolio video' });
   }
 });
@@ -429,7 +430,7 @@ router.delete('/videos/:id', authenticateToken, async (req, res) => {
       res.json({ success: true, message: 'Video deleted' });
     }
   } catch (error) {
-    console.error('Error deleting portfolio video:', error);
+    logger.error('PORTFOLIO', 'Error deleting video', { error: error.message });
     res.status(500).json({ error: 'Failed to delete portfolio video' });
   }
 });
@@ -465,7 +466,7 @@ router.post('/videos/:id/verify-password', async (req, res) => {
     const isValid = await bcrypt.compare(password, video.password_hash);
     res.json({ valid: isValid });
   } catch (error) {
-    console.error('Error verifying password:', error);
+    logger.error('PORTFOLIO', 'Error verifying password', { error: error.message });
     res.status(500).json({ error: 'Failed to verify password' });
   }
 });
@@ -487,7 +488,7 @@ router.post('/videos/:id/track-view', async (req, res) => {
     );
     res.json({ success: true });
   } catch (error) {
-    console.error('Error tracking view:', error);
+    logger.error('PORTFOLIO', 'Error tracking view', { error: error.message });
     res.status(500).json({ error: 'Failed to track view' });
   }
 });
@@ -509,7 +510,7 @@ router.post('/videos/:id/track-embed', async (req, res) => {
     );
     res.json({ success: true });
   } catch (error) {
-    console.error('Error tracking embed:', error);
+    logger.error('PORTFOLIO', 'Error tracking embed', { error: error.message });
     res.status(500).json({ error: 'Failed to track embed' });
   }
 });

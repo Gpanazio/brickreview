@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import Plyr from "plyr";
 import { useAuth } from "../../hooks/useAuth";
 import { VideoProvider, useVideo } from "../../context/VideoContext";
 import { VideoPlayerCore } from "./subcomponents/VideoPlayerCore";

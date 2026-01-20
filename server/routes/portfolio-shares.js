@@ -2,6 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import pool from '../db.js';
 import r2Manager from '../utils/r2-manager.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -65,7 +66,7 @@ router.get('/:token', async (req, res) => {
       requires_password: !!share.password_hash,
     });
   } catch (error) {
-    console.error('Error fetching share:', error);
+    logger.error('PORTFOLIO_SHARES', 'Error fetching share', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch share' });
   }
 });
@@ -98,7 +99,7 @@ router.post('/:token/verify-password', async (req, res) => {
     const isValid = await bcrypt.compare(password, share.password_hash);
     res.json({ valid: isValid });
   } catch (error) {
-    console.error('Error verifying password:', error);
+    logger.error('PORTFOLIO_SHARES', 'Error verifying password', { error: error.message });
     res.status(500).json({ error: 'Failed to verify password' });
   }
 });
@@ -189,7 +190,7 @@ router.get('/:token/collection-videos', async (req, res) => {
       subcollections: subcollectionsResult.rows,
     });
   } catch (error) {
-    console.error('Error fetching collection videos:', error);
+    logger.error('PORTFOLIO_SHARES', 'Error fetching collection videos', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch collection videos' });
   }
 });
@@ -253,7 +254,7 @@ router.get('/:token/breadcrumbs', async (req, res) => {
       breadcrumbs: pathResult.rows,
     });
   } catch (error) {
-    console.error('Error fetching breadcrumbs:', error);
+    logger.error('PORTFOLIO_SHARES', 'Error fetching breadcrumbs', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch breadcrumbs' });
   }
 });

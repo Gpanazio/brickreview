@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateToken, requireAdmin } from '../middleware/auth.js';
 import googleDriveManager from '../utils/google-drive.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.get('/auth-url', (req, res) => {
     const authUrl = googleDriveManager.getAuthUrl();
     res.json({ authUrl });
   } catch (error) {
-    console.error('Error generating auth URL:', error);
+    logger.error('DRIVE', 'Error generating auth URL', { error: error.message });
     res.status(500).json({ error: 'Failed to generate authorization URL' });
   }
 });
@@ -83,7 +84,7 @@ router.get('/oauth/callback', async (req, res) => {
       </html>
     `);
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    logger.error('DRIVE', 'OAuth callback error', { error: error.message });
     res.status(500).send(`
       <!DOCTYPE html>
       <html>
@@ -133,7 +134,7 @@ router.get('/status', authenticateToken, requireAdmin, (req, res) => {
         : 'Google Drive is not configured. Add credentials to environment variables.',
     });
   } catch (error) {
-    console.error('Error checking Drive status:', error);
+    logger.error('DRIVE', 'Error checking Drive status', { error: error.message });
     res.status(500).json({ error: 'Failed to check Drive status' });
   }
 });

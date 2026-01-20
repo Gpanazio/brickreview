@@ -12,6 +12,22 @@ jobs:
   zap_scan:
     runs-on: ubuntu-latest
     name: Scan the web application
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: brickreview
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -25,9 +41,18 @@ jobs:
         run: npm ci
 
       - name: Start Server Background
+        env:
+          DATABASE_URL: postgres://user:password@localhost:5432/brickreview
+          JWT_SECRET: "ci-secure-jwt-secret-token-1234567890"
+          R2_ACCOUNT_ID: "dummy_account_id"
+          R2_ACCESS_KEY_ID: "dummy_access_key"
+          R2_SECRET_ACCESS_KEY: "dummy_secret_key"
+          R2_BUCKET_NAME: "dummy_bucket"
+          R2_PUBLIC_URL: "http://localhost:3002/files"
+          NODE_ENV: "production"
         run: |
           npm run server & 
-          sleep 10 # Wait for server to start
+          sleep 15 # Wait for server to start
 
       - name: ZAP Scan
         uses: zaproxy/action-baseline@v0.14.0

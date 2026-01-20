@@ -15,6 +15,7 @@ import {
   getVideoMetadata,
 } from "../utils/video.js";
 import { downloadFile, uploadFile } from "../utils/r2-helpers.js";
+import logger from "../utils/logger.js";
 
 /**
  * Verifica e gera sprites para um vídeo específico
@@ -59,11 +60,11 @@ export async function ensureVideoAssets(videoId) {
 
     // Criar diretório temporário
     const tempDir = path.join(os.tmpdir(), `assets-${video.id}-${Date.now()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    await fs.promises.mkdir(tempDir, { recursive: true });
 
     try {
       // Baixar vídeo
-      console.log(`[ensureVideoAssets] Baixando vídeo ${video.id}...`);
+      logger.info(`[ensureVideoAssets] Baixando vídeo ${video.id}...`);
       const localVideoPath = path.join(tempDir, `video-${video.id}.mp4`);
       await downloadFile(videoR2Key, localVideoPath);
 
@@ -81,7 +82,7 @@ export async function ensureVideoAssets(videoId) {
 
       // Gerar thumbnail se necessário
       if (needsThumbnail) {
-        console.log(`[ensureVideoAssets] Gerando thumbnail para vídeo ${video.id}...`);
+        logger.info(`[ensureVideoAssets] Gerando thumbnail para vídeo ${video.id}...`);
         const thumbFilename = `thumb-${uuidv4()}.jpg`;
         const thumbPath = await generateThumbnail(localVideoPath, tempDir, thumbFilename);
         const thumbKey = `thumbnails/${video.project_id}/${thumbFilename}`;
@@ -96,7 +97,7 @@ export async function ensureVideoAssets(videoId) {
 
       // Gerar sprites se necessário
       if (needsSprite) {
-        console.log(`[ensureVideoAssets] Gerando sprites para vídeo ${video.id}...`);
+        logger.info(`[ensureVideoAssets] Gerando sprites para vídeo ${video.id}...`);
         const spriteFilename = `sprite-${uuidv4()}.jpg`;
         const spriteResult = await generateSpriteSheet(localVideoPath, tempDir, spriteFilename, {
           intervalSeconds: 5,
@@ -132,13 +133,13 @@ export async function ensureVideoAssets(videoId) {
         result.spriteGenerated = true;
       }
 
-      console.log(`[ensureVideoAssets] Vídeo ${video.id} processado com sucesso`);
+      logger.info(`[ensureVideoAssets] Vídeo ${video.id} processado com sucesso`);
     } finally {
       // Limpar temporários
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      await fs.promises.rm(tempDir, { recursive: true, force: true });
     }
   } catch (error) {
-    console.error(`[ensureVideoAssets] Erro no vídeo ${videoId}:`, error);
+    logger.error(`[ensureVideoAssets] Erro no vídeo ${videoId}:`, error);
     result.error = error.message;
   }
 
@@ -182,7 +183,7 @@ export async function processVideosWithMissingAssets(limit = 10) {
       }
     }
   } catch (error) {
-    console.error("[processVideosWithMissingAssets] Erro:", error);
+    logger.error("[processVideosWithMissingAssets] Erro:", error);
   }
 
   return summary;

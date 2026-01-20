@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import { isAdmin, requireProjectAccess, requireProjectAccessFromVideo } from '../utils/permissions.js'
 import { validateId } from '../utils/validateId.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -35,7 +36,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao salvar desenho:', error);
+    logger.error('DRAWINGS', 'Error saving drawing', { error: error.message });
     res.status(500).json({ error: 'Erro ao salvar desenho' });
   }
 });
@@ -72,7 +73,7 @@ router.get('/video/:videoId', authenticateToken, async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Erro ao buscar desenhos:', error);
+    logger.error('DRAWINGS', 'Error fetching drawings', { error: error.message });
     res.status(500).json({ error: 'Erro ao buscar desenhos' });
   }
 });
@@ -114,7 +115,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     await query('DELETE FROM brickreview_drawings WHERE id = $1', [drawingId])
     res.json({ message: 'Desenho deletado com sucesso' })
   } catch (error) {
-    console.error('Erro ao deletar desenho:', error);
+    logger.error('DRAWINGS', 'Error deleting drawing', { error: error.message });
     res.status(500).json({ error: 'Erro ao deletar desenho' });
   }
 });

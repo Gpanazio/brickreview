@@ -786,7 +786,7 @@ export function PortfolioPage() {
                             className="glass-panel border border-zinc-800/30 rounded-none p-4 hover:border-red-600/30 transition-all cursor-pointer flex items-center gap-4"
                           >
                             <div className="w-16 h-9 bg-zinc-900 flex-shrink-0">
-                              {video.thumbnail_url && <img src={video.thumbnail_url} className="w-full h-full object-cover" />}
+                              {video.thumbnail_url && <img src={video.thumbnail_url} className="w-full h-full object-cover" loading="lazy" />}
                             </div>
                             <span className="text-sm text-white flex-1 truncate">{video.title}</span>
                             <div className="flex items-center gap-4 text-zinc-500 text-xs">

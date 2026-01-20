@@ -11,6 +11,7 @@ import { pipeline } from 'stream/promises';
 import { generateThumbnail } from '../utils/video.js';
 import { validateId } from '../utils/validateId.js';
 import { uploadDriveThumbnail, checkR2ObjectExists, deleteDriveThumbnail } from '../utils/r2-helpers.js';
+import logger from '../utils/logger.js';
 
 /**
  * Computes the R2 thumbnail URL for a Drive file
@@ -85,7 +86,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
     res.json(formattedStats);
   } catch (error) {
-    console.error('Error fetching storage stats:', error);
+    logger.error('Error fetching storage stats:', error);
     res.status(500).json({ error: 'Failed to fetch storage statistics' });
   }
 });
@@ -109,7 +110,7 @@ router.get('/buckets', authenticateToken, async (req, res) => {
 
     res.json(bucketInfo);
   } catch (error) {
-    console.error('Error fetching bucket list:', error);
+    logger.error('Error fetching bucket list:', error);
     res.status(500).json({ error: 'Failed to fetch bucket list' });
   }
 });
@@ -167,7 +168,7 @@ router.post('/migrate/:videoId', authenticateToken, async (req, res) => {
       driveUrl: result.driveUrl,
     });
   } catch (error) {
-    console.error('Migration error:', error);
+    logger.error('Migration error:', error);
     res.status(500).json({ error: error.message || 'Failed to migrate video' });
   }
 });
@@ -228,7 +229,7 @@ router.post('/cleanup-r2', authenticateToken, async (req, res) => {
           removedVideos.push({ id: video.id, title: video.title });
         }
       } catch (err) {
-        console.error(`Failed to remove video ${video.id}:`, err);
+        logger.error(`Failed to remove video ${video.id}:`, err);
       }
     }
 
@@ -240,7 +241,7 @@ router.post('/cleanup-r2', authenticateToken, async (req, res) => {
       removedVideos,
     });
   } catch (error) {
-    console.error('Cleanup error:', error);
+    logger.error('Cleanup error:', error);
     res.status(500).json({ error: 'Failed to cleanup R2 storage' });
   }
 });
@@ -263,7 +264,7 @@ router.get('/eligible-for-cleanup', authenticateToken, async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching eligible videos:', error);
+    logger.error('Error fetching eligible videos:', error);
     res.status(500).json({ error: 'Failed to fetch eligible videos' });
   }
 });
@@ -288,37 +289,39 @@ router.post('/upload-to-drive', authenticateToken, upload.single('file'), async 
     let thumbnailBuffer = null;
 
     // If it's a video, try to generate a thumbnail
+    // If it's a video, try to generate a thumbnail
     if (mimetype.startsWith('video/')) {
       try {
         const tempDir = path.resolve('temp-uploads');
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
+        await fs.promises.mkdir(tempDir, { recursive: true });
 
         const tempVideoId = `upload-${Date.now()}`;
         const tempVideoPath = path.join(tempDir, `${tempVideoId}-${originalname}`);
         const thumbFilename = `${tempVideoId}-thumb.jpg`;
 
         // Write buffer to temp file
-        fs.writeFileSync(tempVideoPath, buffer);
+        await fs.promises.writeFile(tempVideoPath, buffer);
 
         // Generate thumbnail
         const thumbPath = await generateThumbnail(tempVideoPath, tempDir, thumbFilename);
 
         // Read thumbnail buffer
-        if (fs.existsSync(thumbPath)) {
-          thumbnailBuffer = fs.readFileSync(thumbPath);
-
+        try {
+          thumbnailBuffer = await fs.promises.readFile(thumbPath);
           // Cleanup thumbnail
-          fs.unlinkSync(thumbPath);
+          await fs.promises.unlink(thumbPath);
+        } catch (e) {
+          // Thumbnail might not have been created or read failed
         }
 
         // Cleanup video
-        if (fs.existsSync(tempVideoPath)) {
-          fs.unlinkSync(tempVideoPath);
+        try {
+          await fs.promises.unlink(tempVideoPath);
+        } catch (e) {
+          // ignore
         }
       } catch (err) {
-        console.error('Failed to generate thumbnail for upload:', err);
+        logger.error('Failed to generate thumbnail for upload:', err);
         // Continue upload even if thumbnail fails
       }
     }
@@ -337,9 +340,9 @@ router.post('/upload-to-drive', authenticateToken, upload.single('file'), async 
     if (thumbnailBuffer && driveFile.id) {
       try {
         r2ThumbnailUrl = await uploadDriveThumbnail(thumbnailBuffer, driveFile.id);
-        console.log(`✅ Thumbnail uploaded to R2: ${r2ThumbnailUrl}`);
+        logger.info(`✅ Thumbnail uploaded to R2: ${r2ThumbnailUrl}`);
       } catch (thumbErr) {
-        console.error('Failed to upload thumbnail to R2:', thumbErr);
+        logger.error('Failed to upload thumbnail to R2:', thumbErr);
         // Continue without R2 thumbnail
       }
     }
@@ -358,7 +361,7 @@ router.post('/upload-to-drive', authenticateToken, upload.single('file'), async 
       },
     });
   } catch (error) {
-    console.error('Upload to Drive error:', error);
+    logger.error('Upload to Drive error:', error);
     res.status(500).json({ error: error.message || 'Failed to upload file to Google Drive' });
   }
 });
@@ -393,7 +396,7 @@ router.get('/drive-files', authenticateToken, async (req, res) => {
       nextPageToken: result.nextPageToken,
     });
   } catch (error) {
-    console.error('List Drive files error:', error);
+    logger.error('List Drive files error:', error);
     res.status(500).json({ error: error.message || 'Failed to list files from Google Drive' });
   }
 });
@@ -417,7 +420,7 @@ router.delete('/drive-files/:fileId', authenticateToken, async (req, res) => {
     try {
       await deleteDriveThumbnail(fileId);
     } catch (thumbErr) {
-      console.error('Failed to delete thumbnail from R2:', thumbErr);
+      logger.error('Failed to delete thumbnail from R2:', thumbErr);
       // Ignore thumbnail deletion errors
     }
 
@@ -455,7 +458,7 @@ router.post('/folders', authenticateToken, async (req, res) => {
       folder,
     });
   } catch (error) {
-    console.error('Create folder error:', error);
+    logger.error('Create folder error:', error);
     res.status(500).json({ error: error.message || 'Failed to create folder' });
   }
 });
@@ -487,7 +490,7 @@ router.patch('/move', authenticateToken, async (req, res) => {
       result,
     });
   } catch (error) {
-    console.error('Move file error:', error);
+    logger.error('Move file error:', error);
     res.status(500).json({ error: error.message || 'Failed to move file' });
   }
 });
@@ -517,7 +520,7 @@ router.patch('/rename', authenticateToken, async (req, res) => {
       result,
     });
   } catch (error) {
-    console.error('Rename item error:', error);
+    logger.error('Rename item error:', error);
     res.status(500).json({ error: error.message || 'Failed to rename item' });
   }
 });
@@ -553,7 +556,7 @@ router.post('/share', authenticateToken, async (req, res) => {
       name: result.name,
     });
   } catch (error) {
-    console.error('Share file error:', error);
+    logger.error('Share file error:', error);
     res.status(500).json({ error: error.message || 'Failed to generate share link' });
   }
 });
@@ -577,7 +580,7 @@ router.get('/public/metadata/:fileId', async (req, res) => {
 
     res.json(metadata);
   } catch (error) {
-    console.error('Public metadata error:', error);
+    logger.error('Public metadata error:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch public metadata' });
   }
 });
@@ -638,7 +641,7 @@ router.get('/public/files', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Public list files error:', error);
+    logger.error('Public list files error:', error);
     res.status(500).json({ error: error.message || 'Failed to list public files' });
   }
 });
@@ -678,7 +681,7 @@ router.get('/proxy/:fileId', authenticateToken, async (req, res) => {
     fileStream.pipe(res);
 
   } catch (error) {
-    console.error('Proxy file error:', error);
+    logger.error('Proxy file error:', error);
     // If headers already sent, we can't send JSON error
     if (!res.headersSent) {
       res.status(500).json({ error: error.message || 'Failed to proxy file' });
@@ -725,13 +728,13 @@ router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) =
     tempVideoPath = path.join(tempDir, `thumb-gen-${fileId}-${Date.now()}.tmp`);
 
     // Download video from Drive
-    console.log(`⬇️ Downloading video ${fileId} for thumbnail generation...`);
+    logger.info(`⬇️ Downloading video ${fileId} for thumbnail generation...`);
     const fileStream = await googleDriveManager.downloadFile(fileId);
     const writeStream = fs.createWriteStream(tempVideoPath);
     await pipeline(fileStream, writeStream);
 
     // Generate thumbnail
-    console.log(`🖼️ Generating thumbnail for ${fileId}...`);
+    logger.info(`🖼️ Generating thumbnail for ${fileId}...`);
     const thumbFilename = `thumb-${fileId}.jpg`;
     thumbPath = await generateThumbnail(tempVideoPath, tempDir, thumbFilename);
 
@@ -739,7 +742,7 @@ router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) =
     const thumbnailBuffer = await fs.promises.readFile(thumbPath);
     const r2Url = await uploadDriveThumbnail(thumbnailBuffer, fileId);
 
-    console.log(`✅ Thumbnail generated and uploaded for ${fileId}: ${r2Url}`);
+    logger.info(`✅ Thumbnail generated and uploaded for ${fileId}: ${r2Url}`);
 
     res.json({
       success: true,
@@ -747,7 +750,7 @@ router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) =
       url: r2Url,
     });
   } catch (error) {
-    console.error('Generate thumbnail error:', error);
+    logger.error('Generate thumbnail error:', error);
     res.status(500).json({ error: error.message || 'Failed to generate thumbnail' });
   } finally {
     // Cleanup temp files
@@ -760,7 +763,7 @@ router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) =
       }
     } catch (cleanupError) {
       if (cleanupError.code !== 'ENOENT') {
-        console.error('Failed to cleanup temp files:', cleanupError);
+        logger.error('Failed to cleanup temp files:', cleanupError);
       }
     }
   }

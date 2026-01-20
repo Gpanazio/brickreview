@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import { requireProjectAccess, requireProjectAccessFromFolder } from '../utils/permissions.js'
 import { validateId } from '../utils/validateId.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -49,7 +50,7 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Erro ao buscar pastas:', error);
+    logger.error('FOLDERS', 'Error fetching folders', { error: error.message });
     res.status(500).json({ error: 'Erro ao buscar pastas' });
   }
 });
@@ -98,7 +99,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       videos: videosResult.rows
     });
   } catch (error) {
-    console.error('Erro ao buscar detalhes da pasta:', error);
+    logger.error('FOLDERS', 'Error fetching folder details', { error: error.message });
     res.status(500).json({ error: 'Erro ao buscar detalhes da pasta' });
   }
 });
@@ -157,7 +158,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao criar pasta:', error);
+    logger.error('FOLDERS', 'Error creating folder', { error: error.message });
     res.status(500).json({ error: 'Erro ao criar pasta' });
   }
 });
@@ -195,7 +196,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao renomear pasta:', error);
+    logger.error('FOLDERS', 'Error renaming folder', { error: error.message });
     res.status(500).json({ error: 'Erro ao renomear pasta' });
   }
 });
@@ -234,7 +235,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.json({ message: 'Pasta enviada para a lixeira', id: folderId })
   } catch (error) {
     await query('ROLLBACK');
-    console.error('Erro ao excluir pasta:', error);
+    logger.error('FOLDERS', 'Error deleting folder', { error: error.message });
     res.status(500).json({ error: 'Erro ao excluir pasta' });
   }
 });
@@ -269,7 +270,7 @@ router.post('/:id/restore', authenticateToken, async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     await query('ROLLBACK');
-    console.error('Erro ao restaurar pasta:', error);
+    logger.error('FOLDERS', 'Error restoring folder', { error: error.message });
     res.status(500).json({ error: 'Erro ao restaurar pasta' });
   }
 });
@@ -329,7 +330,7 @@ router.post('/:id/move', authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao mover pasta:', error);
+    logger.error('FOLDERS', 'Error moving folder', { error: error.message });
     res.status(500).json({ error: 'Erro ao mover pasta' });
   }
 });

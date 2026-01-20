@@ -398,7 +398,7 @@ router.post("/:id/cover", authenticateToken, uploadImage.single("cover"), async 
       project: result.rows[0],
     });
   } catch (error) {
-    console.error("Erro ao fazer upload da imagem de capa:", error);
+    logger.error('PROJECTS', 'Error uploading cover image', { error: error.message });
     // Tenta remover arquivo temporário em caso de erro
     if (file && file.path && fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
@@ -534,7 +534,7 @@ router.post("/:id/cover-url", authenticateToken, async (req, res) => {
       project: result.rows[0],
     });
   } catch (error) {
-    console.error("Erro ao atualizar capa por URL:", error);
+    logger.error('PROJECTS', 'Error updating cover from URL', { error: error.message });
     res.status(500).json({ error: "Erro ao atualizar capa por URL" });
   }
 });
@@ -564,7 +564,7 @@ router.delete("/:id/cover", authenticateToken, async (req, res) => {
       project: result.rows[0],
     });
   } catch (error) {
-    console.error("Erro ao remover imagem de capa:", error);
+    logger.error('PROJECTS', 'Error removing cover image', { error: error.message });
     res.status(500).json({ error: "Erro ao remover imagem de capa" });
   }
 });

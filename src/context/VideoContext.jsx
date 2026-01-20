@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useCallback } from "react";
+import { createContext, useContext, useState, useRef, useCallback, useMemo } from "react";
 
 const VideoContext = createContext(null);
 
@@ -44,7 +44,7 @@ export const VideoProvider = ({
     }
   }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     currentVideo,
     setCurrentVideo,
     currentTime,
@@ -87,7 +87,30 @@ export const VideoProvider = ({
     setVisitorName,
     drawings,
     setDrawings,
-  };
+  }), [
+    currentVideo,
+    currentTime,
+    duration,
+    isPlaying,
+    isMuted,
+    volume,
+    playbackRate,
+    isDrawingMode,
+    selectedColor,
+    comments,
+    videoUrl,
+    activeRange,
+    isComparing,
+    compareVideoUrl,
+    visitorName,
+    drawings,
+    seekTo,
+    togglePlay,
+    versions,
+    isPublic,
+    shareToken,
+    sharePassword
+  ]);
 
   return <VideoContext.Provider value={value}>{children}</VideoContext.Provider>;
 };

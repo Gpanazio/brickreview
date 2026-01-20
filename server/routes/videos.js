@@ -23,12 +23,14 @@ const router = express.Router();
 
 // Configuração do Multer para upload temporário
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: async (req, file, cb) => {
     const uploadDir = "temp-uploads/";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    try {
+      await fs.promises.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (err) {
+      cb(err, uploadDir);
     }
-    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -153,7 +155,7 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
   try {
     // 1. Upload Original Video to R2
     const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
-    console.log(`⬆️ Uploading original to R2: ${fileKey}`);
+    logger.info(`⬆️ Uploading original to R2: ${fileKey}`);
 
     const fileStream = fs.createReadStream(file.path);
     await r2Client.send(
@@ -201,7 +203,7 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
 
     // 4. Automatic Google Drive Backup (Non-blocking)
     if (googleDriveManager.isEnabled()) {
-      console.log(`🔄 Starting automatic Drive backup for video ${video.id}`);
+      logger.info(`🔄 Starting automatic Drive backup for video ${video.id}`);
 
       // Backup to Drive asynchronously
       (async () => {
@@ -223,7 +225,7 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
             [driveFile.id, video.id]
           );
 
-          console.log(`✅ Video ${video.id} backed up to Drive: ${driveFile.id}`);
+          logger.info(`✅ Video ${video.id} backed up to Drive: ${driveFile.id}`);
         } catch (error) {
           logger.error("DRIVE_BACKUP", `Failed to backup video ${video.id} to Drive`, {
             videoId: video.id,
@@ -233,7 +235,7 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
         }
       })();
     } else {
-      console.log(`ℹ️ Google Drive backup disabled for video ${video.id}`);
+      logger.info(`ℹ️ Google Drive backup disabled for video ${video.id}`);
     }
 
     // 5. Processamento Assíncrono: Queue ou Fallback Síncrono
@@ -264,15 +266,15 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
       runSyncFallback("feature_flag_disabled_or_no_redis");
     }
   } catch (error) {
-    console.error("Erro no upload assíncrono:", error);
+    logger.error("Erro no upload assíncrono:", error);
     res.status(500).json({ error: "Erro ao processar upload" });
   } finally {
     // Cleanup local temp file
-    if (file && fs.existsSync(file.path)) {
+    if (file?.path) {
       try {
-        fs.unlinkSync(file.path);
+        await fs.promises.unlink(file.path);
       } catch (e) {
-        console.warn("Failed to cleanup temp upload:", e);
+        logger.warn("Failed to cleanup temp upload:", e);
       }
     }
   }
@@ -313,7 +315,7 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
     } = videoResult.rows[0];
 
     // DEBUG: Log video data
-    console.log(`🎬 Stream request for video ${req.params.id}:`, {
+    logger.info(`🎬 Stream request for video ${req.params.id}:`, {
       r2_url,
       proxy_url,
       streaming_high_url,
@@ -368,7 +370,7 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       mime: isOriginal ? mime_type || "video/mp4" : "video/mp4",
     });
   } catch (error) {
-    console.error("Erro crítico ao gerar URL de streaming:", error);
+    logger.error("Erro crítico ao gerar URL de streaming:", error);
     res.status(500).json({ error: "Falha no sistema de streaming" });
   }
 });
@@ -448,7 +450,7 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
       type: resolvedType,
     });
   } catch (error) {
-    console.error("Erro ao gerar URL de download:", error);
+    logger.error("Erro ao gerar URL de download:", error);
     res.status(500).json({ error: "Falha ao gerar URL de download" });
   }
 });
@@ -489,7 +491,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
       comments: commentsResult.rows,
     });
   } catch (error) {
-    console.error("Erro ao buscar detalhes do vídeo:", error);
+    logger.error("Erro ao buscar detalhes do vídeo:", error);
     res.status(500).json({ error: "Erro ao buscar detalhes do vídeo" });
   }
 });
@@ -548,7 +550,7 @@ router.patch("/:id/move", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Erro ao mover vídeo:", error);
+    logger.error("Erro ao mover vídeo:", error);
     res.status(500).json({ error: "Erro ao mover vídeo" });
   }
 });
@@ -631,7 +633,7 @@ router.post("/:id/create-version", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Erro ao criar versão:", error);
+    logger.error("Erro ao criar versão:", error);
     res.status(500).json({ error: "Erro ao criar versão" });
   }
 });
@@ -660,7 +662,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     res.json({ message: "Vídeo enviado para a lixeira", id: videoId });
   } catch (error) {
-    console.error("Erro ao excluir vídeo:", error);
+    logger.error("Erro ao excluir vídeo:", error);
     res.status(500).json({ error: "Erro ao excluir vídeo" });
   }
 });
@@ -689,7 +691,7 @@ router.post("/:id/restore", authenticateToken, async (req, res) => {
 
     res.json({ message: "Vídeo restaurado com sucesso", video: result.rows[0] });
   } catch (error) {
-    console.error("Erro ao restaurar vídeo:", error);
+    logger.error('VIDEOS', 'Error restoring video', { error: error.message });
     res.status(500).json({ error: "Erro ao restaurar vídeo" });
   }
 });

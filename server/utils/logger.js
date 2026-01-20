@@ -1,43 +1,45 @@
-/**
- * Structured Logger
- * Padroniza logs para facilitar debug e monitoramento.
- */
-export const LOG_LEVELS = {
-  ERROR: "ERROR",
-  WARN: "WARN",
-  INFO: "INFO",
-  DEBUG: "DEBUG",
-  METRIC: "METRIC",
-  FEATURE: "FEATURE",
-};
+import winston from 'winston';
 
-const formatLog = (level, message, meta = {}) => {
-  const timestamp = new Date().toISOString();
-  // In production, output JSON for better parsing by log aggregators
-  if (process.env.NODE_ENV === 'production') {
-    return JSON.stringify({
-      timestamp,
-      level,
-      message,
-      ...meta
-    });
-  }
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info', // Default to info
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'brickreview-server' },
+  transports: [
+    //
+    // - Write all logs with importance level of `error` or less to `error.log`
+    // - Write all logs with importance level of `info` or less to `combined.log`
+    //
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+  ],
+});
 
-  // In development, keep it human-readable
-  const metaStr = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : "";
-  return `[${level}] ${timestamp} ${message}${metaStr}`;
-};
+//
+// If we're not in production then log to the `console` with the format:
+// `${info.level}: ${info.message} JSON.stringify({ ...rest }) `
+//
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    ),
+  }));
+} else {
+  // In production, we might want to log to console in JSON format for aggregation tools,
+  // but typically we want to avoid spam.
+  // For this specific request "Clean up Console Logs for Production", we will ensure
+  // we don't just dump text to stdout unless it's an error or we explicitly want to.
 
-export const logger = {
-  error: (tag, message, meta) => console.error(formatLog("ERROR", `[${tag}] ${message}`, meta)),
-  warn: (tag, message, meta) => console.warn(formatLog("WARN", `[${tag}] ${message}`, meta)),
-  info: (tag, message, meta) => console.log(formatLog("INFO", `[${tag}] ${message}`, meta)),
-  debug: (tag, message, meta) => {
-    if (process.env.NODE_ENV !== "production") console.log(formatLog("DEBUG", `[${tag}] ${message}`, meta));
-  },
-  metric: (name, value, meta = {}) => console.log(formatLog("METRIC", `${name}: ${value}`, meta)),
-  feature: (flagName, state, meta = {}) =>
-    console.log(formatLog("FEATURE", `${flagName}: ${state ? "ON" : "OFF"}`, meta)),
-};
+  // Keeping console transport for production for now but relying on level filtering
+  // and JSON format which is standard for containerized apps.
+  // The main cleanup will be replacing ad-hoc console.log in code with logger.info/debug
+  logger.add(new winston.transports.Console({
+    format: winston.format.json(),
+  }));
+}
 
 export default logger;

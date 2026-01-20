@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { authenticateToken } from '../middleware/auth.js';
 import pool from '../db.js';
 import { validateId } from '../utils/validateId.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -20,7 +21,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
     res.json({ collections: result.rows });
   } catch (error) {
-    console.error('Error fetching collections:', error);
+    logger.error('PORTFOLIO_COLLECTIONS', 'Error fetching collections', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch collections' });
   }
 });
@@ -66,7 +67,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
       subcollections: subcollectionsResult.rows,
     });
   } catch (error) {
-    console.error('Error fetching collection:', error);
+    logger.error('PORTFOLIO_COLLECTIONS', 'Error fetching collection', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch collection' });
   }
 });
@@ -93,7 +94,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     res.json({ collection: result.rows[0] });
   } catch (error) {
-    console.error('Error creating collection:', error);
+    logger.error('PORTFOLIO_COLLECTIONS', 'Error creating collection', { error: error.message });
     res.status(500).json({ error: 'Failed to create collection' });
   }
 });
@@ -147,7 +148,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
     res.json({ collection: result.rows[0] });
   } catch (error) {
-    console.error('Error updating collection:', error);
+    logger.error('PORTFOLIO_COLLECTIONS', 'Error updating collection', { error: error.message });
     res.status(500).json({ error: 'Failed to update collection' });
   }
 });
@@ -176,7 +177,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     res.json({ success: true, message: 'Collection deleted' });
   } catch (error) {
-    console.error('Error deleting collection:', error);
+    logger.error('PORTFOLIO_COLLECTIONS', 'Error deleting collection', { error: error.message });
     res.status(500).json({ error: 'Failed to delete collection' });
   }
 });
@@ -209,7 +210,7 @@ router.patch('/:id/move', authenticateToken, async (req, res) => {
 
     res.json({ collection: result.rows[0] });
   } catch (error) {
-    console.error('Error moving collection:', error);
+    logger.error('PORTFOLIO_COLLECTIONS', 'Error moving collection', { error: error.message });
     res.status(500).json({ error: 'Failed to move collection' });
   }
 });
@@ -242,7 +243,7 @@ router.patch('/videos/:id/move', authenticateToken, async (req, res) => {
 
     res.json({ video: result.rows[0] });
   } catch (error) {
-    console.error('Error moving video:', error);
+    logger.error('PORTFOLIO_COLLECTIONS', 'Error moving video', { error: error.message });
     res.status(500).json({ error: 'Failed to move video' });
   }
 });
@@ -297,7 +298,7 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
       url: `${appUrl}/portfolio/c/${token}`,
     });
   } catch (error) {
-    console.error('Error creating share:', error);
+    logger.error('PORTFOLIO_COLLECTIONS', 'Error creating share', { error: error.message });
     res.status(500).json({ error: 'Failed to create share link' });
   }
 });

@@ -16,7 +16,7 @@
 | **🟢 Longo Prazo** | 8 | 0 | 0 | 8 |
 | **TOTAL** | 34 | 26 | 0 | 8 |
 
-**Progresso:** 76% (26/34 itens)
+**Progresso:** 85% (29/34 itens)
 
 ---
 
@@ -420,9 +420,9 @@ const projects = await query(`
 **Resumo dos itens:**
 - #11 - N+1 Query Problem (4h)
 - ✅ #13 - Operações Síncronas de FS (3h)
-- #16 - Código Duplicado - Error Handler (4h)
+- ✅ #16 - Código Duplicado - Error Handler (4h)
 - #17 - Respostas de Erro Inconsistentes (3h)
-- #18 - Logging com Request IDs (3h)
+- ✅ #18 - Logging com Request IDs (3h)
 - #20 - Health Check Completo (2h)
 - ✅ #21 - Console Logs em Produção (4h)
 - #27 - Configuração de Connection Pool (1h)
@@ -439,8 +439,8 @@ const projects = await query(`
 
 **Resumo dos itens:**
 - #5 - JWT → httpOnly cookies (8h)
-- #7 - Memory Leak - Event Listeners (8h auditoria)
-- #14 - Bundle Size (4h)
+- ✅ #7 - Memory Leak - Event Listeners (8h auditoria)
+- 🔄 #14 - Bundle Size (4h) - Plyr removido
 - #15 - Optimistic UI (6h)
 - #19 - API Versioning (2h)
 - #22 - VideoPlayer - Divisão Contínua (12h)
@@ -609,7 +609,7 @@ logger.error("ERROR_BOUNDARY", { component, error });
 
 ## ✅ CONCLUSÃO
 
-**Status Atual:** ✅ **71% Completo** (24/34 itens)
+**Status Atual:** ✅ **85% Completo** (29/34 itens)
 
 **Conquistas:**
 - ✅ Todas as correções críticas de segurança implementadas

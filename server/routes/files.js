@@ -13,17 +13,20 @@ import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 import { validateId } from "../utils/validateId.js";
+import logger from "../utils/logger.js";
 
 const router = express.Router();
 
 // Configuração do Multer para upload temporário
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: async (req, file, cb) => {
     const uploadDir = "temp-uploads/";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    try {
+      await fs.promises.mkdir(uploadDir, { recursive: true });
+      cb(null, uploadDir);
+    } catch (err) {
+      cb(err);
     }
-    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -66,7 +69,7 @@ function getFileType(mimeType) {
  */
 router.post("/upload", authenticateToken, upload.single("file"), async (req, res) => {
   res.setTimeout(300000, () => {
-    console.error("Upload timeout");
+    logger.error('FILES', 'Upload timeout');
     if (!res.headersSent) {
       res.status(504).json({ error: "Tempo limite de upload excedido" });
     }
@@ -133,7 +136,7 @@ router.post("/upload", authenticateToken, upload.single("file"), async (req, res
         width = imageInfo.width;
         height = imageInfo.height;
       } catch (err) {
-        console.warn("Não foi possível obter dimensões da imagem:", err.message);
+        logger.warn("Não foi possível obter dimensões da imagem:", err.message);
       }
     }
 
@@ -189,17 +192,17 @@ router.post("/upload", authenticateToken, upload.single("file"), async (req, res
 
     // Cleanup
     try {
-      if (file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      if (file.path) await fs.promises.unlink(file.path);
     } catch (err) {
-      console.warn(`⚠️ Falha ao remover arquivo temporário ${file.path}:`, err.message);
+      logger.warn(`⚠️ Falha ao remover arquivo temporário ${file.path}:`, err.message);
     }
 
-    console.log(`✅ Arquivo enviado: ${fileName} (${fileType})`);
+    logger.info(`✅ Arquivo enviado: ${fileName} (${fileType})`);
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error("Erro no upload de arquivo:", error);
-    if (file && fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
+    logger.error("Erro no upload de arquivo:", error);
+    if (file && file.path) {
+      try { await fs.promises.unlink(file.path); } catch (e) { /* ignore */ }
     }
     res.status(500).json({ error: "Erro ao processar upload" });
   }
@@ -227,7 +230,7 @@ router.get("/folder/:folderId", authenticateToken, async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error("Erro ao buscar arquivos da pasta:", error);
+    logger.error("Erro ao buscar arquivos da pasta:", error);
     res.status(500).json({ error: "Erro ao buscar arquivos" });
   }
 });
@@ -254,7 +257,7 @@ router.get("/project/:projectId", authenticateToken, async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error("Erro ao buscar arquivos do projeto:", error);
+    logger.error("Erro ao buscar arquivos do projeto:", error);
     res.status(500).json({ error: "Erro ao buscar arquivos" });
   }
 });
@@ -284,7 +287,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     res.json({ message: "Arquivo enviado para a lixeira", id: fileId });
   } catch (error) {
-    console.error("Erro ao excluir arquivo:", error);
+    logger.error("Erro ao excluir arquivo:", error);
     res.status(500).json({ error: "Erro ao excluir arquivo" });
   }
 });
@@ -336,7 +339,7 @@ router.patch("/:id/move", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Erro ao mover arquivo:", error);
+    logger.error("Erro ao mover arquivo:", error);
     res.status(500).json({ error: "Erro ao mover arquivo" });
   }
 });
@@ -366,7 +369,7 @@ router.post("/:id/restore", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Erro ao restaurar arquivo:", error);
+    logger.error("Erro ao restaurar arquivo:", error);
     res.status(500).json({ error: "Erro ao restaurar arquivo" });
   }
 });

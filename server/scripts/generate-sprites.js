@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from "uuid";
 import { query } from "../db.js";
 import { generateSpriteSheet, generateSpriteVtt, getVideoMetadata } from "../utils/video.js";
 import { downloadFile, uploadFile } from "../utils/r2-helpers.js";
+import logger from "../utils/logger.js";
 
 dotenv.config();
 
@@ -26,22 +27,22 @@ const processAll = args.includes("--all");
 const videoIdArg = args.find((a) => a.startsWith("--video-id="));
 const specificVideoId = videoIdArg ? parseInt(videoIdArg.split("=")[1], 10) : null;
 
-console.log("🎞️  Script de Geração de Sprites para Vídeos Existentes");
-console.log("=========================================================");
-console.log(`   Modo: ${dryRun ? "DRY RUN (simulação)" : "EXECUÇÃO REAL"}`);
-console.log(
+logger.info("🎞️  Script de Geração de Sprites para Vídeos Existentes");
+logger.info("=========================================================");
+logger.info(`   Modo: ${dryRun ? "DRY RUN (simulação)" : "EXECUÇÃO REAL"}`);
+logger.info(
   `   Alvo: ${specificVideoId ? `Vídeo ID ${specificVideoId}` : processAll ? "Todos sem sprites" : "Nenhum (use --all ou --video-id=X)"}`
 );
-console.log("");
+logger.info("");
 
 async function main() {
   if (!processAll && !specificVideoId) {
-    console.log("⚠️  Nenhum alvo especificado. Use --all ou --video-id=X");
-    console.log("");
-    console.log("Exemplos:");
-    console.log("  node server/scripts/generate-sprites.js --all");
-    console.log("  node server/scripts/generate-sprites.js --video-id=123");
-    console.log("  node server/scripts/generate-sprites.js --all --dry-run");
+    logger.info("⚠️  Nenhum alvo especificado. Use --all ou --video-id=X");
+    logger.info("");
+    logger.info("Exemplos:");
+    logger.info("  node server/scripts/generate-sprites.js --all");
+    logger.info("  node server/scripts/generate-sprites.js --video-id=123");
+    logger.info("  node server/scripts/generate-sprites.js --all --dry-run");
     process.exit(1);
   }
 
@@ -66,11 +67,11 @@ async function main() {
     }
 
     const videos = videosQuery.rows;
-    console.log(`📊 Encontrados ${videos.length} vídeos para processar`);
-    console.log("");
+    logger.info(`📊 Encontrados ${videos.length} vídeos para processar`);
+    logger.info("");
 
     if (videos.length === 0) {
-      console.log("✅ Nenhum vídeo precisa de processamento!");
+      logger.info("✅ Nenhum vídeo precisa de processamento!");
       process.exit(0);
     }
 
@@ -78,12 +79,12 @@ async function main() {
     let failed = 0;
 
     for (const video of videos) {
-      console.log(
+      logger.info(
         `\n📹 [${processed + failed + 1}/${videos.length}] Processando: ${video.title} (ID: ${video.id})`
       );
 
       if (dryRun) {
-        console.log(`   → DRY RUN: Geraria sprites para vídeo ${video.id}`);
+        logger.info(`   → DRY RUN: Geraria sprites para vídeo ${video.id}`);
         processed++;
         continue;
       }
@@ -91,18 +92,18 @@ async function main() {
       try {
         // Criar diretório temporário
         const tempDir = path.join(os.tmpdir(), `sprite-${video.id}-${Date.now()}`);
-        fs.mkdirSync(tempDir, { recursive: true });
+        await fs.promises.mkdir(tempDir, { recursive: true });
 
         // Usar proxy se disponível (menor), senão original
         const videoR2Key = video.proxy_r2_key || video.r2_key;
         if (!videoR2Key) {
-          console.log(`   ⚠️  Sem arquivo de vídeo no R2, pulando...`);
+          logger.info(`   ⚠️  Sem arquivo de vídeo no R2, pulando...`);
           failed++;
           continue;
         }
 
         // Baixar vídeo
-        console.log(`   📥 Baixando vídeo do R2...`);
+        logger.info(`   📥 Baixando vídeo do R2...`);
         const localVideoPath = path.join(tempDir, `video-${video.id}.mp4`);
         await downloadFile(videoR2Key, localVideoPath);
 
@@ -112,7 +113,7 @@ async function main() {
         let height = video.height;
 
         if (!duration || !width || !height) {
-          console.log(`   📊 Obtendo metadados do vídeo...`);
+          logger.info(`   📊 Obtendo metadados do vídeo...`);
           const metadata = await getVideoMetadata(localVideoPath);
           duration = duration || metadata.duration;
           width = width || metadata.width;
@@ -120,7 +121,7 @@ async function main() {
         }
 
         // Gerar sprite sheet
-        console.log(`   🎞️  Gerando sprite sheet...`);
+        logger.info(`   🎞️  Gerando sprite sheet...`);
         const spriteFilename = `sprite-${uuidv4()}.jpg`;
         const spriteResult = await generateSpriteSheet(localVideoPath, tempDir, spriteFilename, {
           intervalSeconds: 5,
@@ -130,12 +131,12 @@ async function main() {
         });
 
         // Upload do sprite
-        console.log(`   📤 Fazendo upload do sprite...`);
+        logger.info(`   📤 Fazendo upload do sprite...`);
         const spriteKey = `sprites/${video.project_id}/${spriteFilename}`;
         const spriteUrl = await uploadFile(spriteResult.spritePath, spriteKey, "image/jpeg");
 
         // Gerar VTT
-        console.log(`   📝 Gerando arquivo VTT...`);
+        logger.info(`   📝 Gerando arquivo VTT...`);
         const spriteVttFilename = `sprite-${uuidv4()}.vtt`;
         const spriteVttPath = generateSpriteVtt({
           outputDir: tempDir,
@@ -153,7 +154,7 @@ async function main() {
         const spriteVttUrl = await uploadFile(spriteVttPath, spriteVttKey, "text/vtt");
 
         // Atualizar banco de dados
-        console.log(`   💾 Atualizando banco de dados...`);
+        logger.info(`   💾 Atualizando banco de dados...`);
         await query(
           `UPDATE brickreview_videos 
            SET sprite_r2_key = $1, sprite_url = $2, sprite_vtt_url = $3, updated_at = NOW()
@@ -162,25 +163,25 @@ async function main() {
         );
 
         // Limpar temporários
-        fs.rmSync(tempDir, { recursive: true, force: true });
+        await fs.promises.rm(tempDir, { recursive: true, force: true });
 
-        console.log(`   ✅ Sprites gerados com sucesso!`);
+        logger.info(`   ✅ Sprites gerados com sucesso!`);
         processed++;
       } catch (error) {
-        console.error(`   ❌ Erro: ${error.message}`);
+        logger.error(`   ❌ Erro: ${error.message}`);
         failed++;
       }
     }
 
-    console.log("\n=========================================================");
-    console.log(`📊 Resultado Final:`);
-    console.log(`   ✅ Sucesso: ${processed}`);
-    console.log(`   ❌ Falhas: ${failed}`);
-    console.log("=========================================================");
+    logger.info("\n=========================================================");
+    logger.info(`📊 Resultado Final:`);
+    logger.info(`   ✅ Sucesso: ${processed}`);
+    logger.info(`   ❌ Falhas: ${failed}`);
+    logger.info("=========================================================");
 
     process.exit(failed > 0 ? 1 : 0);
   } catch (error) {
-    console.error("❌ Erro fatal:", error);
+    logger.error("❌ Erro fatal:", error);
     process.exit(1);
   }
 }

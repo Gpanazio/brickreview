@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useMemo } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../hooks/useAuth";
 
@@ -106,12 +106,12 @@ export function UploadProvider({ children }) {
         };
     }, []);
 
-    const value = {
+    const value = useMemo(() => ({
         uploadQueue,
         uploadFiles,
         isUploading: uploadQueue.some(u => u.status === "uploading"),
         registerRefreshCallback
-    };
+    }), [uploadQueue, uploadFiles, registerRefreshCallback]);
 
     return (
         <UploadContext.Provider value={value}>

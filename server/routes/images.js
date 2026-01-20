@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticateToken } from "../middleware/auth.js";
+import logger from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -112,7 +113,7 @@ router.get("/search", authenticateToken, async (req, res) => {
 
     return res.json(payload);
   } catch (error) {
-    console.error("Erro ao buscar imagens (Openverse):", error);
+    logger.error('IMAGES', 'Error searching images (Openverse)', { error: error.message });
     return res.status(500).json({ error: "Erro ao buscar imagens" });
   }
 });
@@ -157,7 +158,7 @@ router.get("/resolve", authenticateToken, async (req, res) => {
 
     return res.json(payload);
   } catch (error) {
-    console.error("Erro ao resolver imagem (Openverse):", error);
+    logger.error('IMAGES', 'Error resolving image (Openverse)', { error: error.message });
     return res.status(500).json({ error: "Erro ao resolver imagem" });
   }
 });

@@ -3,6 +3,7 @@ import { query } from '../db.js';
 import { authenticateToken } from '../middleware/auth.js'
 import { requireProjectAccessFromVideo } from '../utils/permissions.js'
 import { validateId } from '../utils/validateId.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
 
@@ -39,7 +40,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao salvar aprovação:', error);
+    logger.error('REVIEWS', 'Error saving approval', { error: error.message });
     res.status(500).json({ error: 'Erro ao salvar aprovação' });
   }
 });
@@ -68,7 +69,7 @@ router.get('/:video_id', authenticateToken, async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Erro ao buscar histórico de aprovação:', error);
+    logger.error('REVIEWS', 'Error fetching approval history', { error: error.message });
     res.status(500).json({ error: 'Erro ao buscar histórico de aprovação' });
   }
 });

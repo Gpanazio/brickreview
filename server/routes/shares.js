@@ -11,6 +11,7 @@ import {
 import { buildDownloadFilename, getOriginalFilename } from "../utils/filename.js";
 import { attachmentUpload } from "../utils/attachmentStorage.js";
 import { validateId } from "../utils/validateId.js";
+import logger from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -175,7 +176,7 @@ router.post("/", authenticateToken, async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("Erro ao gerar share link:", err);
+    logger.error('SHARES', 'Error generating share link', { error: err.message });
     res.status(500).json({ error: "Erro interno ao gerar link de compartilhamento" });
   }
 });
@@ -234,7 +235,7 @@ router.post("/:token/comments", attachmentUpload.single('file'), async (req, res
 
     res.status(201).json(fullComment.rows[0]);
   } catch (err) {
-    console.error("Erro ao adicionar comentário de convidado:", err);
+    logger.error('SHARES', 'Error adding guest comment', { error: err.message });
     res.status(500).json({ error: "Erro ao adicionar comentário" });
   }
 });
@@ -272,7 +273,7 @@ router.get("/:token/comments/video/:videoId", async (req, res) => {
 
     res.json(comments.rows);
   } catch (err) {
-    console.error("Erro ao buscar comentários de vídeo compartilhado:", err);
+    logger.error('SHARES', 'Error fetching shared video comments', { error: err.message });
     res.status(500).json({ error: "Erro ao buscar comentários" });
   }
 });
@@ -304,7 +305,7 @@ router.get("/:token/drawings/video/:videoId", async (req, res) => {
 
     res.json(drawings.rows);
   } catch (err) {
-    console.error("Erro ao buscar desenhos de vídeo compartilhado:", err);
+    logger.error('SHARES', 'Error fetching shared video drawings', { error: err.message });
     res.status(500).json({ error: "Erro ao buscar desenhos" });
   }
 });
@@ -353,7 +354,7 @@ router.get("/:token/video/:videoId/stream", async (req, res) => {
       mime: isOriginal ? videoData.mime_type || "video/mp4" : "video/mp4",
     });
   } catch (err) {
-    console.error("Erro ao buscar stream de vídeo compartilhado:", err);
+    logger.error('SHARES', 'Error fetching shared video stream', { error: err.message });
     res.status(500).json({ error: "Erro ao buscar stream" });
   }
 });
@@ -393,7 +394,7 @@ router.get("/:token/project-videos", async (req, res) => {
 
     res.json(videosResult.rows);
   } catch (err) {
-    console.error("❌ Erro ao buscar vídeos do projeto:", err);
+    logger.error('SHARES', 'Error fetching project videos', { error: err.message });
     res.status(500).json({ error: "Erro ao buscar vídeos" });
   }
 });
@@ -431,7 +432,7 @@ router.get("/:token/folder-videos", async (req, res) => {
 
     res.json(videosResult.rows);
   } catch (err) {
-    console.error("❌ Erro ao buscar vídeos da pasta:", err);
+    logger.error('SHARES', 'Error fetching folder videos', { error: err.message });
     res.status(500).json({ error: "Erro ao buscar vídeos" });
   }
 });
@@ -490,7 +491,7 @@ router.get("/:token", async (req, res) => {
       resource: data,
     });
   } catch (err) {
-    console.error("❌ Erro ao buscar share link:", err);
+    logger.error('SHARES', 'Error fetching share link', { error: err.message });
     res.status(500).json({ error: "Erro interno ao processar link" });
   }
 });
@@ -533,7 +534,7 @@ router.get("/:token/video/:videoId/download", async (req, res) => {
       filename,
     });
   } catch (err) {
-    console.error("Erro ao gerar download compartilhado:", err);
+    logger.error('SHARES', 'Error generating shared download', { error: err.message });
     res.status(500).json({ error: "Erro ao processar download" });
   }
 });
@@ -571,7 +572,7 @@ router.delete("/:token/comments/:id", async (req, res) => {
     await query("DELETE FROM brickreview_comments WHERE id = $1", [commentId]);
     res.status(200).json({ message: "Comentário deletado com sucesso" });
   } catch (err) {
-    console.error("Erro ao deletar comentário de convidado:", err);
+    logger.error('SHARES', 'Error deleting guest comment', { error: err.message });
     res.status(500).json({ error: "Erro ao deletar comentário" });
   }
 });
@@ -618,7 +619,7 @@ router.patch("/:token/comments/:id", async (req, res) => {
 
     res.status(200).json(updatedComment.rows[0]);
   } catch (err) {
-    console.error("Erro ao editar comentário de convidado:", err);
+    logger.error('SHARES', 'Error editing guest comment', { error: err.message });
     res.status(500).json({ error: "Erro ao editar comentário" });
   }
 });

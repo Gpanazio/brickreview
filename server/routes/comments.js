@@ -4,6 +4,7 @@ import { authenticateToken } from "../middleware/auth.js";
 import { requireProjectAccess } from "../utils/permissions.js";
 import { attachmentUpload } from "../utils/attachmentStorage.js";
 import { validateId } from "../utils/validateId.js";
+import logger from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -39,7 +40,7 @@ router.get("/video/:videoId", authenticateToken, async (req, res) => {
 
     res.json(comments.rows);
   } catch (error) {
-    console.error("Erro ao buscar comentários:", error);
+    logger.error('COMMENTS', 'Error fetching comments', { error: error.message });
     res.status(500).json({ error: "Erro ao buscar comentários" });
   }
 });
@@ -93,7 +94,7 @@ router.post('/', authenticateToken, attachmentUpload.single('file'), async (req,
 
     res.status(201).json(commentResult.rows[0]);
   } catch (error) {
-    console.error("Erro ao adicionar comentário:", error);
+    logger.error('COMMENTS', 'Error adding comment', { error: error.message });
     res.status(500).json({ error: "Erro ao adicionar comentário" });
   }
 });
@@ -143,7 +144,7 @@ router.patch("/:id", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error("Erro ao atualizar comentário:", error);
+    logger.error('COMMENTS', 'Error updating comment', { error: error.message });
     res.status(500).json({ error: "Erro ao atualizar comentário" });
   }
 });
@@ -170,7 +171,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     res.json({ message: "Comentário removido com sucesso", id: commentId });
   } catch (error) {
-    console.error("Erro ao remover comentário:", error);
+    logger.error('COMMENTS', 'Error deleting comment', { error: error.message });
     res.status(500).json({ error: "Erro ao remover comentário" });
   }
 });

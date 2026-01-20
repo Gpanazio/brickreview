@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { query } from "../db.js";
+import logger from "../utils/logger.js";
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ const router = express.Router();
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log(`[AUTH] Tentativa de login para: ${username}`);
+    logger.debug('AUTH', 'Login attempt', { username });
 
     if (!username || !password) {
       return res.status(400).json({
@@ -18,27 +19,27 @@ router.post("/login", async (req, res) => {
     }
 
     // Busca usuário na tabela master_users (compartilhada com outros projetos BRICK)
-    console.log("[AUTH] Buscando usuário no banco...");
+    logger.debug('AUTH', 'Searching user in database');
     const result = await query("SELECT * FROM master_users WHERE username = $1", [username]);
 
     if (result.rows.length === 0) {
-      console.log("[AUTH] Usuário não encontrado");
+      logger.debug('AUTH', 'User not found', { username });
       return res.status(401).json({
         error: "Credenciais inválidas",
       });
     }
 
     const user = result.rows[0];
-    console.log("[AUTH] Usuário encontrado. Verificando hash de senha...");
+    logger.debug('AUTH', 'User found, verifying password');
 
     if (!user.password_hash) {
-      console.error("[AUTH] Erro: Usuário sem password_hash no banco");
+      logger.error('AUTH', 'User without password_hash in database');
       return res.status(500).json({ error: "Erro de integridade de dados" });
     }
 
     // Verifica senha
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
-    console.log(`[AUTH] Senha válida: ${isValidPassword}`);
+    logger.debug('AUTH', 'Password validation result', { isValid: isValidPassword });
 
     if (!isValidPassword) {
       return res.status(401).json({
@@ -48,7 +49,7 @@ router.post("/login", async (req, res) => {
 
     // Verifica JWT_SECRET
     if (!process.env.JWT_SECRET) {
-      console.error("❌ JWT_SECRET não configurado!");
+      logger.error('AUTH', 'JWT_SECRET not configured');
       return res.status(500).json({
         error: "Erro de configuração no servidor",
       });
@@ -57,7 +58,7 @@ router.post("/login", async (req, res) => {
     const role = user.role || "client";
 
     // Gera token JWT
-    console.log("[AUTH] Gerando token...");
+    logger.debug('AUTH', 'Generating token');
     const token = jwt.sign(
       {
         id: user.id,
@@ -79,7 +80,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("❌ Erro no login:", err);
+    logger.error('AUTH', 'Login error', { error: err.message });
     res.status(500).json({
       error: "Erro interno do servidor",
       message: process.env.NODE_ENV === "development" ? err.message : undefined,
