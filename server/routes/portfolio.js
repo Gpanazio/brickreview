@@ -9,6 +9,7 @@ import { promisify } from 'util';
 import fs from 'fs';
 import path from 'path';
 import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { validateId } from '../utils/validateId.js';
 
 
 const router = express.Router();
@@ -173,20 +174,40 @@ router.post('/upload', authenticateToken, upload.single('video'), async (req, re
  */
 router.get('/videos', authenticateToken, async (req, res) => {
   try {
-    const { collection_id } = req.query;
+    const { collection_id, page = 1, limit = 50 } = req.query;
     let query = `SELECT * FROM portfolio_videos_with_stats`;
     const params = [];
+    let paramIndex = 1;
 
     if (collection_id === 'null') {
       query += ` WHERE collection_id IS NULL`;
     } else if (collection_id) {
-      query += ` WHERE collection_id = $1`;
+      query += ` WHERE collection_id = $${paramIndex++}`;
       params.push(collection_id);
     }
 
     query += ` ORDER BY created_at DESC`;
 
+    // Pagination
+    const limitVal = Math.min(Math.max(parseInt(limit), 1), 100);
+    const offsetVal = (Math.max(parseInt(page), 1) - 1) * limitVal;
+
+    query += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+    params.push(limitVal, offsetVal);
+
     const result = await pool.query(query, params);
+
+    // Get total count for pagination metadata
+    let countQuery = `SELECT COUNT(*) FROM portfolio_videos`;
+    const countParams = [];
+    if (collection_id === 'null') {
+      countQuery += ` WHERE collection_id IS NULL`;
+    } else if (collection_id) {
+      countQuery += ` WHERE collection_id = $1`;
+      countParams.push(collection_id);
+    }
+    const countResult = await pool.query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0].count);
 
     // Add thumbnail URLs
     const videos = result.rows.map(video => {
@@ -197,7 +218,15 @@ router.get('/videos', authenticateToken, async (req, res) => {
       };
     });
 
-    res.json({ videos });
+    res.json({
+      videos,
+      pagination: {
+        page: parseInt(page),
+        limit: limitVal,
+        total,
+        totalPages: Math.ceil(total / limitVal)
+      }
+    });
   } catch (error) {
     console.error('Error fetching portfolio videos:', error);
     res.status(500).json({ error: 'Failed to fetch portfolio videos' });
@@ -212,6 +241,9 @@ router.get('/videos', authenticateToken, async (req, res) => {
 router.get('/videos/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
     const result = await pool.query(
       'SELECT * FROM portfolio_videos WHERE id = $1 AND deleted_at IS NULL',
       [id]
@@ -244,6 +276,9 @@ router.get('/videos/:id', authenticateToken, async (req, res) => {
 router.get('/videos/:id/public', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
     const result = await pool.query(
       'SELECT id, title, description, direct_url, thumbnail_path, duration, is_password_protected, view_count, created_at, r2_bucket_id FROM portfolio_videos WHERE id = $1 AND deleted_at IS NULL',
       [id]
@@ -278,6 +313,9 @@ router.get('/videos/:id/public', async (req, res) => {
 router.patch('/videos/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
     const { title, description, password, removePassword } = req.body;
 
     const updates = [];
@@ -338,6 +376,9 @@ router.patch('/videos/:id', authenticateToken, async (req, res) => {
 router.delete('/videos/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
     const { permanent = false } = req.query;
 
     if (permanent) {
@@ -401,6 +442,9 @@ router.delete('/videos/:id', authenticateToken, async (req, res) => {
 router.post('/videos/:id/verify-password', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
     const { password } = req.body;
 
     const result = await pool.query(
@@ -434,6 +478,9 @@ router.post('/videos/:id/verify-password', async (req, res) => {
 router.post('/videos/:id/track-view', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
     await pool.query(
       'UPDATE portfolio_videos SET view_count = view_count + 1 WHERE id = $1',
       [id]
@@ -453,6 +500,9 @@ router.post('/videos/:id/track-view', async (req, res) => {
 router.post('/videos/:id/track-embed', async (req, res) => {
   try {
     const { id } = req.params;
+    if (!validateId(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
     await pool.query(
       'UPDATE portfolio_videos SET embed_count = embed_count + 1 WHERE id = $1',
       [id]

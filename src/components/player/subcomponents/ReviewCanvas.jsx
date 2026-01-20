@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../../../hooks/useAuth";
 import { useVideo } from "../../../context/VideoContext";
@@ -23,7 +23,8 @@ export function ReviewCanvas() {
 
   const { token } = useAuth();
   const [isDrawing, setIsDrawing] = useState(false);
-  const [currentDrawing, setCurrentDrawing] = useState([]);
+  // Use ref for current drawing points to avoid re-renders during drawing
+  const currentDrawingRef = useRef([]);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   const isGuest = isPublic || !token;
@@ -71,6 +72,20 @@ export function ReviewCanvas() {
     }
   }, [currentVideoId, token, isGuest, shareToken, sharePassword, setDrawings]);
 
+  // Helper to draw a line segment
+  const drawLine = (ctx, start, end, color) => {
+    const { width, height } = ctx.canvas;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    ctx.beginPath();
+    ctx.moveTo(start.x * width, start.y * height);
+    ctx.lineTo(end.x * width, end.y * height);
+    ctx.stroke();
+  };
+
   // Canvas drawing handlers
   const startDrawing = (e) => {
     if (!isDrawingMode) return;
@@ -81,7 +96,17 @@ export function ReviewCanvas() {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    setCurrentDrawing([{ x, y }]);
+
+    // Start new stroke
+    currentDrawingRef.current = [{ x, y }];
+
+    // Draw initial point (dot)
+    const ctx = canvas.getContext("2d");
+    ctx.strokeStyle = selectedColor;
+    ctx.fillStyle = selectedColor;
+    ctx.beginPath();
+    ctx.arc(x * canvas.width, y * canvas.height, 1.5, 0, Math.PI * 2);
+    ctx.fill();
   };
 
   const draw = (e) => {
@@ -92,8 +117,63 @@ export function ReviewCanvas() {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    setCurrentDrawing([...currentDrawing, { x, y }]);
+
+    const newPoint = { x, y };
+    const points = currentDrawingRef.current;
+
+    if (points.length > 0) {
+      const lastPoint = points[points.length - 1];
+      const ctx = canvas.getContext("2d");
+      drawLine(ctx, lastPoint, newPoint, selectedColor);
+    }
+
+    currentDrawingRef.current.push(newPoint);
   };
+
+  // Touch handlers need similar updates
+  const startDrawingTouch = (e) => {
+    if (!isDrawingMode) return;
+    setIsDrawing(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) / rect.width;
+    const y = (touch.clientY - rect.top) / rect.height;
+
+    currentDrawingRef.current = [{ x, y }];
+
+    const ctx = canvas.getContext("2d");
+    ctx.strokeStyle = selectedColor;
+    ctx.fillStyle = selectedColor;
+    ctx.beginPath();
+    ctx.arc(x * canvas.width, y * canvas.height, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawTouch = (e) => {
+    if (!isDrawing || !isDrawingMode) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = (touch.clientX - rect.left) / rect.width;
+    const y = (touch.clientY - rect.top) / rect.height;
+
+    const newPoint = { x, y };
+    const points = currentDrawingRef.current;
+
+    if (points.length > 0) {
+      const lastPoint = points[points.length - 1];
+      const ctx = canvas.getContext("2d");
+      drawLine(ctx, lastPoint, newPoint, selectedColor);
+    }
+
+    currentDrawingRef.current.push(newPoint);
+  };
+
 
   // Auto-exit drawing mode when video plays
   useEffect(() => {
@@ -106,18 +186,23 @@ export function ReviewCanvas() {
     if (!isDrawing) return;
     setIsDrawing(false);
 
-    if (currentDrawing.length > 0) {
+    const points = currentDrawingRef.current;
+
+    if (points.length > 0) {
       // Optimistic update
       const tempId = Date.now();
       const newDrawing = {
         timestamp: currentTime,
-        points: currentDrawing,
+        points: points,
         color: selectedColor,
         id: tempId,
       };
 
       // Add optimistic drawing
       setDrawings((prev) => [...prev, newDrawing]);
+
+      // Clear current ref
+      currentDrawingRef.current = [];
 
       if (!isGuest) {
         const saveToast = toast.loading("Salvando desenho...");
@@ -131,7 +216,7 @@ export function ReviewCanvas() {
             body: JSON.stringify({
               video_id: currentVideoId,
               timestamp: currentTime,
-              drawing_data: currentDrawing,
+              drawing_data: points,
               color: selectedColor,
             }),
           });
@@ -143,7 +228,6 @@ export function ReviewCanvas() {
               prev.map(d => d.id === tempId ? { ...d, id: savedData.id } : d)
             );
             toast.success("Desenho salvo com sucesso!", { id: saveToast });
-            setCurrentDrawing([]);
             // Don't auto-exit drawing mode here, let user continue drawing if they want (unless they hit play)
           } else {
             toast.error("Erro ao salvar desenho", { id: saveToast });
@@ -156,39 +240,12 @@ export function ReviewCanvas() {
           setDrawings((prev) => prev.filter(d => d.id !== tempId));
         }
       } else {
-        setCurrentDrawing([]);
+        currentDrawingRef.current = [];
       }
     }
   };
 
-  const startDrawingTouch = (e) => {
-    if (!isDrawingMode) return;
-    // e.preventDefault(); // Might need passive: false listener to work, React handles this differently
-    setIsDrawing(true);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const x = (touch.clientX - rect.left) / rect.width;
-    const y = (touch.clientY - rect.top) / rect.height;
-    setCurrentDrawing([{ x, y }]);
-  };
-
-  const drawTouch = (e) => {
-    if (!isDrawing || !isDrawingMode) return;
-    // e.preventDefault(); 
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const x = (touch.clientX - rect.left) / rect.width;
-    const y = (touch.clientY - rect.top) / rect.height;
-    setCurrentDrawing([...currentDrawing, { x, y }]);
-  };
-
-  // Renderiza os desenhos no canvas
+  // Renderiza os desenhos no canvas (History only)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -198,11 +255,7 @@ export function ReviewCanvas() {
 
     const ctx = canvas.getContext("2d");
 
-    // Resize logic handled by ResizeObserver
-    // canvas.width/height updates clear the canvas, so we only need to clear if not resizing
-    // But since we removed resize here, we rely on the observer.
-    // However, we still need to clear the canvas for every frame redrawn due to other deps (like currentTime)
-    // Actually, if we don't resize, we MUST clear.
+    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Filter drawings near current time (0.1s tolerance)
@@ -227,26 +280,27 @@ export function ReviewCanvas() {
       ctx.stroke();
     });
 
-    // Draw current stroke
-    if (currentDrawing.length > 0) {
+    // Note: We do NOT draw currentDrawingRef here. It is drawn imperatively during interaction.
+    // However, if props change (like resize), we might lose the temp drawing. 
+    // Ideally, current drawing is fleeting. If resize happens during draw, it might clear.
+    // Given React 18 concurrency, this is usually acceptable or we'd need to re-stroke the ref content here too.
+    // For safety, let's redraw the ref content if it exists (e.g. during a resize while drawing)
+    if (currentDrawingRef.current.length > 0) {
       ctx.strokeStyle = selectedColor;
       ctx.lineWidth = 3;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-
       ctx.beginPath();
-      currentDrawing.forEach((point, i) => {
+      currentDrawingRef.current.forEach((point, i) => {
         const x = point.x * canvas.width;
         const y = point.y * canvas.height;
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       });
       ctx.stroke();
     }
-  }, [drawings, currentDrawing, currentTime, selectedColor, canvasRef, videoContainerRef, dimensions]);
+
+  }, [drawings, currentTime, selectedColor, canvasRef, videoContainerRef, dimensions]); // removed currentDrawing dependency
 
   // Handle Resize
   useEffect(() => {

@@ -58,6 +58,9 @@ const PortfolioPage = lazy(() => import("./components/portfolio/PortfolioPage").
 const PortfolioPlayerPage = lazy(() => import("./components/portfolio/PortfolioPlayerPage").then(m => ({ default: m.PortfolioPlayerPage })));
 const SharedCollectionPage = lazy(() => import("./components/portfolio/SharedCollectionPage").then(m => ({ default: m.SharedCollectionPage })));
 
+// Cookie consent component (non-lazy, always needed)
+import { CookieConsent } from "./components/CookieConsent";
+
 // Helper para identificar URLs padrão antigas
 const isDefaultUrl = (url) => {
   return !url || url.includes("images.unsplash.com/photo-1574267432644");
@@ -82,6 +85,7 @@ function App() {
               </Routes>
             </Suspense>
             <Toaster position="top-right" />
+            <CookieConsent />
           </BrowserRouter>
         </UploadProvider>
       </AuthProvider>
