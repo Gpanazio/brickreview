@@ -33,6 +33,42 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { FileViewer } from "./FileViewer";
 
+/**
+ * ThumbnailImage component with fallback support
+ * Tries to load primary src, falls back to fallbackSrc on error
+ */
+const ThumbnailImage = ({ src, fallbackSrc, alt, className }) => {
+  const [imgSrc, setImgSrc] = useState(src || fallbackSrc);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(src || fallbackSrc);
+    setHasError(false);
+  }, [src, fallbackSrc]);
+
+  const handleError = () => {
+    if (!hasError && fallbackSrc && imgSrc !== fallbackSrc) {
+      setImgSrc(fallbackSrc);
+      setHasError(true);
+    } else if (!hasError) {
+      setHasError(true);
+    }
+  };
+
+  if (hasError && (!fallbackSrc || imgSrc === fallbackSrc)) {
+    return null;
+  }
+
+  return (
+    <img
+      src={imgSrc}
+      alt={alt}
+      className={className}
+      onError={handleError}
+    />
+  );
+};
+
 export function SharedStoragePage() {
     const { id } = useParams(); // This is the folder ID or file ID shared
     const navigate = useNavigate();
@@ -387,9 +423,10 @@ export function SharedStoragePage() {
                                                         >
                                                             <div className="flex flex-col gap-3">
                                                                 <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center">
-                                                                    {file.thumbnailLink ? (
-                                                                        <img
+                                                                    {(file.thumbnailLink || file.r2ThumbnailUrl) ? (
+                                                                        <ThumbnailImage
                                                                             src={file.thumbnailLink}
+                                                                            fallbackSrc={file.r2ThumbnailUrl}
                                                                             alt={file.name}
                                                                             className="w-full h-full object-cover"
                                                                         />
