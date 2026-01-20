@@ -7,8 +7,23 @@ import googleDriveManager from '../utils/google-drive.js';
 import pool from '../db.js';
 import fs from 'fs';
 import path from 'path';
+import { pipeline } from 'stream/promises';
 import { generateThumbnail } from '../utils/video.js';
 import { validateId } from '../utils/validateId.js';
+import { uploadDriveThumbnail, checkR2ObjectExists, deleteDriveThumbnail } from '../utils/r2-helpers.js';
+
+/**
+ * Computes the R2 thumbnail URL for a Drive file
+ * @param {string} driveFileId - The Google Drive file ID
+ * @param {string} mimeType - The file MIME type
+ * @returns {string|null} The R2 thumbnail URL or null if not a video
+ */
+const getR2ThumbnailUrl = (driveFileId, mimeType) => {
+  if (mimeType && mimeType.startsWith('video/')) {
+    return `${process.env.R2_PUBLIC_URL}/drive-thumbs/${driveFileId}.jpg`;
+  }
+  return null;
+};
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -317,6 +332,18 @@ router.post('/upload-to-drive', authenticateToken, upload.single('file'), async 
       thumbnailBuffer
     );
 
+    // Upload thumbnail to R2 if we have one
+    let r2ThumbnailUrl = null;
+    if (thumbnailBuffer && driveFile.id) {
+      try {
+        r2ThumbnailUrl = await uploadDriveThumbnail(thumbnailBuffer, driveFile.id);
+        console.log(`✅ Thumbnail uploaded to R2: ${r2ThumbnailUrl}`);
+      } catch (thumbErr) {
+        console.error('Failed to upload thumbnail to R2:', thumbErr);
+        // Continue without R2 thumbnail
+      }
+    }
+
     res.json({
       success: true,
       message: 'File uploaded to Google Drive successfully',
@@ -324,8 +351,10 @@ router.post('/upload-to-drive', authenticateToken, upload.single('file'), async 
         id: driveFile.id,
         name: driveFile.name,
         size: driveFile.size,
+        mimeType: mimetype,
         webViewLink: driveFile.webViewLink,
         webContentLink: driveFile.webContentLink,
+        r2ThumbnailUrl: r2ThumbnailUrl,
       },
     });
   } catch (error) {
@@ -353,8 +382,11 @@ router.get('/drive-files', authenticateToken, async (req, res) => {
       folderId
     );
 
-    // webViewLink and thumbnailLink are now included in listFiles result
-    const filesWithLinks = result.files;
+    // Add R2 thumbnail URLs for video files
+    const filesWithLinks = result.files.map(file => ({
+      ...file,
+      r2ThumbnailUrl: getR2ThumbnailUrl(file.id, file.mimeType),
+    }));
 
     res.json({
       files: filesWithLinks,
@@ -380,6 +412,13 @@ router.delete('/drive-files/:fileId', authenticateToken, async (req, res) => {
     }
 
     await googleDriveManager.deleteFile(fileId);
+
+    // Also delete thumbnail from R2 if exists
+    try {
+      await deleteDriveThumbnail(fileId);
+    } catch (_thumbErr) {
+      // Ignore thumbnail deletion errors
+    }
 
     res.json({
       success: true,
@@ -572,7 +611,7 @@ router.get('/public/files', async (req, res) => {
       folderId
     );
 
-    // Enrich with webViewLinks
+    // Enrich with webViewLinks and R2 thumbnail URLs
     const filesWithLinks = await Promise.all(
       result.files.map(async (file) => {
         try {
@@ -580,10 +619,14 @@ router.get('/public/files', async (req, res) => {
           return {
             ...file,
             webViewLink: metadata.webViewLink,
-            thumbnailLink: metadata.thumbnailLink || null
+            thumbnailLink: metadata.thumbnailLink || null,
+            r2ThumbnailUrl: getR2ThumbnailUrl(file.id, file.mimeType),
           };
         } catch (_error) {
-          return file;
+          return {
+            ...file,
+            r2ThumbnailUrl: getR2ThumbnailUrl(file.id, file.mimeType),
+          };
         }
       })
     );
@@ -638,6 +681,86 @@ router.get('/proxy/:fileId', authenticateToken, async (req, res) => {
     // If headers already sent, we can't send JSON error
     if (!res.headersSent) {
       res.status(500).json({ error: error.message || 'Failed to proxy file' });
+    }
+  }
+});
+
+/**
+ * @route POST /api/storage/generate-thumbnail/:fileId
+ * @desc Generate and upload thumbnail for an existing video in Google Drive
+ * @access Private
+ */
+router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) => {
+  const { fileId } = req.params;
+  let tempVideoPath;
+  let thumbPath;
+
+  try {
+    if (!googleDriveManager.isEnabled()) {
+      return res.status(503).json({ error: 'Google Drive is not enabled' });
+    }
+
+    // Check if thumbnail already exists in R2
+    const thumbKey = `drive-thumbs/${fileId}.jpg`;
+    const exists = await checkR2ObjectExists(thumbKey);
+    if (exists) {
+      return res.json({
+        success: true,
+        message: 'Thumbnail already exists',
+        url: `${process.env.R2_PUBLIC_URL}/${thumbKey}`,
+      });
+    }
+
+    // Get file metadata
+    const metadata = await googleDriveManager.getFileMetadata(fileId);
+    if (!metadata.mimeType?.startsWith('video/')) {
+      return res.status(400).json({ error: 'File is not a video' });
+    }
+
+    // Create temp directory
+    const tempDir = path.resolve('temp-uploads');
+    await fs.promises.mkdir(tempDir, { recursive: true });
+
+    tempVideoPath = path.join(tempDir, `thumb-gen-${fileId}-${Date.now()}.tmp`);
+
+    // Download video from Drive
+    console.log(`⬇️ Downloading video ${fileId} for thumbnail generation...`);
+    const fileStream = await googleDriveManager.downloadFile(fileId);
+    const writeStream = fs.createWriteStream(tempVideoPath);
+    await pipeline(fileStream, writeStream);
+
+    // Generate thumbnail
+    console.log(`🖼️ Generating thumbnail for ${fileId}...`);
+    const thumbFilename = `thumb-${fileId}.jpg`;
+    thumbPath = await generateThumbnail(tempVideoPath, tempDir, thumbFilename);
+
+    // Read and upload thumbnail to R2
+    const thumbnailBuffer = await fs.promises.readFile(thumbPath);
+    const r2Url = await uploadDriveThumbnail(thumbnailBuffer, fileId);
+
+    console.log(`✅ Thumbnail generated and uploaded for ${fileId}: ${r2Url}`);
+
+    res.json({
+      success: true,
+      message: 'Thumbnail generated successfully',
+      url: r2Url,
+    });
+  } catch (error) {
+    console.error('Generate thumbnail error:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate thumbnail' });
+  } finally {
+    // Cleanup temp files
+    try {
+      if (tempVideoPath) {
+        await fs.promises.unlink(tempVideoPath);
+      }
+      if (thumbPath) {
+        await fs.promises.unlink(thumbPath);
+      }
+    } catch (cleanupError) {
+      if (cleanupError.code !== 'ENOENT') {
+        console.error('Failed to cleanup temp files:', cleanupError);
+      }
     }
   }
 });

@@ -47,6 +47,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UploadProgressWidget } from "./UploadProgressWidget";
+import { ThumbnailImage } from "@/components/ui/ThumbnailImage";
 
 export function StoragePage() {
   const navigate = useNavigate();
@@ -96,6 +97,9 @@ export function StoragePage() {
     message: "",
     onConfirm: null,
   });
+
+  // Thumbnail generation tracking
+  const [generatingThumbnails, setGeneratingThumbnails] = useState(new Set());
 
   useEffect(() => {
     fetchFiles(currentFolder?.id);
@@ -554,6 +558,44 @@ export function StoragePage() {
         }
       },
     });
+  };
+
+  const handleGenerateThumbnail = async (fileId, fileName) => {
+    if (generatingThumbnails.has(fileId)) return;
+
+    setGeneratingThumbnails(prev => new Set([...prev, fileId]));
+    toast.info(`Gerando miniatura para "${fileName}"...`);
+
+    try {
+      const response = await fetch(`/api/storage/generate-thumbnail/${fileId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Miniatura gerada com sucesso!`);
+
+        // Update the file in local state with the new thumbnail URL
+        setFiles(prev => prev.map(f =>
+          f.id === fileId
+            ? { ...f, r2ThumbnailUrl: data.url }
+            : f
+        ));
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Erro ao gerar miniatura");
+      }
+    } catch (error) {
+      console.error("Generate thumbnail error:", error);
+      toast.error("Erro ao gerar miniatura");
+    } finally {
+      setGeneratingThumbnails(prev => {
+        const next = new Set(prev);
+        next.delete(fileId);
+        return next;
+      });
+    }
   };
 
   const formatFileSize = (bytes) => {
@@ -1096,14 +1138,20 @@ export function StoragePage() {
                                     setPreviewFile(file);
                                   }}
                                 >
-                                  {file.thumbnailLink ? (
-                                    <img
+                                  {(file.thumbnailLink || file.r2ThumbnailUrl) ? (
+                                    <ThumbnailImage
                                       src={file.thumbnailLink}
+                                      fallbackSrc={file.r2ThumbnailUrl}
                                       alt={file.name}
                                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                     />
                                   ) : (
                                     <FileIcon className="w-12 h-12 text-zinc-500" />
+                                  )}
+                                  {generatingThumbnails.has(file.id) && (
+                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                      <Loader2 className="w-8 h-8 text-white animate-spin" />
+                                    </div>
                                   )}
 
                                   {/* Hover Overlay with Download */}
@@ -1151,6 +1199,19 @@ export function StoragePage() {
                                       <DropdownMenuItem onClick={() => openRenameDialog(file)}>
                                         <Pencil className="mr-2 h-4 w-4" /> Renomear
                                       </DropdownMenuItem>
+                                      {file.mimeType?.startsWith('video/') && !file.thumbnailLink && !file.r2ThumbnailUrl && (
+                                        <DropdownMenuItem
+                                          onClick={() => handleGenerateThumbnail(file.id, file.name)}
+                                          disabled={generatingThumbnails.has(file.id)}
+                                        >
+                                          {generatingThumbnails.has(file.id) ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <FileImage className="mr-2 h-4 w-4" />
+                                          )}
+                                          Gerar Miniatura
+                                        </DropdownMenuItem>
+                                      )}
                                       <ContextMenuSeparator className="bg-zinc-800" />
                                       <DropdownMenuItem
                                         className="text-red-600 focus:text-red-500"

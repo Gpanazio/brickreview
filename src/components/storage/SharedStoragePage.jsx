@@ -32,6 +32,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { FileViewer } from "./FileViewer";
+import { ThumbnailImage } from "@/components/ui/ThumbnailImage";
 
 export function SharedStoragePage() {
     const { id } = useParams(); // This is the folder ID or file ID shared
@@ -387,9 +388,10 @@ export function SharedStoragePage() {
                                                         >
                                                             <div className="flex flex-col gap-3">
                                                                 <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center">
-                                                                    {file.thumbnailLink ? (
-                                                                        <img
+                                                                    {(file.thumbnailLink || file.r2ThumbnailUrl) ? (
+                                                                        <ThumbnailImage
                                                                             src={file.thumbnailLink}
+                                                                            fallbackSrc={file.r2ThumbnailUrl}
                                                                             alt={file.name}
                                                                             className="w-full h-full object-cover"
                                                                         />
