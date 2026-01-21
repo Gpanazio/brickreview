@@ -736,7 +736,8 @@ router.post('/generate-thumbnail/:fileId', authenticateToken, async (req, res) =
     // Generate thumbnail
     logger.info(`🖼️ Generating thumbnail for ${fileId}...`);
     const thumbFilename = `thumb-${fileId}.jpg`;
-    thumbPath = await generateThumbnail(tempVideoPath, tempDir, thumbFilename);
+    const { timestamp } = req.body;
+    thumbPath = await generateThumbnail(tempVideoPath, tempDir, thumbFilename, { timestamp });
 
     // Read and upload thumbnail to R2
     const thumbnailBuffer = await fs.promises.readFile(thumbPath);

@@ -55,7 +55,8 @@ const createProgressLogger = (label) => {
   };
 };
 
-export const generateThumbnail = (videoPath, outputDir, filename) => {
+export const generateThumbnail = (videoPath, outputDir, filename, options = {}) => {
+  const { timestamp = "50%" } = options;
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
@@ -63,7 +64,7 @@ export const generateThumbnail = (videoPath, outputDir, filename) => {
 
     ffmpeg(videoPath)
       .screenshots({
-        timestamps: ["50%"],
+        timestamps: [timestamp],
         filename: filename,
         folder: outputDir,
         size: "640x?",
