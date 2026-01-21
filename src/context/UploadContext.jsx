@@ -75,7 +75,6 @@ export function UploadProvider({ children }) {
                 const endpoint = isVideo ? "/api/videos/upload" : "/api/files/upload";
                 const response = await fetch(endpoint, {
                     method: "POST",
-                    headers: { Authorization: `Bearer ${token}` },
                     body: formData,
                 });
 

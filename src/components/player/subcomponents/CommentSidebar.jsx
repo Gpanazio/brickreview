@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useAuth } from "../../../hooks/useAuth";
+import { useOptimisticComments } from "../../../hooks/useOptimisticComments";
 import { useVideo } from "../../../context/VideoContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -370,6 +371,16 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
   const fileInputRef = useRef(null);
 
+  // Optimistic UI for comment operations
+  const optimisticComments = useOptimisticComments({
+    setComments,
+    videoId: currentVideoId,
+    isGuest,
+    shareToken,
+    sharePassword,
+    visitorName,
+  });
+
   // Helper functions
   const formatTime = (seconds) => {
     if (isNaN(seconds) || seconds === null) return "0:00";
@@ -389,20 +400,6 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return Number.isFinite(num) ? num : null;
-  };
-
-  const compareCommentsByTimestamp = (a, b) => {
-    const aTs = parseTimestampSeconds(a?.timestamp);
-    const bTs = parseTimestampSeconds(b?.timestamp);
-
-    if (aTs === null && bTs === null) {
-      return new Date(a.created_at) - new Date(b.created_at);
-    }
-    if (aTs === null) return 1;
-    if (bTs === null) return -1;
-    if (aTs !== bTs) return aTs - bTs;
-
-    return new Date(a.created_at) - new Date(b.created_at);
   };
 
   const getGuestCommentIds = () => {
@@ -486,7 +483,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
     };
   };
 
-  // Actions
+  // Actions - Using Optimistic UI
   const addComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
@@ -496,56 +493,49 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       return;
     }
 
+    // Save visitor name to localStorage
+    if (isGuest && visitorName.trim()) {
+      localStorage.setItem("brickreview_visitor_name", visitorName.trim());
+    }
+
+    // Handle range mode - ensure start < end even if user dragged left
+    let finalTimestamp = hasTimestamp ? currentTime : null;
+    let finalTimestampEnd = null;
+
+    if (hasTimestamp && isRangeMode && rangeEndTime !== null) {
+      finalTimestamp = Math.min(currentTime, rangeEndTime);
+      finalTimestampEnd = Math.max(currentTime, rangeEndTime);
+    }
+
+    const body = {
+      video_id: currentVideoId,
+      content: newComment,
+      timestamp: finalTimestamp,
+      timestamp_end: finalTimestampEnd,
+    };
+
+    if (isGuest) body.visitor_name = visitorName;
+
+    // Clear form immediately for instant feedback
+    const commentContent = newComment;
+    setNewComment("");
+    setAttachedFile(null);
+    setIsDrawingMode(false);
+
     try {
-      if (isGuest && visitorName.trim()) {
-        localStorage.setItem("brickreview_visitor_name", visitorName.trim());
-      }
-
-      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : "/api/comments";
-      const headers = { "Content-Type": "application/json" };
-
-      if (isGuest && sharePassword) headers["x-share-password"] = sharePassword;
-      if (!isGuest) headers["Authorization"] = `Bearer ${token}`;
-
-      // Handle range mode - ensure start < end even if user dragged left
-      let finalTimestamp = hasTimestamp ? currentTime : null;
-      let finalTimestampEnd = null;
-
-      if (hasTimestamp && isRangeMode && rangeEndTime !== null) {
-        finalTimestamp = Math.min(currentTime, rangeEndTime);
-        finalTimestampEnd = Math.max(currentTime, rangeEndTime);
-      }
-
-      const body = {
-        video_id: currentVideoId,
-        content: newComment,
-        timestamp: finalTimestamp,
-        timestamp_end: finalTimestampEnd,
-      };
-
-      if (isGuest) body.visitor_name = visitorName;
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
+      const result = await optimisticComments.addComment.mutate({
+        body,
+        username: isGuest ? visitorName : 'Você',
       });
 
-      if (response.ok) {
-        const comment = await response.json();
-        if (isGuest) addGuestCommentId(comment.id);
-        setComments((prev) => [...prev, comment].sort(compareCommentsByTimestamp));
-        setNewComment("");
-        setAttachedFile(null);
-        setIsDrawingMode(false);
-        toast.success("Comentário adicionado!");
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || "Erro ao adicionar comentário");
+      // Track guest comment for edit/delete permissions
+      if (isGuest && result?.id) {
+        addGuestCommentId(result.id);
       }
-    } catch (_error) {
-      console.error("Erro ao adicionar comentário");
-      toast.error("Erro ao adicionar comentário");
+    } catch (error) {
+      // Restore form on error
+      setNewComment(commentContent);
+      console.error("Erro ao adicionar comentário:", error);
     }
   };
 
@@ -559,72 +549,58 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       return;
     }
 
+    // Save visitor name to localStorage
+    if (isGuest && visitorName.trim()) {
+      localStorage.setItem("brickreview_visitor_name", visitorName.trim());
+    }
+
+    const body = {
+      video_id: currentVideoId,
+      content: replyText,
+      timestamp: currentTime,
+      parent_comment_id: replyingTo,
+    };
+
+    if (isGuest) body.visitor_name = visitorName;
+
+    // Clear form immediately for instant feedback
+    const replyContent = replyText;
+    const parentId = replyingTo;
+    setReplyText("");
+    setReplyingTo(null);
+    setIsDrawingMode(false);
+
     try {
-      if (isGuest && visitorName.trim()) {
-        localStorage.setItem("brickreview_visitor_name", visitorName.trim());
-      }
-      const endpoint = isGuest ? `/api/shares/${shareToken}/comments` : "/api/comments";
-      const headers = { "Content-Type": "application/json" };
-
-      if (isGuest && sharePassword) headers["x-share-password"] = sharePassword;
-      if (!isGuest) headers["Authorization"] = `Bearer ${token}`;
-
-      const body = {
-        video_id: currentVideoId,
-        content: replyText,
-        timestamp: currentTime,
-        parent_comment_id: replyingTo,
-      };
-
-      if (isGuest) body.visitor_name = visitorName;
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(body),
+      const result = await optimisticComments.addReply.mutate({
+        body,
+        username: isGuest ? visitorName : 'Você',
       });
 
-      if (response.ok) {
-        const reply = await response.json();
-        if (isGuest) addGuestCommentId(reply.id);
-        setComments((prev) => [...prev, reply]);
-        setReplyText("");
-        setReplyingTo(null);
-        setIsDrawingMode(false);
-        toast.success("Resposta adicionada!");
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || "Erro ao adicionar resposta");
+      // Track guest comment for edit/delete permissions
+      if (isGuest && result?.id) {
+        addGuestCommentId(result.id);
       }
-    } catch (_error) {
-      console.error("Erro ao adicionar resposta");
-      toast.error("Erro ao adicionar resposta");
+    } catch (error) {
+      // Restore form on error
+      setReplyText(replyContent);
+      setReplyingTo(parentId);
+      console.error("Erro ao adicionar resposta:", error);
     }
   };
 
   const handleEditComment = async (commentId, newContent) => {
-    const endpoint = isGuest
-      ? `/api/shares/${shareToken}/comments/${commentId}`
-      : `/api/comments/${commentId}`;
+    // Close edit mode immediately for instant feedback
+    setEditingComment(null);
 
-    const headers = { "Content-Type": "application/json" };
-    if (isGuest && sharePassword) headers["x-share-password"] = sharePassword;
-    if (!isGuest) headers["Authorization"] = `Bearer ${token}`;
-
-    const response = await fetch(endpoint, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ content: newContent }),
-    });
-
-    if (response.ok) {
-      const updatedComment = await response.json();
-      setComments((prev) => prev.map((c) => (c.id === commentId ? updatedComment : c)));
-      setEditingComment(null);
-      toast.success("Comentário atualizado!");
-    } else {
-      const data = await response.json().catch(() => ({}));
-      toast.error(data.error || "Erro ao atualizar comentário");
+    try {
+      await optimisticComments.editComment.mutate({
+        commentId,
+        newContent
+      });
+    } catch (error) {
+      // Reopen edit mode on error
+      setEditingComment(commentId);
+      console.error("Erro ao editar comentário:", error);
     }
   };
 
@@ -634,43 +610,24 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       title: "Excluir comentário",
       message: "Tem certeza que deseja excluir este comentário?",
       onConfirm: async () => {
-        const deleteToast = toast.loading("Excluindo comentário...");
+        // Close dialog immediately
+        setConfirmDialog({ isOpen: false, title: "", message: "", onConfirm: null });
+
+        // Clear reply state if deleting parent
+        if (String(replyingTo) === String(commentId)) {
+          setReplyingTo(null);
+          setReplyText("");
+        }
+
         try {
-          const endpoint = isGuest
-            ? `/api/shares/${shareToken}/comments/${commentId}`
-            : `/api/comments/${commentId}`;
+          await optimisticComments.deleteComment.mutate({ commentId });
 
-          const headers = { "Content-Type": "application/json" };
-          if (isGuest && sharePassword) headers["x-share-password"] = sharePassword;
-          if (!isGuest) headers["Authorization"] = `Bearer ${token}`;
-
-          const response = await fetch(endpoint, {
-            method: "DELETE",
-            headers,
-          });
-
-          if (!response.ok) {
-            toast.error("Erro ao excluir comentário", { id: deleteToast });
-            return;
-          }
-
-          if (isGuest) removeGuestCommentId(commentId);
-
-          toast.success("Comentário excluído", { id: deleteToast });
-          setComments((prev) =>
-            prev.filter(
-              (c) =>
-                String(c.id) !== String(commentId) &&
-                String(c.parent_comment_id) !== String(commentId)
-            )
-          );
-          if (String(replyingTo) === String(commentId)) {
-            setReplyingTo(null);
-            setReplyText("");
+          // Track guest comment removal
+          if (isGuest) {
+            removeGuestCommentId(commentId);
           }
         } catch (error) {
           console.error("Erro ao excluir comentário:", error);
-          toast.error("Erro ao excluir comentário", { id: deleteToast });
         }
       },
     });
@@ -695,7 +652,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
 
       const headers = isGuest
         ? sharePassword ? { "x-share-password": sharePassword } : {}
-        : { Authorization: `Bearer ${token}` };
+        : {};
 
       const response = await fetch(endpoint, { method: "DELETE", headers });
 
@@ -730,7 +687,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
               : `/api/drawings/${d.id}`;
             const headers = isGuest
               ? sharePassword ? { "x-share-password": sharePassword } : {}
-              : { Authorization: `Bearer ${token}` };
+              : {};
             return fetch(endpoint, { method: "DELETE", headers });
           });
 

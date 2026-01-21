@@ -2,9 +2,15 @@ import jwt from 'jsonwebtoken'
 
 // Middleware para verificar token JWT
 export async function authenticateToken(req, res, next) {
-  let token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1] // Bearer TOKEN
+  // 1. Tenta pegar do cookie (HTTP-Only)
+  let token = req.cookies?.token
 
-  // Fallback: Check query parameter (useful for img/video src)
+  // 2. Se não tiver cookie, tenta header (Legacy/API access)
+  if (!token && req.headers['authorization']) {
+    token = req.headers['authorization'].split(' ')[1] // Bearer TOKEN
+  }
+
+  // 3. Fallback: Query parameter (apenas para casos específicos como SSE/Images se necessário, mas evite)
   if (!token && req.query.token) {
     token = req.query.token
   }

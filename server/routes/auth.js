@@ -70,8 +70,16 @@ router.post("/login", async (req, res) => {
       { expiresIn: "24h" }
     );
 
+    // Set HTTP-Only Cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Só via HTTPS em produção
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 horas
+    });
+
     res.json({
-      token,
+      token, // Mantido por compatibilidade temporária (frontend deve ignorar)
       user: {
         id: user.id,
         email: user.email,
@@ -90,8 +98,14 @@ router.post("/login", async (req, res) => {
 
 // GET /api/auth/verify - Verifica se o token é válido
 router.get("/verify", async (req, res) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  // 1. Check Cookie
+  let token = req.cookies?.token;
+
+  // 2. Check Header (Fallback)
+  if (!token) {
+    const authHeader = req.headers["authorization"];
+    token = authHeader && authHeader.split(" ")[1];
+  }
 
   if (!token) {
     return res.status(401).json({ valid: false });
@@ -107,6 +121,7 @@ router.get("/verify", async (req, res) => {
 
 // POST /api/auth/logout - Logout (client-side limpa o token)
 router.post("/logout", (req, res) => {
+  res.clearCookie('token');
   res.json({
     message: "Logout realizado com sucesso",
   });

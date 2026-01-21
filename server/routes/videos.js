@@ -314,13 +314,6 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       mime_type,
     } = videoResult.rows[0];
 
-    // DEBUG: Log video data
-    logger.info(`🎬 Stream request for video ${req.params.id}:`, {
-      r2_url,
-      proxy_url,
-      streaming_high_url,
-      quality,
-    });
 
     // Se quality for 'original', tenta usar Streaming High se existir, senão Original.
     // Senão (ou se original falhar), tenta o proxy.
@@ -370,7 +363,7 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       mime: isOriginal ? mime_type || "video/mp4" : "video/mp4",
     });
   } catch (error) {
-    logger.error("Erro crítico ao gerar URL de streaming:", error);
+    logger.error("VIDEOS", "Erro crítico ao gerar URL de streaming", { error: error.message });
     res.status(500).json({ error: "Falha no sistema de streaming" });
   }
 });
@@ -450,7 +443,7 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
       type: resolvedType,
     });
   } catch (error) {
-    logger.error("Erro ao gerar URL de download:", error);
+    logger.error("VIDEOS", "Erro ao gerar URL de download", { error: error.message });
     res.status(500).json({ error: "Falha ao gerar URL de download" });
   }
 });
@@ -491,7 +484,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
       comments: commentsResult.rows,
     });
   } catch (error) {
-    logger.error("Erro ao buscar detalhes do vídeo:", error);
+    logger.error("VIDEOS", "Erro ao buscar detalhes do vídeo", { error: error.message });
     res.status(500).json({ error: "Erro ao buscar detalhes do vídeo" });
   }
 });
@@ -550,7 +543,7 @@ router.patch("/:id/move", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    logger.error("Erro ao mover vídeo:", error);
+    logger.error("VIDEOS", "Erro ao mover vídeo", { error: error.message });
     res.status(500).json({ error: "Erro ao mover vídeo" });
   }
 });
@@ -633,7 +626,7 @@ router.post("/:id/create-version", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    logger.error("Erro ao criar versão:", error);
+    logger.error("VIDEOS", "Erro ao criar versão", { error: error.message });
     res.status(500).json({ error: "Erro ao criar versão" });
   }
 });
@@ -662,7 +655,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     res.json({ message: "Vídeo enviado para a lixeira", id: videoId });
   } catch (error) {
-    logger.error("Erro ao excluir vídeo:", error);
+    logger.error("VIDEOS", "Erro ao excluir vídeo", { error: error.message });
     res.status(500).json({ error: "Erro ao excluir vídeo" });
   }
 });

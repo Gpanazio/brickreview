@@ -36,6 +36,7 @@ import {
 import { Label } from "@/components/ui/label";
 import "./App.css";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { useOptimisticProjects } from "./hooks/useOptimisticProjects";
 import { UploadProvider } from "./context/UploadContext";
 import { Toaster } from "./components/ui/sonner";
 import { ProjectCoverPlaceholder } from "./components/ui/ProjectCoverPlaceholder";
@@ -284,8 +285,13 @@ function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: "", description: "", client_name: "" });
-  const [isCreating, setIsCreating] = useState(false);
   const { token } = useAuth();
+
+  // Optimistic UI for project operations
+  const { createProject } = useOptimisticProjects({
+    setProjects,
+    fetchProjects,
+  });
 
   useEffect(() => {
     fetchProjects();
@@ -294,26 +300,18 @@ function ProjectsPage() {
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
-    setIsCreating(true);
-    try {
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newProject),
-      });
+    if (!newProject.name.trim()) return;
 
-      if (response.ok) {
-        setIsDialogOpen(false);
-        setNewProject({ name: "", description: "", client_name: "" });
-        fetchProjects();
-      }
+    // Close dialog immediately for instant feedback
+    setIsDialogOpen(false);
+    const projectData = { ...newProject };
+    setNewProject({ name: "", description: "", client_name: "" });
+
+    try {
+      await createProject.mutate({ project: projectData });
     } catch (error) {
+      // Error handling is done in the hook
       console.error("Erro ao criar projeto:", error);
-    } finally {
-      setIsCreating(false);
     }
   };
 
@@ -397,10 +395,10 @@ function ProjectsPage() {
                   </div>
                   <Button
                     type="submit"
-                    disabled={isCreating}
+                    disabled={createProject.isPending || !newProject.name.trim()}
                     className="w-full glass-button-primary border-none rounded-none h-12 font-black uppercase tracking-widest"
                   >
-                    {isCreating ? "Criando..." : "Criar Projeto"}
+                    {createProject.isPending ? "Criando..." : "Criar Projeto"}
                   </Button>
                 </form>
               </DialogContent>

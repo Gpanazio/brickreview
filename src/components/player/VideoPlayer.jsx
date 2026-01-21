@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import { useOptimisticMutation } from "../../hooks/useOptimisticMutation";
 import { VideoProvider, useVideo } from "../../context/VideoContext";
 import { VideoPlayerCore } from "./subcomponents/VideoPlayerCore";
 import { ReviewCanvas } from "./subcomponents/ReviewCanvas";
@@ -207,39 +208,56 @@ function VideoPlayerContent({
     [playerRef]
   );
 
-  const handleApproval = async (status) => {
-    setIsSubmittingApproval(true);
-    try {
+  // Optimistic Approval - Status changes instantly
+  const approvalMutation = useOptimisticMutation({
+    mutationFn: async (data) => {
       const response = await fetch("/api/reviews", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           video_id: currentVideoId,
-          status,
-          notes:
-            status === "approved" ? "Aprovado pelo cliente" : "Ajustes solicitados pelo cliente",
+          status: data.status,
+          notes: data.status === "approved"
+            ? "Aprovado pelo cliente"
+            : "Ajustes solicitados pelo cliente",
         }),
       });
 
-      if (response.ok) {
-        setApprovalStatus(status);
-        fetchHistory();
+      if (!response.ok) {
+        throw new Error("Erro ao processar aprovação");
       }
-    } catch (_error) {
-      console.error("Erro ao processar aprovação:");
-    } finally {
-      setIsSubmittingApproval(false);
-    }
+
+      return response.json();
+    },
+
+    onMutate: (data) => {
+      const previousStatus = approvalStatus;
+      // Instant feedback - update status immediately
+      setApprovalStatus(data.status);
+      return { previousStatus };
+    },
+
+    onSuccess: () => {
+      // Refresh history after successful approval
+      fetchHistory();
+    },
+
+    onError: (_error, _data, context) => {
+      // Rollback on error
+      if (context?.previousStatus) {
+        setApprovalStatus(context.previousStatus);
+      }
+      console.error("Erro ao processar aprovação");
+    },
+  });
+
+  const handleApproval = async (status) => {
+    await approvalMutation.mutate({ status });
   };
 
   const fetchHistory = useCallback(async () => {
     try {
-      const response = await fetch(`/api/reviews/${currentVideoId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(`/api/reviews/${currentVideoId}`);
       const data = await response.json();
       setHistory(data);
     } catch (error) {
@@ -303,7 +321,7 @@ function VideoPlayerContent({
         ? sharePassword
           ? { "x-share-password": sharePassword }
           : {}
-        : { Authorization: `Bearer ${token}` };
+        : {};
 
       const response = await fetch(endpoint, { headers });
 
@@ -342,7 +360,7 @@ function VideoPlayerContent({
         ? sharePassword
           ? { "x-share-password": sharePassword }
           : {}
-        : { Authorization: `Bearer ${token}` };
+        : {};
 
       const endpoint = isGuest
         ? `/api/shares/${shareToken}/video/${currentVideoId}/download?type=${type}`
@@ -383,7 +401,6 @@ function VideoPlayerContent({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           video_id: currentVideoId,
@@ -437,7 +454,7 @@ function VideoPlayerContent({
           ? sharePassword
             ? { "x-share-password": sharePassword }
             : {}
-          : { Authorization: `Bearer ${token}` };
+          : {};
 
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
@@ -475,7 +492,7 @@ function VideoPlayerContent({
           ? sharePassword
             ? { "x-share-password": sharePassword }
             : {}
-          : { Authorization: `Bearer ${token}` };
+          : {};
 
         const response = await fetch(endpoint, { headers });
         if (response.ok) {
