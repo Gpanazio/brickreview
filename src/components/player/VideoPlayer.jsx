@@ -144,11 +144,11 @@ function VideoPlayerContent({
   const comparisonControllerRef = useRef(null);
   const compareSyncKeyRef = useRef(null);
 
-  const { token } = useAuth();
+  const { user } = useAuth();
 
   const isGuest = isPublic && !!shareToken;
-  const canApprove = !isGuest && !!token;
-  const canShare = !isGuest && !!token;
+  const canApprove = !isGuest;
+  const canShare = !isGuest;
   const canDownload = true;
 
   const allVersions = useMemo(
@@ -264,7 +264,7 @@ function VideoPlayerContent({
     } catch (error) {
       console.error("Erro ao buscar histórico:", error);
     }
-  }, [currentVideoId, token]);
+  }, [currentVideoId, user]);
 
   useEffect(() => {
     if (showHistory) fetchHistory();
@@ -341,7 +341,7 @@ function VideoPlayerContent({
     } catch (error) {
       console.error("Erro ao carregar comentários:", error);
     }
-  }, [currentVideoId, token, isGuest, shareToken, sharePassword, setComments]);
+  }, [currentVideoId, user, isGuest, shareToken, sharePassword, setComments]);
 
   useEffect(() => {
     fetchComments();
@@ -475,7 +475,7 @@ function VideoPlayerContent({
       setIsLoadingVideo(true);
       fetchStreamUrl();
     }
-  }, [currentVideoId, isGuest, quality, sharePassword, shareToken, token, setVideoUrl]);
+  }, [currentVideoId, isGuest, quality, sharePassword, shareToken, user, setVideoUrl]);
 
   useEffect(() => {
     if (!isComparing || !compareVersionId) {
@@ -515,7 +515,7 @@ function VideoPlayerContent({
     quality,
     sharePassword,
     shareToken,
-    token,
+    user,
     setCompareVideoUrl,
   ]);
 
