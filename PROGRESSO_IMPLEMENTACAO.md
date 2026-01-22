@@ -167,6 +167,27 @@ if (!allowedVideoTypes.includes(fileType.mime)) {
 
 ---
 
+### 🔧 Backend Service Layer Refactor (2026-01-22)
+**Status:** ✅ **COMPLETO**
+**Implementado por:** Antigravity Agent
+
+**Melhorias Implementadas:**
+- **VideoService:** Criação de `server/services/videoService.js` para encapsular lógica de upload e streaming.
+- **Rota Simplificada:** `server/routes/videos.js` agora delega operações complexas ao service, reduzindo acoplamento.
+- **Hooks de Player (não integrados):** `useVideoShortcuts`, `useVideoComparison`, `useVideoActions` criados para futura refatoração do `VideoPlayer.jsx`.
+- **Mason AI (scaffold):** Estrutura básica criada (`MasonService`, `MasonFloating`) mas não ativada em produção.
+- **Dependências:** Adicionado `@google/generative-ai` e `react-markdown`.
+
+**Arquivos Alterados:**
+- `server/services/videoService.js` (novo)
+- `server/routes/videos.js` (refatorado)
+- `server/index.js` (rotas Mason registradas)
+- `src/hooks/useVideoShortcuts.js` (novo)
+- `src/hooks/useVideoComparison.js` (novo)
+- `src/hooks/useVideoActions.js` (novo)
+
+---
+
 ## 📦 DEPENDÊNCIAS ADICIONADAS
 
 ```json
