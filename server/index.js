@@ -167,6 +167,7 @@ import driveRoutes from './routes/drive.js'
 import portfolioRoutes from './routes/portfolio.js'
 import portfolioCollectionsRoutes from './routes/portfolio-collections.js'
 import portfolioSharesRoutes from './routes/portfolio-shares.js'
+import masonRoutes from './routes/mason.js'
 // TODO: Import other routes
 // import notificationsRoutes from './routes/notifications.js'
 
@@ -174,6 +175,7 @@ import portfolioSharesRoutes from './routes/portfolio-shares.js'
 app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/shares', shareLimiter, sharesRoutes)
 app.use('/api/portfolio/shares', shareLimiter, portfolioSharesRoutes)
+app.use('/api/mason', masonRoutes)
 
 // Rotas protegidas (Rate limiter será aplicado internamente ou via router wrapper se necessário)
 // Para simplificar e garantir que req.user exista, o apiLimiter deve ser usado APÓS authenticateToken

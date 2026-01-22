@@ -61,6 +61,7 @@ const SharedCollectionPage = lazy(() => import("./components/portfolio/SharedCol
 
 // Cookie consent component (non-lazy, always needed)
 import { CookieConsent } from "./components/CookieConsent";
+import { MasonFloating } from "./components/MasonFloating";
 
 // Helper para identificar URLs padrão antigas
 const isDefaultUrl = (url) => {
@@ -87,6 +88,7 @@ function App() {
             </Suspense>
             <Toaster position="top-right" />
             <CookieConsent />
+            <MasonFloating />
           </BrowserRouter>
         </UploadProvider>
       </AuthProvider>

@@ -18,6 +18,7 @@ import logger from "../utils/logger.js";
 import { processVideo } from "../../scripts/process-video-metadata.js";
 import googleDriveManager from "../utils/google-drive.js";
 import { validateId } from "../utils/validateId.js";
+import { videoService } from "../services/videoService.js";
 
 const router = express.Router();
 
@@ -153,149 +154,27 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
   }
 
   try {
-    // 1. Upload Original Video to R2
-    const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
-    logger.info(`⬆️ Uploading original to R2: ${fileKey}`);
+    const video = await videoService.handleUpload({
+      file,
+      project_id: projectId,
+      title,
+      description,
+      folder_id: folderId,
+      user_id: req.user.id
+    });
 
-    const fileStream = fs.createReadStream(file.path);
-    await r2Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: fileKey,
-        Body: fileStream,
-        ContentType: file.mimetype,
-      })
-    );
-    const r2Url = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
-
-    // 2. Create DB Record with status 'ready' (no queue processing)
-    const result = await query(
-      `
-      INSERT INTO brickreview_videos (
-        project_id, folder_id, title, description, 
-        r2_key, r2_url, 
-        file_size, mime_type, uploaded_by, 
-        status
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ready')
-      RETURNING *
-    `,
-      [
-        projectId,
-        folderId,
-        title,
-        description,
-        fileKey,
-        r2Url,
-        file.size,
-        file.mimetype,
-        req.user.id,
-      ]
-    );
-
-    const video = result.rows[0];
-
-    // 3. Return success first
     res.status(201).json({
       message: "Upload concluído com sucesso.",
       video: video,
     });
 
-    // 4. Automatic Google Drive Backup (Non-blocking)
-    let shouldCleanup = true;
-
-    if (googleDriveManager.isEnabled()) {
-      logger.info(`🔄 Starting automatic Drive backup for video ${video.id}`);
-      shouldCleanup = false; // Defer cleanup to the async process
-
-      // Backup to Drive asynchronously
-      (async () => {
-        try {
-          // Verify file exists before creation stream to avoid race condition logging
-          if (!fs.existsSync(file.path)) {
-            throw new Error("File not found for Drive backup");
-          }
-
-          const fileStream = fs.createReadStream(file.path);
-          const fileBuffer = await streamToBuffer(fileStream);
-
-          const driveFile = await googleDriveManager.uploadFile(
-            `${video.id}_${video.title}.mp4`,
-            fileBuffer,
-            file.mimetype
-          );
-
-          // Update database with Drive info
-          // FIXED: Use correct table name 'brickreview_videos'
-          await query(
-            `UPDATE brickreview_videos
-             SET drive_file_id = $1, drive_backup_date = NOW(), storage_location = 'both'
-             WHERE id = $2`,
-            [driveFile.id, video.id]
-          );
-
-          logger.info(`✅ Video ${video.id} backed up to Drive: ${driveFile.id}`);
-        } catch (error) {
-          logger.error("DRIVE_BACKUP", `Failed to backup video ${video.id} to Drive`, {
-            videoId: video.id,
-            error: error.message,
-          });
-          // Continue without Drive backup - R2 upload was successful
-        } finally {
-          // Cleanup local temp file AFTER Drive backup attempt
-          if (file?.path) {
-            try {
-              await fs.promises.unlink(file.path);
-              logger.debug("VIDEO_UPLOAD", "Temp file cleaned up after Drive backup", { path: file.path });
-            } catch (e) {
-              logger.warn("Failed to cleanup temp upload after Drive backup:", e);
-            }
-          }
-        }
-      })();
-    } else {
-      logger.info(`ℹ️ Google Drive backup disabled for video ${video.id}`);
-    }
-
-    // 5. Processamento Assíncrono: Queue ou Fallback Síncrono
-    const processData = { r2Key: fileKey, projectId: projectId };
-
-    // Função de fallback para não duplicar código
-    const runSyncFallback = (reason) => {
-      logger.warn("VIDEO_PROCESS", `Executando fallback síncrono (${reason})`, {
-        videoId: video.id,
-      });
-      processVideo(video.id).catch((err) => {
-        logger.error("VIDEO_PROCESS", `Erro fatal no processamento síncrono`, {
-          videoId: video.id,
-          error: err.message,
-        });
-      });
-    };
-
-    // Tenta usar a fila se a flag estiver ativa e o Redis configurado
-    if (FEATURES.USE_VIDEO_QUEUE && process.env.REDIS_URL) {
-      addVideoJobSafe(video.id, processData).catch((err) => {
-        logger.error("VIDEO_PROCESS", "Falha ao adicionar à fila, ativando fallback", {
-          error: err.message,
-        });
-        runSyncFallback("queue_error");
-      });
-    } else {
-      runSyncFallback("feature_flag_disabled_or_no_redis");
-    }
   } catch (error) {
-    logger.error("Erro no upload assíncrono:", error);
-    res.status(500).json({ error: "Erro ao processar upload" });
-  } finally {
-    // Cleanup local temp file ONLY if not deferred to async backup
-    if (file?.path && typeof shouldCleanup !== 'undefined' && shouldCleanup) {
-      try {
-        await fs.promises.unlink(file.path);
-      } catch (e) {
-        logger.warn("Failed to cleanup temp upload:", e);
-      }
+    logger.error("Erro no upload:", error);
+    // Cleanup temp file on error if service didn't handle it
+    if (file?.path && fs.existsSync(file.path)) {
+      try { await fs.promises.unlink(file.path); } catch (e) { }
     }
+    res.status(500).json({ error: "Erro ao processar upload", details: error.message });
   }
 });
 
@@ -333,55 +212,13 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       mime_type,
     } = videoResult.rows[0];
 
-
-    // Se quality for 'original', tenta usar Streaming High se existir, senão Original.
-    // Senão (ou se original falhar), tenta o proxy.
-    let streamKey, streamUrl, isOriginal;
-
-    if (quality === "original") {
-      // Prioriza Streaming High se existir (pois é otimizado para web mas alta qualidade)
-      // Se não, usa o original
-      if (streaming_high_url) {
-        streamKey = streaming_high_r2_key;
-        streamUrl = streaming_high_url;
-      } else {
-        streamKey = r2_key;
-        streamUrl = r2_url;
-      }
-      isOriginal = true;
-    } else {
-      streamKey = proxy_r2_key || streaming_high_r2_key || r2_key;
-      streamUrl = proxy_url || streaming_high_url || r2_url;
-      // FIXED: isOriginal is false if ANY proxy exists (url OR key)
-      isOriginal = !proxy_url && !proxy_r2_key;
+    try {
+      const streamData = await videoService.getStreamUrl(videoResult.rows[0], quality);
+      return res.json(streamData);
+    } catch (err) {
+      logger.error("VIDEOS", "Failed to get stream url from service", err);
+      return res.status(500).json({ error: "Falha no sistema de streaming" });
     }
-
-    if (process.env.R2_PUBLIC_URL && streamUrl && streamUrl.includes(process.env.R2_PUBLIC_URL)) {
-      return res.json({
-        url: streamUrl,
-        mime: isOriginal ? mime_type || "video/mp4" : "video/mp4",
-        isProxy: !isOriginal,
-      });
-    }
-
-    if (!process.env.R2_BUCKET_NAME) {
-      return res.status(500).json({ error: "Configuração do R2 ausente" });
-    }
-
-    const signedUrl = await getSignedUrl(
-      r2Client,
-      new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
-        Key: streamKey,
-      }),
-      { expiresIn: 60 * 60 * 24 }
-    );
-
-    res.json({
-      url: signedUrl,
-      isProxy: !isOriginal,
-      mime: isOriginal ? mime_type || "video/mp4" : "video/mp4",
-    });
   } catch (error) {
     logger.error("VIDEOS", "Erro crítico ao gerar URL de streaming", { error });
     res.status(500).json({ error: "Falha no sistema de streaming" });
