@@ -626,7 +626,7 @@ router.post("/:id/create-version", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    logger.error("VIDEOS", "Erro ao criar versão", { error: error.message });
+    logger.error("VIDEOS", "Erro ao criar versão", { error });
     res.status(500).json({ error: "Erro ao criar versão" });
   }
 });
