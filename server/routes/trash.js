@@ -114,66 +114,66 @@ router.post("/:type/:id/restore", authenticateToken, async (req, res) => {
 
   try {
     let tableName;
-    let ownerCol = 'user_id'; // default fallback
-    let joinClause = '';
-    let whereClause = '';
+    // Para simplificar, vamos restaurar baseado no ID. 
+    // A segurança ideal seria verificar se o usuário tem acesso ao PROJETO ao qual o item pertence.
+    // Mas como a lista da lixeira já filtra pelo usuário (criador/upload), vamos confiar nisso por agora pra consertar o bug imediato,
+    // ou fazer uma verificação de projeto se possível.
 
     switch (type) {
       case "project":
-        tableName = "brickreview_projects";
-        ownerCol = 'created_by';
-        break;
+        // Apenas o dono pode restaurar projeto
+        const projectResult = await query(
+          `UPDATE brickreview_projects SET deleted_at = NULL WHERE id = $1 AND created_by = $2 RETURNING *`,
+          [id, user.id]
+        );
+        if (projectResult.rowCount === 0) return res.status(404).json({ error: "Project not found or permission denied" });
+
+        // Restaurar itens cascata? O endpoint original fazia isso, vamos manter simples por enquanto
+        // UPDATE: A migration soft delete não faz cascade restore automático no banco, 
+        // mas o endpoint original de delete faz update em tudo.
+        // O ideal seria restaurar tudo que pertence ao projeto.
+        await query("UPDATE brickreview_folders SET deleted_at = NULL WHERE project_id = $1", [id]);
+        await query("UPDATE brickreview_videos SET deleted_at = NULL WHERE project_id = $1", [id]);
+        await query("UPDATE brickreview_files SET deleted_at = NULL WHERE project_id = $1", [id]);
+
+        return res.json(projectResult.rows[0]);
+
       case "folder":
-        tableName = "brickreview_folders";
-        // Complex case: update folder where project produced by user
-        // But standard UPDATE doesn't support JOIN easily in all dialects with RETURNING cleanly in one go for simple RBAC
-        // We will do a two-step check for folders to be safe and simple
-        break;
+        // Verificar se usuário tem acesso ao projeto da pasta
+        const folderCheck = await query(`
+            SELECT f.id FROM brickreview_folders f
+            JOIN brickreview_projects p ON f.project_id = p.id
+            WHERE f.id = $1 AND (p.created_by = $2 OR EXISTS (SELECT 1 FROM brickreview_project_members pm WHERE pm.project_id = p.id AND pm.user_id = $2))
+         `, [id, user.id]);
+
+        if (folderCheck.rowCount === 0) return res.status(403).json({ error: "Permission denied" });
+
+        const folderResult = await query(`UPDATE brickreview_folders SET deleted_at = NULL WHERE id = $1 RETURNING *`, [id]);
+        // Restaurar itens da pasta
+        await query("UPDATE brickreview_videos SET deleted_at = NULL WHERE folder_id = $1", [id]);
+        await query("UPDATE brickreview_files SET deleted_at = NULL WHERE folder_id = $1", [id]);
+        return res.json(folderResult.rows[0]);
+
       case "video":
-        tableName = "brickreview_videos";
-        ownerCol = 'uploaded_by';
-        break;
       case "file":
-        tableName = "brickreview_files";
-        ownerCol = 'uploaded_by';
-        break;
+        tableName = type === "video" ? "brickreview_videos" : "brickreview_files";
+        // Verificar acesso ao projeto
+        const itemCheck = await query(`
+            SELECT t.id FROM ${tableName} t
+            JOIN brickreview_projects p ON t.project_id = p.id
+            WHERE t.id = $1 AND (p.created_by = $2 OR EXISTS (SELECT 1 FROM brickreview_project_members pm WHERE pm.project_id = p.id AND pm.user_id = $2))
+        `, [id, user.id]);
+
+        if (itemCheck.rowCount === 0) return res.status(403).json({ error: "Permission denied" });
+
+        const itemResult = await query(`UPDATE ${tableName} SET deleted_at = NULL WHERE id = $1 RETURNING *`, [id]);
+        return res.json(itemResult.rows[0]);
+
       default:
         return res.status(400).json({ error: "Invalid item type" });
     }
-
-    let result;
-
-    if (type === 'folder') {
-      // Check permission for folder
-      const folderCheck = await query(`
-         SELECT f.id FROM brickreview_folders f
-         JOIN brickreview_projects p ON f.project_id = p.id
-         WHERE f.id = $1 AND p.created_by = $2
-       `, [id, user.id]);
-
-      if (folderCheck.rows.length === 0) {
-        return res.status(404).json({ error: "Item not found or you don't have permission." });
-      }
-
-      result = await query(
-        `UPDATE brickreview_folders SET deleted_at = NULL WHERE id = $1 RETURNING *`,
-        [id]
-      );
-    } else {
-      result = await query(
-        `UPDATE ${tableName} SET deleted_at = NULL WHERE id = $1 AND ${ownerCol} = $2 RETURNING *`,
-        [id, user.id]
-      );
-    }
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Item not found or you don't have permission to restore it." });
-    }
-
-    logger.info("TRASH", "Item restored", { type, id, userId: user.id });
-    res.json(result.rows[0]);
   } catch (error) {
-    logger.error("TRASH", "Error restoring item", { error: error.message, type, id, userId: user.id });
+    logger.error("TRASH", "Error restoring item", { error: error.message, type, id });
     res.status(500).json({ error: "Internal server error" });
   }
 });
