@@ -1,6 +1,7 @@
 import { query } from "../db.js";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
+import path from "path";
 import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import r2Client from "../utils/r2.js";
@@ -22,13 +23,13 @@ async function streamToBuffer(stream) {
 class VideoService {
     async handleUpload({ file, project_id, title, description, folder_id, user_id }) {
         // 1. Upload Original Video to R2
-        // Sanitize filename: remove special chars, limit length, keep extension
-        const ext = file.originalname.split('.').pop() || 'mp4';
-        const sanitizedName = file.originalname
-            .replace(/\.[^/.]+$/, '') // remove extension
+        // Sanitize filename: use path module for robust handling of edge cases
+        const ext = path.extname(file.originalname);
+        const basename = path.basename(file.originalname, ext);
+        const sanitizedName = basename
             .replace(/[^a-zA-Z0-9_-]/g, '_') // replace special chars
             .substring(0, 50); // limit length
-        const fileKey = `videos/${project_id}/${uuidv4()}-${sanitizedName}.${ext}`;
+        const fileKey = `videos/${project_id}/${uuidv4()}-${sanitizedName}${ext || '.mp4'}`;
 
         // Upload via Stream
         const fileStream = fs.createReadStream(file.path);
