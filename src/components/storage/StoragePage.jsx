@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -51,6 +51,7 @@ import { ThumbnailImage } from "@/components/ui/ThumbnailImage";
 
 export function StoragePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { token } = useAuth();
   const [files, setFiles] = useState([]);
   const [folders, setFolders] = useState([]);
@@ -101,10 +102,16 @@ export function StoragePage() {
   // Thumbnail generation tracking
   const [generatingThumbnails, setGeneratingThumbnails] = useState(new Set());
 
+  // Initial load handling
   useEffect(() => {
-    fetchFiles(currentFolder?.id);
-    setSelectedIds(new Set()); // Ensure selection is cleared when navigating
+    const folderId = searchParams.get("folderId");
+    fetchFiles(folderId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update selection when folder changes
+  useEffect(() => {
+    setSelectedIds(new Set());
   }, [currentFolder]);
 
   const fetchFiles = async (folderId = null) => {
@@ -128,6 +135,18 @@ export function StoragePage() {
 
         setFolders(folderItems);
         setFiles(fileItems);
+
+        // Handle initial load from URL (deep link)
+        if (data.folder && (!currentFolder || currentFolder.id !== data.folder.id)) {
+          setCurrentFolder(data.folder);
+          // If breadcrumbs are just root, update them to show Current Folder
+          if (breadcrumbs.length === 1 && breadcrumbs[0].id === null) {
+            setBreadcrumbs([
+              { id: null, name: "Meu Drive" },
+              { id: data.folder.id, name: data.folder.name }
+            ]);
+          }
+        }
       } else {
         toast.error("Erro ao carregar arquivos");
       }
@@ -142,12 +161,21 @@ export function StoragePage() {
   const handleFolderClick = (folder) => {
     setBreadcrumbs([...breadcrumbs, { id: folder.id, name: folder.name }]);
     setCurrentFolder(folder);
+    setSearchParams({ folderId: folder.id });
+    fetchFiles(folder.id);
   };
 
   const handleBreadcrumbClick = (index) => {
     const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
     setBreadcrumbs(newBreadcrumbs);
-    setCurrentFolder(newBreadcrumbs[index].id ? newBreadcrumbs[index] : null);
+    const folder = newBreadcrumbs[index].id ? newBreadcrumbs[index] : null;
+    setCurrentFolder(folder);
+    if (folder?.id) {
+      setSearchParams({ folderId: folder.id });
+    } else {
+      setSearchParams({});
+    }
+    fetchFiles(folder?.id);
   };
 
   const handleNavigateUp = () => {
@@ -587,7 +615,7 @@ export function StoragePage() {
         // Update the file in local state with the new thumbnail URL
         setFiles(prev => prev.map(f =>
           f.id === fileId
-            ? { ...f, r2ThumbnailUrl: data.url }
+            ? { ...f, r2ThumbnailUrl: `${data.url}?t=${Date.now()}` }
             : f
         ));
       } else {

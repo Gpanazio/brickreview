@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { ReactionPicker } from "./ReactionPicker";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import ErrorBoundary from "../../ErrorBoundary";
+import EmojiPicker from "emoji-picker-react";
 
 // Constants
 const DEFAULT_RANGE_DURATION_SECONDS = 5;

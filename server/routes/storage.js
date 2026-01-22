@@ -391,8 +391,19 @@ router.get('/drive-files', authenticateToken, async (req, res) => {
       r2ThumbnailUrl: getR2ThumbnailUrl(file.id, file.mimeType),
     }));
 
+    // Fetch folder metadata if folderId is provided
+    let folderMetadata = null;
+    if (folderId) {
+      try {
+        folderMetadata = await googleDriveManager.getFileMetadata(folderId);
+      } catch (e) {
+        logger.warn(`Failed to fetch metadata for folder ${folderId}:`, e);
+      }
+    }
+
     res.json({
       files: filesWithLinks,
+      folder: folderMetadata ? { id: folderMetadata.id, name: folderMetadata.name } : null,
       nextPageToken: result.nextPageToken,
     });
   } catch (error) {

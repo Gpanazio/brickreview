@@ -57,20 +57,19 @@ const allowAnyOrigin = process.env.CORS_ORIGIN === '*'
 
 // Middleware de segurança (CSP)
 app.use((req, res, next) => {
-  // Em desenvolvimento, CSP mais permissivo para facilitar debug e hot reload
-  if (process.env.NODE_ENV !== 'production') {
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' ws: wss: https:; media-src 'self' blob: https:; frame-src 'self' https:;"
-    );
-  } else {
-    // Em produção, CSP estrita
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; media-src 'self' blob: https:; frame-src 'self' https://drive.google.com https://docs.google.com; frame-ancestors 'self';"
-    );
-  }
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "connect-src 'self' https: ws: wss:",
+    "media-src 'self' blob: https:",
+    "frame-src 'self' https://drive.google.com https://docs.google.com",
+    "frame-ancestors 'self'"
+  ].join('; ');
 
+  res.setHeader('Content-Security-Policy', cspDirectives);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.removeHeader('X-Frame-Options');
