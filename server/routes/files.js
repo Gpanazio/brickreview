@@ -355,8 +355,8 @@ router.post("/:id/restore", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "ID de arquivo inválido" });
     }
 
-    // A verificação de permissão não é necessária aqui, pois o usuário não pode "adivinhar" o ID de um arquivo deletado
-    // que ele não deveria ver. Se ele tem o ID, é porque ele viu em algum lugar (provavelmente na lixeira, que terá suas próprias permissões)
+    // FIXED: Symmetric permission check (mirroring delete route)
+    if (!(await requireProjectAccessFromFile(req, res, fileId))) return;
 
     const result = await query(
       "UPDATE brickreview_files SET deleted_at = NULL WHERE id = $1 RETURNING *",

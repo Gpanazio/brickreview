@@ -80,10 +80,15 @@ async function cleanupFileR2(file) {
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const [projects, folders, videos, files] = await Promise.all([
-      query("SELECT * FROM brickreview_projects WHERE deleted_at IS NOT NULL AND user_id = $1", [req.user.id]),
-      query("SELECT * FROM brickreview_folders WHERE deleted_at IS NOT NULL AND user_id = $1", [req.user.id]),
-      query("SELECT * FROM brickreview_videos WHERE deleted_at IS NOT NULL AND user_id = $1", [req.user.id]),
-      query("SELECT * FROM brickreview_files WHERE deleted_at IS NOT NULL AND user_id = $1", [req.user.id]),
+      query("SELECT * FROM brickreview_projects WHERE deleted_at IS NOT NULL AND created_by = $1", [req.user.id]),
+      // Folders belong to projects, so we check who created the project
+      query(`
+        SELECT f.* FROM brickreview_folders f
+        JOIN brickreview_projects p ON f.project_id = p.id
+        WHERE f.deleted_at IS NOT NULL AND p.created_by = $1
+      `, [req.user.id]),
+      query("SELECT * FROM brickreview_videos WHERE deleted_at IS NOT NULL AND uploaded_by = $1", [req.user.id]),
+      query("SELECT * FROM brickreview_files WHERE deleted_at IS NOT NULL AND uploaded_by = $1", [req.user.id]),
     ]);
 
     res.json({
@@ -109,27 +114,57 @@ router.post("/:type/:id/restore", authenticateToken, async (req, res) => {
 
   try {
     let tableName;
+    let ownerCol = 'user_id'; // default fallback
+    let joinClause = '';
+    let whereClause = '';
+
     switch (type) {
       case "project":
         tableName = "brickreview_projects";
+        ownerCol = 'created_by';
         break;
       case "folder":
         tableName = "brickreview_folders";
+        // Complex case: update folder where project produced by user
+        // But standard UPDATE doesn't support JOIN easily in all dialects with RETURNING cleanly in one go for simple RBAC
+        // We will do a two-step check for folders to be safe and simple
         break;
       case "video":
         tableName = "brickreview_videos";
+        ownerCol = 'uploaded_by';
         break;
       case "file":
         tableName = "brickreview_files";
+        ownerCol = 'uploaded_by';
         break;
       default:
         return res.status(400).json({ error: "Invalid item type" });
     }
 
-    const result = await query(
-      `UPDATE ${tableName} SET deleted_at = NULL WHERE id = $1 AND user_id = $2 RETURNING *`,
-      [id, user.id]
-    );
+    let result;
+
+    if (type === 'folder') {
+      // Check permission for folder
+      const folderCheck = await query(`
+         SELECT f.id FROM brickreview_folders f
+         JOIN brickreview_projects p ON f.project_id = p.id
+         WHERE f.id = $1 AND p.created_by = $2
+       `, [id, user.id]);
+
+      if (folderCheck.rows.length === 0) {
+        return res.status(404).json({ error: "Item not found or you don't have permission." });
+      }
+
+      result = await query(
+        `UPDATE brickreview_folders SET deleted_at = NULL WHERE id = $1 RETURNING *`,
+        [id]
+      );
+    } else {
+      result = await query(
+        `UPDATE ${tableName} SET deleted_at = NULL WHERE id = $1 AND ${ownerCol} = $2 RETURNING *`,
+        [id, user.id]
+      );
+    }
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "Item not found or you don't have permission to restore it." });
@@ -156,20 +191,24 @@ router.delete("/:type/:id/permanent", authenticateToken, async (req, res) => {
     let tableName;
     let r2CleanupFn = null;
     let itemData = null;
+    let ownerCol = 'user_id';
 
     switch (type) {
       case "project":
         tableName = "brickreview_projects";
+        ownerCol = 'created_by';
         break;
       case "folder":
         tableName = "brickreview_folders";
+        // Special check for folder
         break;
       case "video":
         tableName = "brickreview_videos";
+        ownerCol = 'uploaded_by';
         // Fetch video data for R2 cleanup
         const videoResult = await query(
           `SELECT id, r2_key, proxy_r2_key, streaming_high_r2_key, thumbnail_r2_key, sprite_r2_key 
-           FROM brickreview_videos WHERE id = $1 AND user_id = $2`,
+           FROM brickreview_videos WHERE id = $1 AND uploaded_by = $2`,
           [id, user.id]
         );
         if (videoResult.rows.length > 0) {
@@ -179,10 +218,11 @@ router.delete("/:type/:id/permanent", authenticateToken, async (req, res) => {
         break;
       case "file":
         tableName = "brickreview_files";
+        ownerCol = 'uploaded_by';
         // Fetch file data for R2 cleanup
         const fileResult = await query(
           `SELECT id, r2_key, thumbnail_r2_key 
-           FROM brickreview_files WHERE id = $1 AND user_id = $2`,
+           FROM brickreview_files WHERE id = $1 AND uploaded_by = $2`,
           [id, user.id]
         );
         if (fileResult.rows.length > 0) {
@@ -201,10 +241,25 @@ router.delete("/:type/:id/permanent", authenticateToken, async (req, res) => {
       });
     }
 
-    const result = await query(
-      `DELETE FROM ${tableName} WHERE id = $1 AND user_id = $2`,
-      [id, user.id]
-    );
+    let result;
+    if (type === 'folder') {
+      // Special check for generic delete folder
+      const folderCheck = await query(`
+         SELECT f.id FROM brickreview_folders f
+         JOIN brickreview_projects p ON f.project_id = p.id
+         WHERE f.id = $1 AND p.created_by = $2
+       `, [id, user.id]);
+
+      if (folderCheck.rows.length === 0) {
+        return res.status(404).json({ error: "Item not found or you don't have permission." });
+      }
+      result = await query(`DELETE FROM brickreview_folders WHERE id = $1`, [id]);
+    } else {
+      result = await query(
+        `DELETE FROM ${tableName} WHERE id = $1 AND ${ownerCol} = $2`,
+        [id, user.id]
+      );
+    }
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "Item not found or you don't have permission to delete it." });

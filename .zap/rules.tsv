@@ -1,0 +1,4 @@
+10096	IGNORE	(Timestamp Disclosure - Unix)
+10020	IGNORE	(Incomplete or No Cache-control Header Set)
+10021	IGNORE	(X-Content-Type-Options Header Missing)
+10038	IGNORE	(Content Security Policy (CSP) Header Not Set)
