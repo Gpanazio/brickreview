@@ -61,7 +61,7 @@ const SharedCollectionPage = lazy(() => import("./components/portfolio/SharedCol
 
 // Cookie consent component (non-lazy, always needed)
 import { CookieConsent } from "./components/CookieConsent";
-import { MasonFloating } from "./components/MasonFloating";
+
 
 // Helper para identificar URLs padrão antigas
 const isDefaultUrl = (url) => {
@@ -88,7 +88,7 @@ function App() {
             </Suspense>
             <Toaster position="top-right" />
             <CookieConsent />
-            <MasonFloating />
+
           </BrowserRouter>
         </UploadProvider>
       </AuthProvider>
@@ -290,6 +290,25 @@ function ProjectsPage() {
   const [newProject, setNewProject] = useState({ name: "", description: "", client_name: "" });
   const { token } = useAuth();
 
+  const fetchProjects = async () => {
+    try {
+      const isRecentPage = location.pathname === "/recent";
+      const url = isRecentPage ? "/api/projects?recent=true" : "/api/projects";
+
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      // Handle both paginated response { data: [...], pagination: {...} } and array response
+      const projectsArray = Array.isArray(data) ? data : (data.data || []);
+      setProjects(projectsArray);
+    } catch (error) {
+      console.error("Erro ao buscar projetos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Optimistic UI for project operations
   const { createProject } = useOptimisticProjects({
     setProjects,
@@ -315,25 +334,6 @@ function ProjectsPage() {
     } catch (error) {
       // Error handling is done in the hook
       console.error("Erro ao criar projeto:", error);
-    }
-  };
-
-  const fetchProjects = async () => {
-    try {
-      const isRecentPage = location.pathname === "/recent";
-      const url = isRecentPage ? "/api/projects?recent=true" : "/api/projects";
-
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-      // Handle both paginated response { data: [...], pagination: {...} } and array response
-      const projectsArray = Array.isArray(data) ? data : (data.data || []);
-      setProjects(projectsArray);
-    } catch (error) {
-      console.error("Erro ao buscar projetos:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
