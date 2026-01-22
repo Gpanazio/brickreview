@@ -699,7 +699,7 @@ function VideoPlayerContent({
                 </DropdownMenu>
               )}
 
-              {allVersions.length > 1 && (
+              {allVersions.length > 1 && false && (
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
