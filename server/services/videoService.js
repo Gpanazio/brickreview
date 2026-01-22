@@ -22,7 +22,13 @@ async function streamToBuffer(stream) {
 class VideoService {
     async handleUpload({ file, project_id, title, description, folder_id, user_id }) {
         // 1. Upload Original Video to R2
-        const fileKey = `videos/${project_id}/${uuidv4()}-${file.originalname}`;
+        // Sanitize filename: remove special chars, limit length, keep extension
+        const ext = file.originalname.split('.').pop() || 'mp4';
+        const sanitizedName = file.originalname
+            .replace(/\.[^/.]+$/, '') // remove extension
+            .replace(/[^a-zA-Z0-9_-]/g, '_') // replace special chars
+            .substring(0, 50); // limit length
+        const fileKey = `videos/${project_id}/${uuidv4()}-${sanitizedName}.${ext}`;
 
         // Upload via Stream
         const fileStream = fs.createReadStream(file.path);
@@ -78,9 +84,18 @@ class VideoService {
             shouldCleanup = false; // Drive needs the file
             (async () => {
                 try {
-                    if (!fs.existsSync(filePath)) return;
-                    const fileStream = fs.createReadStream(filePath);
-                    const fileBuffer = await streamToBuffer(fileStream);
+                    // Handle race condition: attempt to read and catch ENOENT
+                    let fileBuffer;
+                    try {
+                        const fileStream = fs.createReadStream(filePath);
+                        fileBuffer = await streamToBuffer(fileStream);
+                    } catch (readError) {
+                        if (readError.code === 'ENOENT') {
+                            logger.warn("DRIVE_BACKUP", `File already deleted before backup: ${filePath}`);
+                            return;
+                        }
+                        throw readError;
+                    }
 
                     const driveFile = await googleDriveManager.uploadFile(
                         `${videoId}_${title}.mp4`,
@@ -97,8 +112,8 @@ class VideoService {
                 } catch (error) {
                     logger.error("DRIVE_BACKUP", `Failed to backup video ${videoId}`, { error: error.message });
                 } finally {
-                    if (filePath && fs.existsSync(filePath)) {
-                        try { await fs.promises.unlink(filePath); } catch (e) { }
+                    if (filePath) {
+                        try { await fs.promises.unlink(filePath); } catch (e) { /* file may already be deleted */ }
                     }
                 }
             })();
@@ -154,7 +169,9 @@ class VideoService {
             };
         }
 
-        if (!process.env.R2_BUCKET_NAME) throw new Error("R2 Config Missing");
+        if (!process.env.R2_BUCKET_NAME) {
+            throw new Error("R2 Config Missing: R2_BUCKET_NAME environment variable is not set");
+        }
 
         const signedUrl = await getSignedUrl(
             r2Client,
