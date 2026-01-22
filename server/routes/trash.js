@@ -56,6 +56,34 @@ async function cleanupVideoR2(video) {
 }
 
 /**
+ * Helper: Ensure parent folders are restored so the item is visible
+ */
+async function ensureParentFoldersRestored(folderId) {
+  if (!folderId) return;
+
+  try {
+    // Busca a pasta pai
+    const res = await query('SELECT id, parent_folder_id, deleted_at FROM brickreview_folders WHERE id = $1', [folderId]);
+    if (res.rows.length === 0) return;
+
+    const folder = res.rows[0];
+
+    // Se estiver deletada, restaura
+    if (folder.deleted_at) {
+      await query('UPDATE brickreview_folders SET deleted_at = NULL WHERE id = $1', [folderId]);
+      logger.info("TRASH", "Parent folder auto-restored", { folderId });
+    }
+
+    // Recursivamente checa o pai desta pasta
+    if (folder.parent_folder_id) {
+      await ensureParentFoldersRestored(folder.parent_folder_id);
+    }
+  } catch (err) {
+    logger.error("TRASH", "Error ensuring parent folders restored", { error: err.message, folderId });
+  }
+}
+
+/**
  * Helper: Delete all R2 objects for a file
  */
 async function cleanupFileR2(file) {
@@ -113,12 +141,6 @@ router.post("/:type/:id/restore", authenticateToken, async (req, res) => {
   }
 
   try {
-    let tableName;
-    // Para simplificar, vamos restaurar baseado no ID. 
-    // A segurança ideal seria verificar se o usuário tem acesso ao PROJETO ao qual o item pertence.
-    // Mas como a lista da lixeira já filtra pelo usuário (criador/upload), vamos confiar nisso por agora pra consertar o bug imediato,
-    // ou fazer uma verificação de projeto se possível.
-
     switch (type) {
       case "project":
         // Apenas o dono pode restaurar projeto
@@ -128,10 +150,6 @@ router.post("/:type/:id/restore", authenticateToken, async (req, res) => {
         );
         if (projectResult.rowCount === 0) return res.status(404).json({ error: "Project not found or permission denied" });
 
-        // Restaurar itens cascata? O endpoint original fazia isso, vamos manter simples por enquanto
-        // UPDATE: A migration soft delete não faz cascade restore automático no banco, 
-        // mas o endpoint original de delete faz update em tudo.
-        // O ideal seria restaurar tudo que pertence ao projeto.
         await query("UPDATE brickreview_folders SET deleted_at = NULL WHERE project_id = $1", [id]);
         await query("UPDATE brickreview_videos SET deleted_at = NULL WHERE project_id = $1", [id]);
         await query("UPDATE brickreview_files SET deleted_at = NULL WHERE project_id = $1", [id]);
@@ -139,9 +157,8 @@ router.post("/:type/:id/restore", authenticateToken, async (req, res) => {
         return res.json(projectResult.rows[0]);
 
       case "folder":
-        // Verificar se usuário tem acesso ao projeto da pasta
         const folderCheck = await query(`
-            SELECT f.id FROM brickreview_folders f
+            SELECT f.id, f.parent_folder_id FROM brickreview_folders f
             JOIN brickreview_projects p ON f.project_id = p.id
             WHERE f.id = $1 AND (p.created_by = $2 OR EXISTS (SELECT 1 FROM brickreview_project_members pm WHERE pm.project_id = p.id AND pm.user_id = $2))
          `, [id, user.id]);
@@ -149,17 +166,20 @@ router.post("/:type/:id/restore", authenticateToken, async (req, res) => {
         if (folderCheck.rowCount === 0) return res.status(403).json({ error: "Permission denied" });
 
         const folderResult = await query(`UPDATE brickreview_folders SET deleted_at = NULL WHERE id = $1 RETURNING *`, [id]);
-        // Restaurar itens da pasta
         await query("UPDATE brickreview_videos SET deleted_at = NULL WHERE folder_id = $1", [id]);
         await query("UPDATE brickreview_files SET deleted_at = NULL WHERE folder_id = $1", [id]);
+
+        if (folderCheck.rows[0].parent_folder_id) {
+          await ensureParentFoldersRestored(folderCheck.rows[0].parent_folder_id);
+        }
+
         return res.json(folderResult.rows[0]);
 
       case "video":
       case "file":
-        tableName = type === "video" ? "brickreview_videos" : "brickreview_files";
-        // Verificar acesso ao projeto
+        const tableName = type === "video" ? "brickreview_videos" : "brickreview_files";
         const itemCheck = await query(`
-            SELECT t.id FROM ${tableName} t
+            SELECT t.id, t.folder_id FROM ${tableName} t
             JOIN brickreview_projects p ON t.project_id = p.id
             WHERE t.id = $1 AND (p.created_by = $2 OR EXISTS (SELECT 1 FROM brickreview_project_members pm WHERE pm.project_id = p.id AND pm.user_id = $2))
         `, [id, user.id]);
@@ -167,6 +187,11 @@ router.post("/:type/:id/restore", authenticateToken, async (req, res) => {
         if (itemCheck.rowCount === 0) return res.status(403).json({ error: "Permission denied" });
 
         const itemResult = await query(`UPDATE ${tableName} SET deleted_at = NULL WHERE id = $1 RETURNING *`, [id]);
+
+        if (itemCheck.rows[0].folder_id) {
+          await ensureParentFoldersRestored(itemCheck.rows[0].folder_id);
+        }
+
         return res.json(itemResult.rows[0]);
 
       default:
@@ -191,79 +216,51 @@ router.delete("/:type/:id/permanent", authenticateToken, async (req, res) => {
     let tableName;
     let r2CleanupFn = null;
     let itemData = null;
-    let ownerCol = 'user_id';
 
-    switch (type) {
-      case "project":
-        tableName = "brickreview_projects";
-        ownerCol = 'created_by';
-        break;
-      case "folder":
-        tableName = "brickreview_folders";
-        // Special check for folder
-        break;
-      case "video":
-        tableName = "brickreview_videos";
-        ownerCol = 'uploaded_by';
-        // Fetch video data for R2 cleanup
-        const videoResult = await query(
-          `SELECT id, r2_key, proxy_r2_key, streaming_high_r2_key, thumbnail_r2_key, sprite_r2_key 
-           FROM brickreview_videos WHERE id = $1 AND uploaded_by = $2`,
-          [id, user.id]
-        );
-        if (videoResult.rows.length > 0) {
-          itemData = videoResult.rows[0];
-          r2CleanupFn = cleanupVideoR2;
-        }
-        break;
-      case "file":
-        tableName = "brickreview_files";
-        ownerCol = 'uploaded_by';
-        // Fetch file data for R2 cleanup
-        const fileResult = await query(
-          `SELECT id, r2_key, thumbnail_r2_key 
-           FROM brickreview_files WHERE id = $1 AND uploaded_by = $2`,
-          [id, user.id]
-        );
-        if (fileResult.rows.length > 0) {
-          itemData = fileResult.rows[0];
-          r2CleanupFn = cleanupFileR2;
-        }
-        break;
-      default:
-        return res.status(400).json({ error: "Invalid item type" });
+    if (type === "project") {
+      const projectCheck = await query("SELECT id FROM brickreview_projects WHERE id = $1 AND created_by = $2", [id, user.id]);
+      if (projectCheck.rowCount === 0) return res.status(403).json({ error: "Permission denied (Project Owner Only)" });
+
+      await query("DELETE FROM brickreview_projects WHERE id = $1", [id]);
+      return res.status(204).send();
+
+    } else if (type === "folder") {
+      const folderCheck = await query(`
+            SELECT f.id FROM brickreview_folders f
+            JOIN brickreview_projects p ON f.project_id = p.id
+            WHERE f.id = $1 AND (p.created_by = $2 OR EXISTS (SELECT 1 FROM brickreview_project_members pm WHERE pm.project_id = p.id AND pm.user_id = $2))
+        `, [id, user.id]);
+      if (folderCheck.rowCount === 0) return res.status(403).json({ error: "Permission denied" });
+
+      await query("DELETE FROM brickreview_folders WHERE id = $1", [id]);
+      return res.status(204).send();
+
+    } else if (type === "video" || type === "file") {
+      tableName = type === "video" ? "brickreview_videos" : "brickreview_files";
+
+      const itemCheck = await query(`
+            SELECT t.* FROM ${tableName} t
+            JOIN brickreview_projects p ON t.project_id = p.id
+            WHERE t.id = $1 AND (p.created_by = $2 OR EXISTS (SELECT 1 FROM brickreview_project_members pm WHERE pm.project_id = p.id AND pm.user_id = $2))
+        `, [id, user.id]);
+
+      if (itemCheck.rowCount === 0) return res.status(403).json({ error: "Permission denied" });
+
+      itemData = itemCheck.rows[0];
+      r2CleanupFn = type === "video" ? cleanupVideoR2 : cleanupFileR2;
+    } else {
+      return res.status(400).json({ error: "Invalid item type" });
     }
 
-    // R2 cleanup (async, non-blocking - failures are logged but don't block DB deletion)
+    // R2 cleanup (async)
     if (r2CleanupFn && itemData) {
       r2CleanupFn(itemData).catch((err) => {
         logger.error("TRASH", "R2 cleanup failed", { type, id, error: err.message });
       });
     }
 
-    let result;
-    if (type === 'folder') {
-      // Special check for generic delete folder
-      const folderCheck = await query(`
-         SELECT f.id FROM brickreview_folders f
-         JOIN brickreview_projects p ON f.project_id = p.id
-         WHERE f.id = $1 AND p.created_by = $2
-       `, [id, user.id]);
-
-      if (folderCheck.rows.length === 0) {
-        return res.status(404).json({ error: "Item not found or you don't have permission." });
-      }
-      result = await query(`DELETE FROM brickreview_folders WHERE id = $1`, [id]);
-    } else {
-      result = await query(
-        `DELETE FROM ${tableName} WHERE id = $1 AND ${ownerCol} = $2`,
-        [id, user.id]
-      );
-    }
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Item not found or you don't have permission to delete it." });
-    }
+    // Hard Delete from DB
+    await query(`DELETE FROM ${tableName} WHERE id = $1`, [id]);
 
     logger.info("TRASH", "Item permanently deleted", { type, id, userId: user.id });
     res.status(204).send();
@@ -274,4 +271,3 @@ router.delete("/:type/:id/permanent", authenticateToken, async (req, res) => {
 });
 
 export default router;
-
