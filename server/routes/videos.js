@@ -543,7 +543,7 @@ router.patch("/:id/move", authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    logger.error("VIDEOS", "Erro ao mover vídeo", { error: error.message });
+    logger.error("VIDEOS", "Erro ao mover vídeo", { error });
     res.status(500).json({ error: "Erro ao mover vídeo" });
   }
 });
