@@ -9,6 +9,19 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Unreleased]
 
+### 🔧 Improvements v0.7.3 (2026-01-22)
+
+#### Bug Fixes
+- **FIXED**: Botão "Share Link" não aparecia para usuários logados no player.
+  - Causa: Dependência incorreta do objeto `user`/`token` no frontend, que estava nulo/instável mesmo com cookie de sessão válido.
+  - Solução: Lógica de exibição simplificada para `!isGuest`. A autenticação é verificada pelo backend ao tentar gerar o link.
+
+#### Feature Flags / Ocultações
+- **DISABLED**: Botão "Comparar Versões" ocultado na interface.
+  - Motivo: Funcionalidade instável/não atendendo aos requisitos atuais de UX.
+  - Status: Código mantido mas desativado via flag condicional (`&& false`).
+
+
 ### 🔧 Improvements v0.7.2 (2026-01-16)
 
 #### Bug Fixes
