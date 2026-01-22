@@ -49,7 +49,7 @@ const APP_VERSION = "1.2.0-perf";
 console.log("BRICK Review Version:", APP_VERSION);
 
 // Lazy loaded pages for code splitting
-const LoginPage = lazy(() => import("./components/LoginPage").then(m => ({ default: m.LoginPage })));
+const LoginPage = lazy(() => import("./components/LoginPage"));
 const ProjectDetailPage = lazy(() => import("./components/projects/ProjectDetailPage").then(m => ({ default: m.ProjectDetailPage })));
 const ShareViewPage = lazy(() => import("./components/projects/ShareViewPage").then(m => ({ default: m.ShareViewPage })));
 const SettingsPage = lazy(() => import("./components/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));

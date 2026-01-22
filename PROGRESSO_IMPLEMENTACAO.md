@@ -649,8 +649,12 @@ logger.error("ERROR_BOUNDARY", { component, error });
 - [x] **#24 Labels de Acessibilidade:** Adição de `aria-label` em botões de ícone (Player, Sidebar, Files).
 - [x] **#25 Deduplicação de Código:** Remoção de `FileViewer` legado e limpeza de componentes mortos.
 
+### Hotfix (2026-01-22)
+**Status:** ✅ **COMPLETO**
+- [x] **Fix Critical ReferenceError:** Resolvido erro de inicialização em produção ("Cannot access 'Z' before initialization") causado por dependência circular/Timing em lazy imports no `App.jsx`. Refatorado `LoginPage` para exportação padrão.
+
 ---
 
-**Última atualização:** 2026-01-19
-**Mantido por:** Claude Code
-**Branch:** `claude/fix-jwt-security-fIzQ6`
+**Última atualização:** 2026-01-22
+**Mantido por:** Antigravity
+**Branch:** `feature/optimistic-ui`
