@@ -145,9 +145,9 @@ function VideoPlayerContent({
 
   const { token } = useAuth();
 
-  const isGuest = isPublic || !token;
-  const canApprove = !isGuest;
-  const canShare = !isGuest;
+  const isGuest = isPublic && !!shareToken;
+  const canApprove = !isGuest && !!token;
+  const canShare = !isGuest && !!token;
   const canDownload = true;
 
   const allVersions = useMemo(
