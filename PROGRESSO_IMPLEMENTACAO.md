@@ -438,10 +438,10 @@ const projects = await query(`
 ## 🟢 LONGO PRAZO - 90 DIAS (8 itens pendentes)
 
 **Resumo dos itens:**
-- #5 - JWT → httpOnly cookies (8h)
+- [x] #5 - JWT → httpOnly cookies (8h) - ✅ IMPLEMENTADO
 - ✅ #7 - Memory Leak - Event Listeners (8h auditoria)
 - 🔄 #14 - Bundle Size (4h) - Plyr removido
-- #15 - Optimistic UI (6h)
+- [x] #15 - Optimistic UI (6h) - ✅ IMPLEMENTADO
 - #19 - API Versioning (2h)
 - #22 - VideoPlayer - Divisão Contínua (12h)
 - #23 - TypeScript (200h+ realista)

@@ -563,13 +563,21 @@ export function StoragePage() {
   const handleGenerateThumbnail = async (fileId, fileName) => {
     if (generatingThumbnails.has(fileId)) return;
 
+    // Ask for timestamp
+    const timestamp = window.prompt("Gerar miniatura em qual momento? (ex: 50%, 10s)", "50%");
+    if (!timestamp) return; // User cancelled
+
     setGeneratingThumbnails(prev => new Set([...prev, fileId]));
-    toast.info(`Gerando miniatura para "${fileName}"...`);
+    toast.info(`Gerando miniatura para "${fileName}" em ${timestamp}...`);
 
     try {
       const response = await fetch(`/api/storage/generate-thumbnail/${fileId}`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ timestamp }),
       });
 
       if (response.ok) {
@@ -1079,6 +1087,19 @@ export function StoragePage() {
                             <ContextMenuItem onClick={() => openRenameDialog(file)}>
                               <Pencil className="mr-2 h-4 w-4" /> Renomear
                             </ContextMenuItem>
+                            {file.mimeType?.startsWith('video/') && (
+                              <ContextMenuItem
+                                onClick={() => handleGenerateThumbnail(file.id, file.name)}
+                                disabled={generatingThumbnails.has(file.id)}
+                              >
+                                {generatingThumbnails.has(file.id) ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <FileImage className="mr-2 h-4 w-4" />
+                                )}
+                                Gerar Miniatura
+                              </ContextMenuItem>
+                            )}
                             <ContextMenuSeparator className="bg-zinc-800" />
                             <ContextMenuItem
                               className="text-red-600 focus:text-red-500"
@@ -1199,7 +1220,7 @@ export function StoragePage() {
                                       <DropdownMenuItem onClick={() => openRenameDialog(file)}>
                                         <Pencil className="mr-2 h-4 w-4" /> Renomear
                                       </DropdownMenuItem>
-                                      {file.mimeType?.startsWith('video/') && !file.thumbnailLink && !file.r2ThumbnailUrl && (
+                                      {file.mimeType?.startsWith('video/') && (
                                         <DropdownMenuItem
                                           onClick={() => handleGenerateThumbnail(file.id, file.name)}
                                           disabled={generatingThumbnails.has(file.id)}
@@ -1261,6 +1282,19 @@ export function StoragePage() {
                             <ContextMenuItem onClick={() => openRenameDialog(file)}>
                               <Pencil className="mr-2 h-4 w-4" /> Renomear
                             </ContextMenuItem>
+                            {file.mimeType?.startsWith('video/') && (
+                              <ContextMenuItem
+                                onClick={() => handleGenerateThumbnail(file.id, file.name)}
+                                disabled={generatingThumbnails.has(file.id)}
+                              >
+                                {generatingThumbnails.has(file.id) ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <FileImage className="mr-2 h-4 w-4" />
+                                )}
+                                Gerar Miniatura
+                              </ContextMenuItem>
+                            )}
                             <ContextMenuSeparator className="bg-zinc-800" />
                             <ContextMenuItem
                               className="text-red-600 focus:text-red-500"

@@ -4,31 +4,26 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("brickreview_token"));
   const [loading, setLoading] = useState(true);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("brickreview_token");
-    setToken(null);
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Erro no logout:", e);
+    }
     setUser(null);
   }, []);
 
-  const verifyToken = useCallback(async (authToken) => {
+  const verifyToken = useCallback(async () => {
     try {
-      const response = await fetch("/api/auth/verify", {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+      const response = await fetch("/api/auth/verify");
 
-      // Check if response is ok before parsing JSON
       if (!response.ok) {
-        // 401/403 are expected for expired/invalid tokens, don't log as errors
         if (response.status !== 401 && response.status !== 403) {
-          // For other errors, log them
-          console.error("Erro inesperado ao verificar token:", response.status);
+          console.error("Erro inesperado ao verificar sessão:", response.status);
         }
-        logout();
+        setUser(null);
         return;
       }
 
@@ -36,24 +31,18 @@ export const AuthProvider = ({ children }) => {
       if (data.valid) {
         setUser(data.user);
       } else {
-        logout();
+        setUser(null);
       }
     } catch (error) {
-      // Only log unexpected errors (network issues, etc.)
-      console.error("Erro ao verificar token:", error);
-      logout();
+      console.error("Erro ao verificar sessão:", error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
-  }, [logout]);
+  }, []);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("brickreview_token");
-    if (storedToken) {
-      verifyToken(storedToken);
-    } else {
-      setLoading(false);
-    }
+    verifyToken();
   }, [verifyToken]);
 
   const login = async (username, password) => {
@@ -68,8 +57,6 @@ export const AuthProvider = ({ children }) => {
       if (contentType && contentType.includes("application/json")) {
         const data = await response.json();
         if (response.ok) {
-          localStorage.setItem("brickreview_token", data.token);
-          setToken(data.token);
           setUser(data.user);
           return { success: true };
         } else {
@@ -87,7 +74,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token: null, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
