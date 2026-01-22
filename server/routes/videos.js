@@ -655,7 +655,7 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     res.json({ message: "Vídeo enviado para a lixeira", id: videoId });
   } catch (error) {
-    logger.error("VIDEOS", "Erro ao excluir vídeo", { error: error.message });
+    logger.error("VIDEOS", "Erro ao excluir vídeo", { error });
     res.status(500).json({ error: "Erro ao excluir vídeo" });
   }
 });
