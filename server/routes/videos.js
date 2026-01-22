@@ -484,7 +484,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
       comments: commentsResult.rows,
     });
   } catch (error) {
-    logger.error("VIDEOS", "Erro ao buscar detalhes do vídeo", { error: error.message });
+    logger.error("VIDEOS", "Erro ao buscar detalhes do vídeo", { error });
     res.status(500).json({ error: "Erro ao buscar detalhes do vídeo" });
   }
 });
