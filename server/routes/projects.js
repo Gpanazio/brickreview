@@ -63,14 +63,29 @@ router.get("/", authenticateToken, asyncHandler(async (req, res) => {
   // Modo recente: retorna apenas 5 projetos
   if (recent === "true") {
     const projects = await query(`
-      SELECT * FROM brickreview_projects_with_stats 
-      WHERE deleted_at IS NULL
-      ORDER BY updated_at DESC
+      SELECT p.*, 
+        (SELECT COUNT(*) FROM brickreview_videos v WHERE v.project_id = p.id AND v.deleted_at IS NULL) as video_count,
+        pm.role as user_role
+      FROM brickreview_projects p
+      INNER JOIN brickreview_project_members pm ON p.id = pm.project_id
+      WHERE pm.user_id = $1 AND p.deleted_at IS NULL
+      ORDER BY p.updated_at DESC
       LIMIT 5
-    `);
+    `, [userId]);
 
     await cache.set(cacheKey, projects.rows, 300); // 5 minutes
-    return res.json(projects.rows);
+
+    // Standardize response format even for recent items
+    const responseData = {
+      data: projects.rows,
+      pagination: {
+        page: 1,
+        limit: 5,
+        total: projects.rows.length,
+        totalPages: 1
+      }
+    };
+    return res.json(responseData);
   }
 
   // Paginação (#31 fix)
@@ -80,18 +95,25 @@ router.get("/", authenticateToken, asyncHandler(async (req, res) => {
 
   // Conta total de projetos
   const countResult = await query(`
-    SELECT COUNT(*) FROM brickreview_projects WHERE deleted_at IS NULL
-  `);
+    SELECT COUNT(*) 
+    FROM brickreview_projects p
+    INNER JOIN brickreview_project_members pm ON p.id = pm.project_id
+    WHERE pm.user_id = $1 AND p.deleted_at IS NULL
+  `, [userId]);
   const total = parseInt(countResult.rows[0].count);
   const totalPages = Math.ceil(total / limitNum);
 
   // Busca projetos paginados
   const projects = await query(`
-    SELECT * FROM brickreview_projects_with_stats 
-    WHERE deleted_at IS NULL
-    ORDER BY updated_at DESC
+    SELECT p.*, 
+      (SELECT COUNT(*) FROM brickreview_videos v WHERE v.project_id = p.id AND v.deleted_at IS NULL) as video_count,
+      pm.role as user_role
+    FROM brickreview_projects p
+    INNER JOIN brickreview_project_members pm ON p.id = pm.project_id
+    WHERE pm.user_id = $3 AND p.deleted_at IS NULL
+    ORDER BY p.updated_at DESC
     LIMIT $1 OFFSET $2
-  `, [limitNum, offset]);
+  `, [limitNum, offset, userId]);
 
   const responseData = {
     data: projects.rows,
@@ -355,6 +377,7 @@ router.post("/:id/cover", authenticateToken, uploadImage.single("cover"), async 
     return;
   }
 
+  let shouldCleanup = true;
   try {
     // Verifica se o projeto existe
     const projectCheck = await query("SELECT id FROM brickreview_projects WHERE id = $1", [
@@ -362,8 +385,22 @@ router.post("/:id/cover", authenticateToken, uploadImage.single("cover"), async 
     ]);
 
     if (projectCheck.rows.length === 0) {
-      fs.unlinkSync(file.path); // Remove arquivo temporário
       return res.status(404).json({ error: "Projeto não encontrado" });
+    }
+
+    // Try to detect mime type from file content for better security
+    // If file-type is available we should use it, otherwise fallback to multer's detection
+    let contentType = file.mimetype;
+    try {
+      const { fileTypeFromBuffer } = await import('file-type');
+      const buffer = fs.readFileSync(file.path);
+      const type = await fileTypeFromBuffer(buffer);
+      if (type) {
+        contentType = type.mime;
+      }
+    } catch (err) {
+      // Fallback to extension/multer if file-type fails or not installed
+      // logger.warn('UPLOAD', 'Could not detect mime type with file-type', { error: err.message });
     }
 
     // Upload para R2 (usando stream para reduzir uso de memória)
@@ -375,7 +412,7 @@ router.post("/:id/cover", authenticateToken, uploadImage.single("cover"), async 
         Bucket: process.env.R2_BUCKET_NAME,
         Key: r2Key,
         Body: fileStream,
-        ContentType: file.mimetype,
+        ContentType: contentType,
       })
     );
 
@@ -390,20 +427,22 @@ router.post("/:id/cover", authenticateToken, uploadImage.single("cover"), async 
       [r2Key, coverUrl, projectId]
     );
 
-    // Remove arquivo temporário
-    fs.unlinkSync(file.path);
-
+    // Remove arquivo temporário -> Cleanup happens in finally
     res.json({
       message: "Imagem de capa atualizada com sucesso",
       project: result.rows[0],
     });
   } catch (error) {
     logger.error('PROJECTS', 'Error uploading cover image', { error: error.message });
-    // Tenta remover arquivo temporário em caso de erro
-    if (file && file.path && fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
     res.status(500).json({ error: "Erro ao fazer upload da imagem de capa" });
+  } finally {
+    if (shouldCleanup && file && file.path && fs.existsSync(file.path)) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch (e) {
+        logger.error('CLEANUP', 'Error removing temp file', { error: e.message, path: file.path });
+      }
+    }
   }
 });
 

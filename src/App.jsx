@@ -49,7 +49,7 @@ const APP_VERSION = "1.2.0-perf";
 console.log("BRICK Review Version:", APP_VERSION);
 
 // Lazy loaded pages for code splitting
-const LoginPage = lazy(() => import("./components/LoginPage").then(m => ({ default: m.LoginPage })));
+const LoginPage = lazy(() => import("./components/LoginPage"));
 const ProjectDetailPage = lazy(() => import("./components/projects/ProjectDetailPage").then(m => ({ default: m.ProjectDetailPage })));
 const ShareViewPage = lazy(() => import("./components/projects/ShareViewPage").then(m => ({ default: m.ShareViewPage })));
 const SettingsPage = lazy(() => import("./components/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
@@ -195,6 +195,7 @@ function Sidebar({ collapsed, setCollapsed }) {
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
             className="text-zinc-400 hover:text-white hover:bg-zinc-900"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </Button>
@@ -415,12 +416,12 @@ function ProjectsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-
           <div className="hidden md:flex items-center gap-2 ml-4">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="User profile">
               <User className="w-5 h-5" />
             </Button>
           </div>
+
         </div>
       </header>
 
@@ -509,6 +510,7 @@ function ProjectsPage() {
               : "text-zinc-500 hover:text-zinc-300"
               } cursor-pointer`}
             title="Grid View"
+            aria-label="Switch to grid view"
           >
             <Grid className="w-4 h-4" />
           </button>
@@ -519,6 +521,7 @@ function ProjectsPage() {
               : "text-zinc-500 hover:text-zinc-300"
               } cursor-pointer`}
             title="List View"
+            aria-label="Switch to list view"
           >
             <List className="w-4 h-4" />
           </button>

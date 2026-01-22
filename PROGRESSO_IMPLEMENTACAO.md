@@ -1,7 +1,7 @@
 # 🚀 PROGRESSO DA IMPLEMENTAÇÃO - Plano de Segurança
 
 **Data de início:** 2026-01-19
-**Última atualização:** 2026-01-20
+**Última atualização:** 2026-01-22
 **Branch:** `main`
 
 ---
@@ -148,6 +148,22 @@ if (!allowedVideoTypes.includes(fileType.mime)) {
 - 🟡 Falta validação defensiva em `auth.js` (baixa prioridade)
 
 **Conclusão:** Não requer ação imediata
+
+---
+
+### 🔧 Refinamentos de Arquitetura e Segurança (2026-01-22)
+**Status:** ✅ **COMPLETO**
+**Implementado por:** Antigravity Agent
+
+**Melhorias Implementadas:**
+- **Standardização da API:** `GET /api/projects` agora retorna formato consistente `{ data, pagination }`, inclusive para `recent=true`.
+- **User Isolation:** Reforço na query de projetos para garantir isolamento estrito de dados por usuário.
+- **Redis SCAN:** Migração de `KEYS` para `SCAN` para evitar bloqueio do event loop no cache clearing.
+- **Upload Cleanup:** Correção na limpeza de arquivos temporários e melhoria na detecção de MIME type para capas de projeto.
+- **Security Hardening:**
+    - Ajustes em CORS para suportar `Access-Control-Allow-Credentials` com origem dinâmica.
+    - CSP estrito em produção vs permissivo em desenvolvimento.
+- **Frontend Refinement:** Atualização do `MoveItemDialog` para consumir o novo formato da API.
 
 ---
 
@@ -619,15 +635,26 @@ logger.error("ERROR_BOUNDARY", { component, error });
 - ✅ Pronto para staging
 
 **Próximos Passos:**
-1. Implementar Sprint 2 (itens #6, #8, #9, #31)
-2. Deploy para staging
-3. Smoke tests e validação
-4. Continuar com Sprint 3-4
+1. Monitoramento de Produção
+2. Otimização de Mobile (v0.8.0)
+3. Integração com NLEs (Futuro)
 
-**Tempo Restante Estimado:** ~142h (~18 dias úteis)
+**Tempo Restante Estimado:** ~80h+ (Itens de Longo Prazo)
 
 ---
 
-**Última atualização:** 2026-01-19
-**Mantido por:** Claude Code
-**Branch:** `claude/fix-jwt-security-fIzQ6`
+### Sprint 3: Otimizações e Acessibilidade (2026-01-22)
+**Status:** ✅ **COMPLETO**
+
+- [x] **#24 Labels de Acessibilidade:** Adição de `aria-label` em botões de ícone (Player, Sidebar, Files).
+- [x] **#25 Deduplicação de Código:** Remoção de `FileViewer` legado e limpeza de componentes mortos.
+
+### Hotfix (2026-01-22)
+**Status:** ✅ **COMPLETO**
+- [x] **Fix Critical ReferenceError:** Resolvido erro de inicialização em produção ("Cannot access 'Z' before initialization") causado por dependência circular/Timing em lazy imports no `App.jsx`. Refatorado `LoginPage` para exportação padrão.
+
+---
+
+**Última atualização:** 2026-01-22
+**Mantido por:** Antigravity
+**Branch:** `feature/optimistic-ui`

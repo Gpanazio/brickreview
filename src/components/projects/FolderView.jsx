@@ -78,7 +78,10 @@ const FileItem = ({ file, getFileColor, handleDeleteFile }) => {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-white transition-all p-1 cursor-pointer">
+          <button
+            className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-white transition-all p-1 cursor-pointer"
+            aria-label="File options"
+          >
             <MoreVertical className="w-4 h-4" />
           </button>
         </DropdownMenuTrigger>
@@ -432,7 +435,10 @@ export function FolderView({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-white transition-all p-1 cursor-pointer">
+            <button
+              className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-white transition-all p-1 cursor-pointer"
+              aria-label="File options"
+            >
               <MoreVertical className="w-4 h-4" />
             </button>
           </DropdownMenuTrigger>
@@ -471,8 +477,8 @@ export function FolderView({
       <div key={folder.id} style={{ marginLeft: `${depth * 20}px` }}>
         <div
           className={`group flex items-center gap-2 py-2 px-3 hover:bg-zinc-900/50 rounded-none border-l-2 transition-all ${isDragOver
-              ? "border-l-blue-500 bg-blue-900/20"
-              : "border-l-transparent hover:border-l-red-600"
+            ? "border-l-blue-500 bg-blue-900/20"
+            : "border-l-transparent hover:border-l-red-600"
             }`}
           onDragOver={(e) => handleFolderDragOver(e, folder.id)}
           onDragLeave={(e) => handleFolderDragLeave(e, folder.id)}
@@ -481,6 +487,7 @@ export function FolderView({
           <button
             onClick={() => toggleFolder(folder.id)}
             className="text-zinc-400 hover:text-white cursor-pointer"
+            aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
           >
             {isExpanded ? <FolderOpen className="w-4 h-4" /> : <Folder className="w-4 h-4" />}
           </button>
@@ -526,7 +533,10 @@ export function FolderView({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-white transition-all p-1 cursor-pointer">
+              <button
+                className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-white transition-all p-1 cursor-pointer"
+                aria-label="Folder options"
+              >
                 <MoreVertical className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>

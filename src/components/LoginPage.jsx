@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Film } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-export function LoginPage() {
+export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
