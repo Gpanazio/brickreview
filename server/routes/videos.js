@@ -363,7 +363,7 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
       mime: isOriginal ? mime_type || "video/mp4" : "video/mp4",
     });
   } catch (error) {
-    logger.error("VIDEOS", "Erro crítico ao gerar URL de streaming", { error: error.message });
+    logger.error("VIDEOS", "Erro crítico ao gerar URL de streaming", { error });
     res.status(500).json({ error: "Falha no sistema de streaming" });
   }
 });
