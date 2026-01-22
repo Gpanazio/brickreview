@@ -1,6 +1,6 @@
 # BrickReview
 
-> ✅ **Nota de Desenvolvimento (v0.7.3):** Projeto em produção estável. Melhorias significativas na interface de Storage (UI estilo Google Drive) e sistema de compartilhamento. Consulte [CHANGELOG.md](CHANGELOG.md) para detalhes.
+> ✅ **Nota de Desenvolvimento (v0.8.0):** Projeto em produção estável. Adicionado sistema de thumbnails VTT para preview na timeline, busca de capas com IA (Pollinations) e refinamentos de UI (remoção de seção recentes, loading brutalista). Consulte [CHANGELOG.md](CHANGELOG.md) para detalhes.
 
 Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (preto/vermelho/branco).
 
@@ -20,6 +20,8 @@ Sistema de revisão de vídeos estilo Frame.io com identidade visual BRICK (pret
 - ✅ Cloudflare R2 para storage de vídeos
 - ✅ Railway para banco de dados e API
 - ✅ Integração Híbrida Google Drive (Backup + UI)
+- ✅ **Preview de Timeline VTT** (hover thumbnails)
+- ✅ **Busca de Capas com IA** (Geração automática via Pollinations)
 - ✅ Autenticação JWT compartilhada
 
 ## 🚀 Stack Tecnológica
@@ -331,6 +333,13 @@ Implementação robusta em 3 camadas:
 - [x] Navegação por breadcrumbs com suporte a drag-and-drop
 - [x] Gerenciamento avançado de arquivos (renomear, mover para raiz)
 
+### ✅ v0.8.0 - UX Polish & AI (CONCLUÍDO)
+
+- [x] **Hover Preview**: Thumbnails via sprite sheets VTT na timeline
+- [x] **Smart Covers**: Busca integrada com Openverse e Geração de IA (Pollinations)
+- [x] **UI Cleanup**: Remoção de redundâncias (seção recentes) e novo loading
+- [x] **Database**: Migração para suporte a sprites (`sprite_sheet_url`, etc)
+
 ## 🚀 Deploy
 
 ### Railway (Recomendado)
@@ -532,7 +541,7 @@ Usa a tabela `master_users` compartilhada com outros sistemas BRICK (brickprojec
 ---
 
 **Status:** ✅ Em produção estável
-**Versão:** 0.7.3
+**Versão:** 0.8.0
 **Licença:** Privado (BRICK Produtora)
 
 ---

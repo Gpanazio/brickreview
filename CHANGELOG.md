@@ -8,8 +8,21 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 ---
 
 ## [Unreleased]
+### 🔧 v0.8.0 - UX Polish & AI (2026-01-22)
 
-### 🔧 Improvements v0.7.3 (2026-01-22)
+#### ✨ Features
+- **Smart Covers**: Sistema híbrido de busca de capas.
+  - Combina busca no Openverse (`aspect_ratio=wide`) com geração de IA (Pollinations).
+  - Garante 4 opções cinemáticas/HQ para qualquer termo de busca.
+  - Zero config (sem chaves de API).
+- **Hover Previews**: Thumbnails na timeline ao passar o mouse.
+  - Implementado geração de **Sprite Sheets** e arquivos **VTT** no processamento de vídeo.
+  - Funciona tanto no upload síncrono quanto via fila (BullMQ).
+  - Database schema atualizado para suportar novas URLs.
+
+#### UX / UI
+- **REMOVED**: Seção "Recentes" removida da Home para visual mais limpo e focado.
+- **IMPROVED**: Novo loading "Brutalista" com contagem regressiva e efeitos visuais.
 
 #### Bug Fixes
 - **FIXED**: Botão "Share Link" não aparecia para usuários logados no player.
