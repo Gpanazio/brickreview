@@ -181,8 +181,40 @@ const TrashPage = () => {
             </div>
           </div>
 
-          <div className="w-10 h-10 flex items-center justify-center bg-red-500/10 rounded-full border border-red-500/20">
-            <Trash2 className="w-5 h-5 text-red-500" />
+          <div className="flex items-center gap-4">
+            {hasItems && (
+              <Button
+                onClick={async () => {
+                  if (window.confirm("ATENÇÃO: Isso excluirá PERMANENTEMENTE todos os itens da lixeira. Esta ação não pode ser desfeita. Deseja continuar?")) {
+                    try {
+                      setLoading(true);
+                      const res = await fetch('/api/trash/empty', {
+                        method: 'DELETE',
+                        headers: {
+                          // Adicione headers se necessário, mas fetch padrão envia cookies (credentials: include seria melhor se usasse, mas o proxy confia)
+                          // No index.js temos app.use(cookieParser()), então assumimos auth via cookie ou header bearer se implementado globalmente no cliente
+                        }
+                      });
+                      if (!res.ok) throw new Error('Falha ao esvaziar lixeira');
+                      toast.success('Lixeira esvaziada com sucesso');
+                      fetchTrashItems();
+                    } catch (err) {
+                      console.error(err);
+                      toast.error('Erro ao esvaziar a lixeira');
+                      setLoading(false);
+                    }
+                  }
+                }}
+                variant="destructive"
+                className="h-9 px-4 uppercase text-[10px] tracking-widest font-bold bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Esvaziar Lixeira
+              </Button>
+            )}
+            <div className="w-10 h-10 flex items-center justify-center bg-red-500/10 rounded-full border border-red-500/20">
+              <Trash2 className="w-5 h-5 text-red-500" />
+            </div>
           </div>
         </div>
       </header>

@@ -270,4 +270,56 @@ router.delete("/:type/:id/permanent", authenticateToken, async (req, res) => {
   }
 });
 
+// Empty trash (Delete all items permanently)
+router.delete("/empty", authenticateToken, async (req, res) => {
+  const { user } = req;
+
+  try {
+    // Buscar todos os itens deletados do usuário para limpeza do R2
+    const [videos, files] = await Promise.all([
+      query("SELECT * FROM brickreview_videos WHERE deleted_at IS NOT NULL AND uploaded_by = $1", [user.id]),
+      query("SELECT * FROM brickreview_files WHERE deleted_at IS NOT NULL AND uploaded_by = $1", [user.id])
+    ]);
+
+    // Limpeza assíncrona do R2 (fire and forget para não bloquear muito a resposta)
+    (async () => {
+      for (const video of videos.rows) {
+        await cleanupVideoR2(video).catch(() => { });
+      }
+      for (const file of files.rows) {
+        await cleanupFileR2(file).catch(() => { });
+      }
+    })();
+
+    // Deletar do banco (Hard Delete)
+    // A ordem importa por causa das chaves estrangeiras (files/videos -> folders -> projects)
+
+    // 1. Arquivos e Vídeos
+    await Promise.all([
+      query("DELETE FROM brickreview_files WHERE deleted_at IS NOT NULL AND uploaded_by = $1", [user.id]),
+      query("DELETE FROM brickreview_videos WHERE deleted_at IS NOT NULL AND uploaded_by = $1", [user.id])
+    ]);
+
+    // 2. Pastas (apenas as que o usuário pode deletar e estão na lixeira)
+    // Nota: Pastas podem ser deletadas se pertencerem a projetos que o usuário criou
+    await query(`
+      DELETE FROM brickreview_folders 
+      WHERE id IN (
+        SELECT f.id FROM brickreview_folders f
+        JOIN brickreview_projects p ON f.project_id = p.id
+        WHERE f.deleted_at IS NOT NULL AND p.created_by = $1
+      )
+    `, [user.id]);
+
+    // 3. Projetos
+    await query("DELETE FROM brickreview_projects WHERE deleted_at IS NOT NULL AND created_by = $1", [user.id]);
+
+    logger.info("TRASH", "Trash emptied", { userId: user.id });
+    res.status(204).send();
+  } catch (error) {
+    logger.error("TRASH", "Error emptying trash", { error: error.message, userId: user.id });
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;
