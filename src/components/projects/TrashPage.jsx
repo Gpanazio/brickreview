@@ -81,9 +81,12 @@ const TrashPage = () => {
   };
 
   const EmptyState = () => (
-    <div className="flex flex-col items-center justify-center p-12 text-zinc-500 bg-zinc-900/10 border border-dashed border-zinc-800 rounded-lg">
-      <Trash2 className="w-12 h-12 mb-4 opacity-50" />
-      <p className="text-sm uppercase tracking-widest font-bold">A lixeira está vazia</p>
+    <div className="flex flex-col items-center justify-center py-24 text-zinc-600">
+      <div className="w-16 h-16 rounded-full bg-zinc-900/50 flex items-center justify-center mb-6 border border-zinc-800">
+        <Trash2 className="w-6 h-6 opacity-30" />
+      </div>
+      <p className="brick-title text-sm text-zinc-500 mb-2">Lixeira Vazia</p>
+      <p className="brick-tech text-[10px] uppercase tracking-widest opacity-50">Nenhum item excluído recentemente</p>
     </div>
   );
 
@@ -91,15 +94,19 @@ const TrashPage = () => {
     if (!items || items.length === 0) return null;
 
     return (
-      <div className="mb-8">
-        <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-          {type === 'project' && <span className="w-2 h-2 rounded-full bg-blue-500"></span>}
-          {type === 'folder' && <span className="w-2 h-2 rounded-full bg-yellow-500"></span>}
-          {type === 'video' && <span className="w-2 h-2 rounded-full bg-red-500"></span>}
-          {type === 'file' && <span className="w-2 h-2 rounded-full bg-green-500"></span>}
-          {title} ({items.length})
-        </h2>
-        <div className="grid gap-2">
+      <div className="mb-12">
+        <div className="flex items-center gap-3 mb-6 border-b border-zinc-800/50 pb-2">
+          <div className={`w-1.5 h-1.5 rounded-none ${type === 'project' ? 'bg-blue-600' :
+              type === 'folder' ? 'bg-yellow-600' :
+                type === 'video' ? 'bg-red-600' :
+                  'bg-green-600'
+            }`} />
+          <h2 className="brick-tech text-xs text-zinc-400 uppercase tracking-[0.2em] font-bold">
+            {title} ({items.length})
+          </h2>
+        </div>
+
+        <div className="grid gap-1">
           {items.map((item) => (
             <motion.div
               key={item.id}
@@ -107,33 +114,34 @@ const TrashPage = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               layout
-              className="flex items-center justify-between p-4 bg-zinc-900/30 border border-zinc-800/50 hover:bg-zinc-900/50 hover:border-zinc-700 transition-all group rounded-lg"
+              className="group flex items-center justify-between p-4 bg-zinc-900/20 border-l-2 border-l-transparent hover:border-l-red-600 hover:bg-zinc-900/40 transition-all gap-4"
             >
-              <div className="flex flex-col">
-                <span className="text-zinc-200 font-medium">{item.name}</span>
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wider mt-1">
-                  Deletado em: {item.deleted_at ? new Date(item.deleted_at).toLocaleDateString() : 'N/A'}
+              <div className="flex flex-col gap-1 min-w-0">
+                <span className="text-sm font-medium text-zinc-300 group-hover:text-white transition-colors uppercase tracking-tight truncate">
+                  {item.name || item.title}
+                </span>
+                <span className="brick-tech text-[9px] text-zinc-600 uppercase tracking-widest">
+                  Deletado: {item.deleted_at ? new Date(item.deleted_at).toLocaleDateString() : 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
+                <button
                   onClick={() => handleRestore(type, item.id)}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 border-green-900/30 bg-green-900/10 text-green-500 hover:text-green-400 hover:bg-green-900/30 uppercase text-[10px] tracking-widest font-bold"
+                  className="p-2 hover:bg-green-500/10 text-zinc-500 hover:text-green-500 transition-colors uppercase text-[9px] tracking-widest font-bold flex items-center gap-1"
+                  title="Restaurar"
                 >
-                  <RotateCcw className="w-3 h-3 mr-2" />
+                  <RotateCcw className="w-3 h-3" />
                   Restaurar
-                </Button>
-                <Button
+                </button>
+                <div className="w-[1px] h-3 bg-zinc-800" />
+                <button
                   onClick={() => handlePermanentDelete(type, item.id)}
-                  variant="destructive"
-                  size="sm"
-                  className="h-8 bg-red-900/10 text-red-500 hover:bg-red-900/30 border border-red-900/30 uppercase text-[10px] tracking-widest font-bold"
+                  className="p-2 hover:bg-red-500/10 text-zinc-500 hover:text-red-500 transition-colors uppercase text-[9px] tracking-widest font-bold flex items-center gap-1"
+                  title="Excluir Permanentemente"
                 >
-                  <X className="w-3 h-3 mr-2" />
+                  <X className="w-3 h-3" />
                   Excluir
-                </Button>
+                </button>
               </div>
             </motion.div>
           ))}
@@ -147,7 +155,7 @@ const TrashPage = () => {
   const hasItems = Object.values(trashItems).some(arr => arr.length > 0);
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] min-h-screen">
+    <div className="flex flex-col h-full bg-[#050505] min-h-screen font-sans">
       {/* Header */}
       <header className="border-b border-zinc-800/20 glass-panel px-4 py-6 md:px-8 md:py-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-red-600/30 to-transparent" />
@@ -175,7 +183,7 @@ const TrashPage = () => {
             </motion.h1>
             <div className="flex items-center gap-2">
               <span className="h-[1px] w-4 bg-red-600" />
-              <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
+              <p className="brick-tech text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-black">
                 Gerenciar itens deletados
               </p>
             </div>
@@ -190,10 +198,7 @@ const TrashPage = () => {
                       setLoading(true);
                       const res = await fetch('/api/trash/empty', {
                         method: 'DELETE',
-                        headers: {
-                          // Adicione headers se necessário, mas fetch padrão envia cookies (credentials: include seria melhor se usasse, mas o proxy confia)
-                          // No index.js temos app.use(cookieParser()), então assumimos auth via cookie ou header bearer se implementado globalmente no cliente
-                        }
+                        headers: {}
                       });
                       if (!res.ok) throw new Error('Falha ao esvaziar lixeira');
                       toast.success('Lixeira esvaziada com sucesso');
@@ -206,14 +211,14 @@ const TrashPage = () => {
                   }
                 }}
                 variant="destructive"
-                className="h-9 px-4 uppercase text-[10px] tracking-widest font-bold bg-red-600 hover:bg-red-700"
+                className="h-8 px-4 uppercase text-[9px] tracking-[0.2em] font-black bg-red-600 hover:bg-red-700 border-none rounded-none"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
+                <Trash2 className="w-3 h-3 mr-2" />
                 Esvaziar Lixeira
               </Button>
             )}
-            <div className="w-10 h-10 flex items-center justify-center bg-red-500/10 rounded-full border border-red-500/20">
-              <Trash2 className="w-5 h-5 text-red-500" />
+            <div className="w-10 h-10 flex items-center justify-center bg-red-900/10 rounded-full border border-red-500/20">
+              <Trash2 className="w-5 h-5 text-red-600" />
             </div>
           </div>
         </div>
@@ -225,11 +230,15 @@ const TrashPage = () => {
             <EmptyState />
           ) : (
             <div className="space-y-4 animate-fade-in">
-              <div className="bg-orange-500/5 border border-orange-500/10 p-4 rounded-lg flex items-start gap-4 mb-8">
-                <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+              <div className="bg-red-950/10 border-l-2 border-red-600/50 p-6 mb-12 flex items-start gap-4">
+                <div className="p-2 bg-red-500/10 rounded-full">
+                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                </div>
                 <div>
-                  <h3 className="text-orange-500 font-bold text-sm uppercase tracking-wide">Atenção</h3>
-                  <p className="text-orange-200/60 text-xs mt-1">Itens na lixeira podem ser excluídos permanentemente a qualquer momento. Restaure o que você precisa.</p>
+                  <h3 className="brick-tech text-red-500 font-bold text-[10px] uppercase tracking-[0.2em] mb-2">Zona de Perigo</h3>
+                  <p className="text-zinc-400 text-xs leading-relaxed max-w-xl">
+                    Os itens nesta lixeira ainda ocupam espaço no armazenamento. Eles podem ser restaurados a qualquer momento, mas se você esvaziar a lixeira, eles serão perdidos para sempre.
+                  </p>
                 </div>
               </div>
 
