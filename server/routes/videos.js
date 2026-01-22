@@ -443,7 +443,7 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
       type: resolvedType,
     });
   } catch (error) {
-    logger.error("VIDEOS", "Erro ao gerar URL de download", { error: error.message });
+    logger.error("VIDEOS", "Erro ao gerar URL de download", { error });
     res.status(500).json({ error: "Falha ao gerar URL de download" });
   }
 });
