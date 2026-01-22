@@ -30,7 +30,7 @@ export function ReviewCanvas() {
   const cachedRectRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  const isGuest = isPublic || !token;
+  const isGuest = isPublic && !!shareToken;
   const currentVideoId = currentVideo.id;
 
   // Pause video when entering drawing mode

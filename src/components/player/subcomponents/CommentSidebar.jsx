@@ -346,7 +346,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   } = useVideo();
 
   const { token } = useAuth();
-  const isGuest = isPublic || !token;
+  const isGuest = isPublic && !!shareToken;
   const canComment = true; // Logic can be refined
   const currentVideoId = currentVideo.id;
 

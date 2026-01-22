@@ -114,6 +114,7 @@ function VideoPlayerContent({
     playerRef,
     videoContainerRef,
     setComments,
+    setDrawings,
   } = useVideo();
 
   // Derived state from context
