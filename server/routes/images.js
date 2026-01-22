@@ -69,62 +69,131 @@ router.get("/search", authenticateToken, async (req, res) => {
   const cached = getCached(cacheKey);
   if (cached) return res.json(cached);
 
-  const params = new URLSearchParams({
-    q,
-    page: String(page),
-    page_size: String(limit),
-  });
+  // Parallel Search: Openverse + AI Generation
+  const searchPromises = [];
 
-  const url = `${OPENVERSE_API}/?${params.toString()}`;
+  // 1. Openverse Search
+  const openverseSearch = async () => {
+    try {
+      const params = new URLSearchParams({
+        q,
+        page: String(page),
+        page_size: String(limit),
+        aspect_ratio: "wide", // Prefer wide images for covers
+      });
 
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "brickreview/0.1 (cover image search)",
-      },
-    });
+      const url = `${OPENVERSE_API}/?${params.toString()}`;
 
-    if (!response.ok) {
-      return res.status(502).json({ error: "Falha ao buscar imagens no Openverse" });
-    }
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "brickreview/0.1 (cover image search)",
+        },
+      });
 
-    const data = await response.json().catch(() => null);
-    const resultsRaw = Array.isArray(data?.results) ? data.results : [];
+      if (!response.ok) return { results: [], hasMore: false };
 
-    const results = resultsRaw
-      .map((item) => {
-        return {
-          title: item.id, // Usamos o ID como título para o resolve funcionar com precisão
-          thumbUrl: item.thumbnail,
+      const data = await response.json();
+      const resultsRaw = Array.isArray(data?.results) ? data.results : [];
+      const hasMore = Boolean(data?.page_count > page);
+
+      const results = resultsRaw
+        .map((item) => ({
+          title: item.id, // Uses ID as title for resolution
+          thumbUrl: item.thumbnail || item.url, // Fallback to URL
           mime: item.filetype,
           originalTitle: item.title,
-        };
-      })
-      .filter((item) => item.title && item.thumbUrl)
-      .filter((item) => !looksBannedTitle(item.originalTitle))
-      .map((item) => ({ title: item.title, thumbUrl: item.thumbUrl }));
+          source: "openverse",
+        }))
+        .filter((item) => item.title && item.thumbUrl)
+        .filter((item) => !looksBannedTitle(item.originalTitle));
 
-    const hasMore = Boolean(data?.page_count > page);
-    const nextOffset = offset + limit;
+      return { results, hasMore };
+    } catch (error) {
+      logger.error('IMAGES', 'Openverse search failed', { error: error.message });
+      return { results: [], hasMore: false };
+    }
+  };
+
+  searchPromises.push(openverseSearch());
+
+  // 2. AI Generation (Pollinations) - Only on first page to mix in top results
+  // We generate 4 high-quality variations
+  if (page === 1) {
+    const aiSearch = async () => {
+      try {
+        const aiResults = [1, 2, 3, 4].map((i) => {
+          const seed = Math.floor(Math.random() * 10000) + (i * 137); // Deterministic-ish based on request
+          // Enhance prompt for covers
+          const enhancedPrompt = `${q} cinematic high quality hd, wallpaper, 4k`;
+          const id = `ai:pollinations:${seed}:${encodeURIComponent(enhancedPrompt)}`;
+          const thumbUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt)}?width=640&height=360&nologo=true&seed=${seed}`;
+
+          return {
+            title: id,
+            thumbUrl: thumbUrl,
+            mime: "image/jpeg",
+            originalTitle: `AI Generated: ${q} #${i}`,
+            source: "ai",
+          };
+        });
+        return { results: aiResults, hasMore: false };
+      } catch (e) {
+        return { results: [], hasMore: false };
+      }
+    };
+    searchPromises.push(aiSearch());
+  }
+
+  try {
+    const [openverseData, aiData] = await Promise.all([
+      searchPromises[0], // Openverse always at index 0
+      page === 1 ? searchPromises[1] : Promise.resolve({ results: [] })
+    ]);
+
+    // Merge: AI first, then Openverse
+    const results = [...(aiData?.results || []), ...(openverseData?.results || [])];
+    const hasMore = openverseData?.hasMore || false;
+    const nextOffset = offset + results.length; // Approximate
 
     const payload = { results, nextOffset, hasMore };
     setCached(cacheKey, payload);
 
     return res.json(payload);
   } catch (error) {
-    logger.error('IMAGES', 'Error searching images (Openverse)', { error: error.message });
+    logger.error('IMAGES', 'Search aggregation failed', { error: error.message });
     return res.status(500).json({ error: "Erro ao buscar imagens" });
   }
 });
 
 router.get("/resolve", authenticateToken, async (req, res) => {
-  const id = String(req.query.title || "").trim(); // No nosso novo esquema, 'title' contém o ID
+  const id = String(req.query.title || "").trim();
 
   if (!id) {
     return res.status(400).json({ error: "ID da imagem é obrigatório" });
   }
 
+  // Handle AI Generated Images
+  if (id.startsWith("ai:pollinations:")) {
+    try {
+      const parts = id.split(":");
+      const seed = parts[2];
+      const encodedPrompt = parts.slice(3).join(":"); // In case prompt has colons
+
+      // Construir URL de alta resolução
+      const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1280&height=720&nologo=true&seed=${seed}`;
+
+      return res.json({
+        url: url,
+        mime: "image/jpeg",
+        width: 1280
+      });
+    } catch (e) {
+      return res.status(400).json({ error: "ID AI inválido" });
+    }
+  }
+
+  // Handle Openverse Images (Legacy/Standard)
   const cacheKey = `resolve:${id}`;
   const cached = getCached(cacheKey);
   if (cached) return res.json(cached);
@@ -140,7 +209,7 @@ router.get("/resolve", authenticateToken, async (req, res) => {
     });
 
     if (!response.ok) {
-      return res.status(502).json({ error: "Falha ao resolver imagem no Openverse" });
+      return res.status(502).json({ error: "Falha ao resolver imagem" });
     }
 
     const data = await response.json().catch(() => null);
@@ -158,7 +227,7 @@ router.get("/resolve", authenticateToken, async (req, res) => {
 
     return res.json(payload);
   } catch (error) {
-    logger.error('IMAGES', 'Error resolving image (Openverse)', { error: error.message });
+    logger.error('IMAGES', 'Error resolving image', { error: error.message });
     return res.status(500).json({ error: "Erro ao resolver imagem" });
   }
 });

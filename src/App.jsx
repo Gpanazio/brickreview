@@ -428,43 +428,7 @@ function ProjectsPage() {
       </header>
 
       {/* Recent Projects Section */}
-      <div className="px-4 md:px-8 py-6 md:py-8 border-b border-zinc-900/50 bg-zinc-950/20">
-        <h2 className="brick-tech text-[10px] text-zinc-500 mb-4 md:mb-6 uppercase tracking-[0.3em]">
-          Recentes
-        </h2>
-        <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 no-scrollbar">
-          {projects.slice(0, 5).map((project) => {
-            const coverUrl = project.cover_image_url || project.thumbnail_url || project.thumbnail;
-            const hasValidCover = !isDefaultUrl(coverUrl);
 
-            return (
-              <Link
-                key={project.id}
-                to={`/project/${project.id}`}
-                className="flex-shrink-0 w-64 group"
-              >
-                <div className="relative aspect-video overflow-hidden mb-3 border border-zinc-800/50 group-hover:border-red-600/30 transition-colors bg-zinc-900">
-                  {hasValidCover ? (
-                    <img
-                      src={coverUrl}
-                      alt={project.name}
-                      loading="lazy"
-                      className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
-                    />
-                  ) : (
-                    <ProjectCoverPlaceholder projectName={project.name} />
-                  )}
-                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors" />
-                  <div className="absolute bottom-0 left-0 w-full h-[2px] bg-red-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500" />
-                </div>
-                <p className="brick-title text-xs text-zinc-400 group-hover:text-white transition-colors truncate">
-                  {project.name}
-                </p>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Filters & View Controls */}
       <div className="px-4 md:px-8 py-4 flex items-center justify-between border-b border-zinc-900/50 bg-zinc-950/30 backdrop-blur-sm sticky top-[73px] z-20">
