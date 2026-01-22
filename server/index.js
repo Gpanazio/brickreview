@@ -166,6 +166,7 @@ import driveRoutes from './routes/drive.js'
 import portfolioRoutes from './routes/portfolio.js'
 import portfolioCollectionsRoutes from './routes/portfolio-collections.js'
 import portfolioSharesRoutes from './routes/portfolio-shares.js'
+import trashRoutes from './routes/trash.js'
 
 // TODO: Import other routes
 // import notificationsRoutes from './routes/notifications.js'
@@ -191,6 +192,7 @@ app.use('/api/images', imagesRoutes)
 app.use('/api/storage', storageRoutes)
 app.use('/api/drive', driveRoutes)
 app.use('/api/portfolio', portfolioRoutes)
+app.use('/api/trash', trashRoutes)
 app.use('/api/portfolio/collections', portfolioCollectionsRoutes)
 // app.use('/api/notifications', notificationsRoutes)
 
