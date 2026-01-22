@@ -544,7 +544,13 @@ router.post("/:id/cover-url", authenticateToken, async (req, res) => {
  * @desc Remove cover image from project
  */
 router.delete("/:id/cover", authenticateToken, async (req, res) => {
-  const projectId = req.params.id;
+  const projectId = Number(req.params.id);
+
+  if (!validateId(projectId)) {
+    return res.status(400).json({ error: "ID de projeto inválido" });
+  }
+
+  if (!(await requireProjectAccess(req, res, projectId))) return;
 
   try {
     const result = await query(

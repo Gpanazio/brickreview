@@ -202,12 +202,20 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
     });
 
     // 4. Automatic Google Drive Backup (Non-blocking)
+    let shouldCleanup = true;
+
     if (googleDriveManager.isEnabled()) {
       logger.info(`🔄 Starting automatic Drive backup for video ${video.id}`);
+      shouldCleanup = false; // Defer cleanup to the async process
 
       // Backup to Drive asynchronously
       (async () => {
         try {
+          // Verify file exists before creation stream to avoid race condition logging
+          if (!fs.existsSync(file.path)) {
+            throw new Error("File not found for Drive backup");
+          }
+
           const fileStream = fs.createReadStream(file.path);
           const fileBuffer = await streamToBuffer(fileStream);
 
@@ -218,8 +226,9 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
           );
 
           // Update database with Drive info
+          // FIXED: Use correct table name 'brickreview_videos'
           await query(
-            `UPDATE videos
+            `UPDATE brickreview_videos
              SET drive_file_id = $1, drive_backup_date = NOW(), storage_location = 'both'
              WHERE id = $2`,
             [driveFile.id, video.id]
@@ -232,6 +241,16 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
             error: error.message,
           });
           // Continue without Drive backup - R2 upload was successful
+        } finally {
+          // Cleanup local temp file AFTER Drive backup attempt
+          if (file?.path) {
+            try {
+              await fs.promises.unlink(file.path);
+              logger.debug("VIDEO_UPLOAD", "Temp file cleaned up after Drive backup", { path: file.path });
+            } catch (e) {
+              logger.warn("Failed to cleanup temp upload after Drive backup:", e);
+            }
+          }
         }
       })();
     } else {
@@ -269,8 +288,8 @@ router.post("/upload", authenticateToken, uploadLimiter, upload.single("video"),
     logger.error("Erro no upload assíncrono:", error);
     res.status(500).json({ error: "Erro ao processar upload" });
   } finally {
-    // Cleanup local temp file
-    if (file?.path) {
+    // Cleanup local temp file ONLY if not deferred to async backup
+    if (file?.path && typeof shouldCleanup !== 'undefined' && shouldCleanup) {
       try {
         await fs.promises.unlink(file.path);
       } catch (e) {
@@ -333,7 +352,8 @@ router.get("/:id/stream", authenticateToken, async (req, res) => {
     } else {
       streamKey = proxy_r2_key || streaming_high_r2_key || r2_key;
       streamUrl = proxy_url || streaming_high_url || r2_url;
-      isOriginal = !proxy_url;
+      // FIXED: isOriginal is false if ANY proxy exists (url OR key)
+      isOriginal = !proxy_url && !proxy_r2_key;
     }
 
     if (process.env.R2_PUBLIC_URL && streamUrl && streamUrl.includes(process.env.R2_PUBLIC_URL)) {
@@ -672,6 +692,9 @@ router.post("/:id/restore", authenticateToken, async (req, res) => {
     if (!validateId(videoId)) {
       return res.status(400).json({ error: "ID de vídeo inválido" });
     }
+
+    // FIXED: Symmetric permission check (mirroring delete route)
+    if (!(await requireProjectAccessFromVideo(req, res, videoId))) return;
 
     const result = await query(
       "UPDATE brickreview_videos SET deleted_at = NULL WHERE id = $1 OR parent_video_id = $1 RETURNING *",

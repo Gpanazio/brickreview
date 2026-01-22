@@ -160,7 +160,29 @@ router.delete("/:id", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "ID de comentário inválido" });
     }
 
-    // Permite que qualquer usuário autenticado delete comentários (inclui comentários de guests)
+    // Verify permissions: Author, Project Owner, or Admin
+    const contextResult = await query(
+      `SELECT c.user_id as author_id, p.created_by as project_owner_id
+       FROM brickreview_comments c
+       JOIN brickreview_videos v ON v.id = c.video_id
+       JOIN brickreview_projects p ON p.id = v.project_id
+       WHERE c.id = $1`,
+      [commentId]
+    );
+
+    if (contextResult.rows.length === 0) {
+      return res.status(404).json({ error: "Comentário não encontrado" });
+    }
+
+    const { author_id, project_owner_id } = contextResult.rows[0];
+    const isAuthor = req.user.id === author_id;
+    const isProjectOwner = req.user.id === project_owner_id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isAuthor && !isProjectOwner && !isAdmin) {
+      return res.status(403).json({ error: "Você não tem permissão para excluir este comentário." });
+    }
+
     const result = await query("DELETE FROM brickreview_comments WHERE id = $1 RETURNING id", [
       commentId,
     ]);
