@@ -926,13 +926,13 @@ function VideoPlayerContent({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden lg:flex h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
+                  className="flex h-7 w-7 lg:h-8 lg:w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
                   onClick={() => {
                     if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime;
                   }}
                   aria-label="Previous frame"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-3 h-3 lg:w-4 lg:h-4" />
                 </Button>
 
                 <div className="flex flex-col items-center min-w-[80px] lg:min-w-[100px]">
@@ -947,13 +947,13 @@ function VideoPlayerContent({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden lg:flex h-8 w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
+                  className="flex h-7 w-7 lg:h-8 lg:w-8 rounded-none border border-zinc-800/50 text-zinc-500 hover:text-red-500 hover:border-red-600/50 transition-all bg-zinc-900/30"
                   onClick={() => {
                     if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime;
                   }}
                   aria-label="Next frame"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-3 h-3 lg:w-4 lg:h-4" />
                 </Button>
               </div>
 

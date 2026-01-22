@@ -655,6 +655,22 @@ logger.error("ERROR_BOUNDARY", { component, error });
 
 ---
 
+### Sprint 4: Mobile Optimization v0.8.0 (2026-01-22)
+**Status:** ✅ **COMPLETO**
+
+- [x] **Comment Sidebar Drawer:** Sidebar de comentários agora é um drawer colapsável em mobile (< 1024px).
+- [x] **Frame-by-Frame Mobile:** Botões de frame-by-frame agora visíveis em mobile com sizing responsivo.
+- [x] **CSS Utilities:** Adicionadas classes utilitárias para safe-area, touch-action e haptic feedback.
+- [x] **MobileNav Polish:** Melhorados touch targets (min 44px), aria-labels e feedback visual.
+
+**Arquivos Modificados:**
+- `src/components/player/subcomponents/CommentSidebar.jsx`
+- `src/components/player/VideoPlayer.jsx`
+- `src/App.css`
+- `src/App.jsx`
+
+---
+
 **Última atualização:** 2026-01-22
 **Mantido por:** Antigravity
 **Branch:** `feature/optimistic-ui`
