@@ -662,10 +662,12 @@ logger.error("ERROR_BOUNDARY", { component, error });
 - [x] **Frame-by-Frame Mobile:** Botões de frame-by-frame agora visíveis em mobile com sizing responsivo.
 - [x] **CSS Utilities:** Adicionadas classes utilitárias para safe-area, touch-action e haptic feedback.
 - [x] **MobileNav Polish:** Melhorados touch targets (min 44px), aria-labels e feedback visual.
+- [x] **Project Grid:** Ajustado gap do grid para mobile (`gap-4`) para melhor densidade.
 
 **Arquivos Modificados:**
 - `src/components/player/subcomponents/CommentSidebar.jsx`
 - `src/components/player/VideoPlayer.jsx`
+- `src/components/projects/ProjectDetailPage.jsx`
 - `src/App.css`
 - `src/App.jsx`
 

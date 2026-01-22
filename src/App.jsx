@@ -788,7 +788,7 @@ function MobileNav({ navItems, user, logout }) {
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800 z-[100] px-2 flex items-center justify-around safe-area-bottom"
+      className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800 z-[100] px-2 flex items-center justify-around"
       role="navigation"
       aria-label="Mobile navigation"
     >
@@ -797,8 +797,8 @@ function MobileNav({ navItems, user, logout }) {
           key={item.path}
           to={item.path}
           className={`flex flex-col items-center justify-center gap-0.5 transition-all haptic-tap min-w-[4rem] min-h-[3rem] rounded-lg ${isActive(item.path)
-              ? "text-red-500 bg-red-500/10"
-              : "text-zinc-500 active:bg-zinc-800"
+            ? "text-red-500 bg-red-500/10"
+            : "text-zinc-500 active:bg-zinc-800"
             }`}
           aria-label={item.label}
           aria-current={isActive(item.path) ? "page" : undefined}
