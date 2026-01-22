@@ -787,16 +787,24 @@ function MobileNav({ navItems, user, logout }) {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800 z-[100] px-4 flex items-center justify-around">
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800 z-[100] px-2 flex items-center justify-around"
+      role="navigation"
+      aria-label="Mobile navigation"
+    >
       {navItems.map((item) => (
         <Link
           key={item.path}
           to={item.path}
-          className={`flex flex-col items-center gap-1 transition-colors ${isActive(item.path) ? "text-red-500" : "text-zinc-500"
+          className={`flex flex-col items-center justify-center gap-0.5 transition-all haptic-tap min-w-[4rem] min-h-[3rem] rounded-lg ${isActive(item.path)
+            ? "text-red-500 bg-red-500/10"
+            : "text-zinc-500 active:bg-zinc-800"
             }`}
+          aria-label={item.label}
+          aria-current={isActive(item.path) ? "page" : undefined}
         >
-          <item.icon className="w-5 h-5" />
-          <span className="text-[9px] uppercase font-bold tracking-tighter">
+          <item.icon className={`w-5 h-5 ${isActive(item.path) ? "scale-110" : ""} transition-transform`} />
+          <span className="text-[8px] uppercase font-bold tracking-tight">
             {item.label.split(" ")[0]}
           </span>
         </Link>
@@ -804,17 +812,21 @@ function MobileNav({ navItems, user, logout }) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex flex-col items-center gap-1 text-zinc-500 cursor-pointer">
+          <button
+            className="flex flex-col items-center justify-center gap-0.5 text-zinc-500 cursor-pointer haptic-tap min-w-[4rem] min-h-[3rem] rounded-lg active:bg-zinc-800 transition-colors"
+            aria-label="User menu"
+          >
             <div className="w-6 h-6 bg-red-600 flex items-center justify-center">
               <span className="text-[10px] font-black text-white">
                 {user.username.substring(0, 2).toUpperCase()}
               </span>
             </div>
-            <span className="text-[9px] uppercase font-bold tracking-tighter">Perfil</span>
+            <span className="text-[8px] uppercase font-bold tracking-tight">Perfil</span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
+          side="top"
           className="bg-zinc-950 border-zinc-800 rounded-none w-56 mb-2"
         >
           <DropdownMenuItem className="text-zinc-400 focus:text-white focus:bg-white/5 rounded-none cursor-pointer">

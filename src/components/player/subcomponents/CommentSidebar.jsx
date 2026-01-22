@@ -360,6 +360,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   const [isRangeMode, setIsRangeMode] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const scrubRef = useRef({ startX: 0, startValue: 0 });
 
   const [confirmDialog, setConfirmDialog] = useState({
@@ -737,8 +738,27 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   }, [comments]);
 
   return (
-    <div className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel flex flex-col relative z-20 min-h-[40vh] lg:h-full lg:min-h-0 flex-1 lg:flex-none overflow-hidden">
-      <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0">
+    <div
+      className={`
+        w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-zinc-800/50 glass-panel 
+        flex flex-col relative z-20 overflow-hidden transition-all duration-300 ease-out
+        lg:h-full lg:min-h-0 lg:flex-none
+        ${isMobileExpanded
+          ? 'min-h-[60vh] max-h-[70vh] flex-1'
+          : 'min-h-0 h-auto max-h-[52px]'
+        }
+        lg:min-h-[40vh] lg:max-h-none
+      `}
+    >
+      {/* Header - Clickable on mobile to expand/collapse */}
+      <div
+        className="p-4 lg:p-6 border-b border-zinc-800/50 flex items-center justify-between shrink-0 cursor-pointer lg:cursor-default"
+        onClick={() => {
+          if (window.innerWidth < 1024) {
+            setIsMobileExpanded(!isMobileExpanded);
+          }
+        }}
+      >
         <h3 className="brick-title text-sm uppercase tracking-widest flex items-center gap-2 text-white">
           {showHistory ? (
             <>
@@ -746,16 +766,28 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
             </>
           ) : (
             <>
-              <MessageSquare className="w-4 h-4 text-red-600" /> Comentários ({comments.length})
+              <MessageSquare className="w-4 h-4 text-red-600" />
+              <span className="hidden sm:inline">Comentários</span>
+              <span className="sm:hidden">Cmts</span>
+              <span className="text-zinc-500">({comments.length})</span>
             </>
           )}
         </h3>
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className="text-[10px] font-black uppercase tracking-tighter text-zinc-500 hover:text-white transition-colors"
-        >
-          {showHistory ? "Ver Comentários" : "Ver Histórico"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Mobile expand indicator */}
+          <span className="lg:hidden text-zinc-500 text-[10px] uppercase tracking-widest">
+            {isMobileExpanded ? '▼' : '▲'}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowHistory(!showHistory);
+            }}
+            className="text-[10px] font-black uppercase tracking-tighter text-zinc-500 hover:text-white transition-colors hidden sm:block"
+          >
+            {showHistory ? "Ver Comentários" : "Ver Histórico"}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
