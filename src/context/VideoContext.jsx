@@ -26,6 +26,7 @@ export const VideoProvider = ({
   const [compareVideoUrl, setCompareVideoUrl] = useState(null);
   const [visitorName, setVisitorName] = useState(initialVisitorName);
   const [drawings, setDrawings] = useState([]);
+  const [pendingDrawings, setPendingDrawings] = useState([]);
   const [activeRange, setActiveRange] = useState(null);
 
   const playerRef = useRef(null);
@@ -79,7 +80,6 @@ export const VideoProvider = ({
     seekTo,
     togglePlay,
     versions,
-    // Guest/Share Context
     isPublic,
     shareToken,
     sharePassword,
@@ -87,6 +87,8 @@ export const VideoProvider = ({
     setVisitorName,
     drawings,
     setDrawings,
+    pendingDrawings,
+    setPendingDrawings,
   }), [
     currentVideo,
     currentTime,
@@ -104,6 +106,7 @@ export const VideoProvider = ({
     compareVideoUrl,
     visitorName,
     drawings,
+    pendingDrawings,
     seekTo,
     togglePlay,
     versions,

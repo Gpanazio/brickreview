@@ -1175,20 +1175,7 @@ export function StoragePage() {
                                     </div>
                                   )}
 
-                                  {/* Hover Overlay with Download */}
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="text-white hover:text-red-500 hover:bg-black/50 rounded-full"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.open(file.webViewLink, "_blank");
-                                      }}
-                                    >
-                                      <Download className="w-6 h-6" />
-                                    </Button>
-                                  </div>
+
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <h4 className="brick-title text-xs text-white truncate mb-2">

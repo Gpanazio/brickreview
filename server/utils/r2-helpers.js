@@ -42,7 +42,7 @@ export const uploadFile = async (localPath, key, contentType) => {
 
     await r2Client.send(command);
     console.log(`⬆️ Uploaded ${localPath} to ${key}`);
-    return `${process.env.R2_PUBLIC_URL}/${key}`;
+    return process.env.R2_PUBLIC_URL ? `${process.env.R2_PUBLIC_URL}/${key}` : null;
   } catch (error) {
     console.error(`❌ Error uploading ${key}:`, error);
     throw error;
@@ -67,7 +67,7 @@ export const uploadDriveThumbnail = async (thumbnailBuffer, driveFileId) => {
 
     await r2Client.send(command);
     console.log(`🖼️ Uploaded Drive thumbnail: ${key}`);
-    return `${process.env.R2_PUBLIC_URL}/${key}`;
+    return process.env.R2_PUBLIC_URL ? `${process.env.R2_PUBLIC_URL}/${key}` : null;
   } catch (error) {
     console.error(`❌ Error uploading Drive thumbnail:`, error);
     throw error;

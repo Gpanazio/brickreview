@@ -20,7 +20,7 @@ import logger from '../utils/logger.js';
  * @returns {string|null} The R2 thumbnail URL or null if not a video
  */
 const getR2ThumbnailUrl = (driveFileId, mimeType) => {
-  if (mimeType && mimeType.startsWith('video/')) {
+  if (mimeType && mimeType.startsWith('video/') && process.env.R2_PUBLIC_URL) {
     return `${process.env.R2_PUBLIC_URL}/drive-thumbs/${driveFileId}.jpg`;
   }
   return null;

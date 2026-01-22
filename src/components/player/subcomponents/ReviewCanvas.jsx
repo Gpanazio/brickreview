@@ -18,6 +18,8 @@ export function ReviewCanvas() {
     sharePassword,
     drawings,
     setDrawings,
+    pendingDrawings,
+    setPendingDrawings,
     isPlaying,
   } = useVideo();
 
@@ -237,7 +239,6 @@ export function ReviewCanvas() {
     const points = currentDrawingRef.current;
 
     if (points.length > 0) {
-      // Optimistic update
       const tempId = Date.now();
       const newDrawing = {
         timestamp: currentTime,
@@ -246,54 +247,19 @@ export function ReviewCanvas() {
         id: tempId,
       };
 
-      // Add optimistic drawing
-      setDrawings((prev) => [...prev, newDrawing]);
+      // Add to PENDING drawings instead of saving immediately
+      setPendingDrawings((prev) => [...prev, newDrawing]);
 
       // Clear current ref
       currentDrawingRef.current = [];
 
-      if (!isGuest) {
-        const saveToast = toast.loading("Salvando desenho...");
-        try {
-          const response = await fetch("/api/drawings", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              video_id: currentVideoId,
-              timestamp: currentTime,
-              drawing_data: points,
-              color: selectedColor,
-            }),
-          });
+      // Notify user visually that it's pending? 
+      // For now, the drawing just stays on screen. The interface should probably subtlely indicate it's unsaved or part of a comment draft.
 
-          if (response.ok) {
-            const savedData = await response.json();
-            // Update the drawing with the real ID from server
-            setDrawings((prev) =>
-              prev.map(d => d.id === tempId ? { ...d, id: savedData.id } : d)
-            );
-            toast.success("Desenho salvo com sucesso!", { id: saveToast });
-            // Don't auto-exit drawing mode here, let user continue drawing if they want (unless they hit play)
-          } else {
-            toast.error("Erro ao salvar desenho", { id: saveToast });
-            // Remove optimistic drawing on failure
-            setDrawings((prev) => prev.filter(d => d.id !== tempId));
-          }
-        } catch (error) {
-          console.error("Erro ao salvar desenho:", error);
-          toast.error("Erro ao salvar desenho", { id: saveToast });
-          setDrawings((prev) => prev.filter(d => d.id !== tempId));
-        }
-      } else {
-        currentDrawingRef.current = [];
-      }
     }
   };
 
-  // Renderiza os desenhos no canvas (History only)
+  // Renderiza os desenhos no canvas (drawings + pendingDrawings)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -306,8 +272,11 @@ export function ReviewCanvas() {
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Combine saved drawings and pending drawings
+    const allDrawings = [...drawings, ...pendingDrawings];
+
     // Filter drawings near current time (0.1s tolerance)
-    const currentDrawings = drawings.filter((d) => Math.abs(d.timestamp - currentTime) < 0.1);
+    const currentDrawings = allDrawings.filter((d) => Math.abs(d.timestamp - currentTime) < 0.1);
 
     currentDrawings.forEach((drawing) => {
       ctx.strokeStyle = drawing.color;
@@ -328,11 +297,7 @@ export function ReviewCanvas() {
       ctx.stroke();
     });
 
-    // Note: We do NOT draw currentDrawingRef here. It is drawn imperatively during interaction.
-    // However, if props change (like resize), we might lose the temp drawing. 
-    // Ideally, current drawing is fleeting. If resize happens during draw, it might clear.
-    // Given React 18 concurrency, this is usually acceptable or we'd need to re-stroke the ref content here too.
-    // For safety, let's redraw the ref content if it exists (e.g. during a resize while drawing)
+    // Redraw current stroke if exists
     if (currentDrawingRef.current.length > 0) {
       ctx.strokeStyle = selectedColor;
       ctx.lineWidth = 3;
@@ -348,7 +313,7 @@ export function ReviewCanvas() {
       ctx.stroke();
     }
 
-  }, [drawings, currentTime, selectedColor, canvasRef, videoContainerRef, dimensions]); // removed currentDrawing dependency
+  }, [drawings, pendingDrawings, currentTime, selectedColor, canvasRef, videoContainerRef, dimensions]); // removed currentDrawing dependency
 
   // Handle Resize
   useEffect(() => {

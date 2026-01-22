@@ -92,6 +92,22 @@ router.post('/', authenticateToken, attachmentUpload.single('file'), async (req,
       [result.rows[0].id]
     );
 
+    // Save linked drawings if provided
+    if (req.body.drawings && Array.isArray(req.body.drawings)) {
+      const drawings = req.body.drawings;
+      const userId = req.user.id;
+
+      const drawingPromises = drawings.map(d => {
+        return query(
+          `INSERT INTO brickreview_drawings (video_id, user_id, timestamp, drawing_data, color)
+            VALUES ($1, $2, $3, $4, $5)`,
+          [videoId, userId, d.timestamp, JSON.stringify(d.points || d.drawing_data), d.color || '#FF0000']
+        );
+      });
+
+      await Promise.all(drawingPromises);
+    }
+
     res.status(201).json(commentResult.rows[0]);
   } catch (error) {
     logger.error('COMMENTS', 'Error adding comment', { error: error.message });

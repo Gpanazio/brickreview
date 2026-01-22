@@ -340,6 +340,8 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
     setVisitorName,
     drawings,
     setDrawings,
+    pendingDrawings,
+    setPendingDrawings,
     shareToken,
     sharePassword,
     isPublic,
@@ -513,15 +515,24 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       content: newComment,
       timestamp: finalTimestamp,
       timestamp_end: finalTimestampEnd,
+      drawings: pendingDrawings, // Attach pending drawings
     };
 
     if (isGuest) body.visitor_name = visitorName;
 
     // Clear form immediately for instant feedback
     const commentContent = newComment;
+    const previousPendingDrawings = [...pendingDrawings]; // Backup for rollback
+
     setNewComment("");
     setAttachedFile(null);
     setIsDrawingMode(false);
+
+    // Optimistically move pending drawings to confirmed drawings
+    if (pendingDrawings.length > 0) {
+      setDrawings(prev => [...prev, ...pendingDrawings]);
+      setPendingDrawings([]);
+    }
 
     try {
       const result = await optimisticComments.addComment.mutate({
@@ -537,6 +548,14 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       // Restore form on error
       setNewComment(commentContent);
       console.error("Erro ao adicionar comentário:", error);
+
+      // Rollback drawings
+      if (previousPendingDrawings.length > 0) {
+        setPendingDrawings(previousPendingDrawings);
+        // Remove the optimistic drawings we added (filtering by ID might be tricky if temp IDs clash, but usually safe)
+        const tempIds = previousPendingDrawings.map(d => d.id);
+        setDrawings(prev => prev.filter(d => !tempIds.includes(d.id)));
+      }
     }
   };
 
@@ -560,6 +579,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       content: replyText,
       timestamp: currentTime,
       parent_comment_id: replyingTo,
+      drawings: pendingDrawings, // Attach pending drawings
     };
 
     if (isGuest) body.visitor_name = visitorName;
@@ -567,9 +587,17 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
     // Clear form immediately for instant feedback
     const replyContent = replyText;
     const parentId = replyingTo;
+    const previousPendingDrawings = [...pendingDrawings]; // Backup
+
     setReplyText("");
     setReplyingTo(null);
     setIsDrawingMode(false);
+
+    // Optimistically move pending drawings to confirmed drawings
+    if (pendingDrawings.length > 0) {
+      setDrawings(prev => [...prev, ...pendingDrawings]);
+      setPendingDrawings([]);
+    }
 
     try {
       const result = await optimisticComments.addReply.mutate({
@@ -586,6 +614,13 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
       setReplyText(replyContent);
       setReplyingTo(parentId);
       console.error("Erro ao adicionar resposta:", error);
+
+      // Rollback drawings
+      if (previousPendingDrawings.length > 0) {
+        setPendingDrawings(previousPendingDrawings);
+        const tempIds = previousPendingDrawings.map(d => d.id);
+        setDrawings(prev => prev.filter(d => !tempIds.includes(d.id)));
+      }
     }
   };
 
@@ -635,6 +670,12 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   };
 
   const handleUndoDrawing = async () => {
+    // Check pending first
+    if (pendingDrawings.length > 0) {
+      setPendingDrawings(prev => prev.slice(0, -1));
+      return;
+    }
+
     const currentFrameDrawings = drawings.filter((d) => Math.abs(d.timestamp - currentTime) < 0.1);
     if (currentFrameDrawings.length === 0) return;
 
@@ -669,6 +710,9 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   };
 
   const handleClearFrame = async () => {
+    // Clear pending first
+    setPendingDrawings(prev => prev.filter(d => Math.abs(d.timestamp - currentTime) >= 0.1));
+
     const currentFrameDrawings = drawings.filter((d) => Math.abs(d.timestamp - currentTime) < 0.1);
     if (currentFrameDrawings.length === 0) return;
 
@@ -697,7 +741,6 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
         } catch (error) {
           console.error("Erro ao limpar desenhos:", error);
           toast.error("Erro ao limpar desenhos", { id: deleteToast });
-          // Restore on error (simplified, might be tricky if user drew more, but acceptable)
           // Restore on error by adding back the drawings that were removed.
           setDrawings((prev) => [...prev, ...currentFrameDrawings]);
         }
