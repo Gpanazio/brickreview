@@ -16,6 +16,7 @@ import {
   HardDrive,
   Briefcase,
   MoreVertical,
+  Trash2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ const SharedStoragePage = lazy(() => import("./components/storage/SharedStorageP
 const PortfolioPage = lazy(() => import("./components/portfolio/PortfolioPage").then(m => ({ default: m.PortfolioPage })));
 const PortfolioPlayerPage = lazy(() => import("./components/portfolio/PortfolioPlayerPage").then(m => ({ default: m.PortfolioPlayerPage })));
 const SharedCollectionPage = lazy(() => import("./components/portfolio/SharedCollectionPage").then(m => ({ default: m.SharedCollectionPage })));
+const TrashPage = lazy(() => import("./components/projects/TrashPage"));
 
 // Cookie consent component (non-lazy, always needed)
 import { CookieConsent } from "./components/CookieConsent";
@@ -139,6 +141,7 @@ function AppContent() {
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/storage" element={<StoragePage />} />
                   <Route path="/portfolio" element={<PortfolioPage />} />
+                  <Route path="/trash" element={<TrashPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>
@@ -160,6 +163,7 @@ function Sidebar({ collapsed, setCollapsed }) {
     { icon: Home, label: "Todos os Projetos", path: "/" },
     { icon: Briefcase, label: "Portfolio", path: "/portfolio" },
     { icon: HardDrive, label: "Storage", path: "/storage" },
+    { icon: Trash2, label: "Lixeira", path: "/trash" },
     { icon: Settings, label: "Configurações", path: "/settings" },
   ];
 
