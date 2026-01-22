@@ -710,11 +710,22 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   };
 
   const handleClearFrame = async () => {
-    // Clear pending first
-    setPendingDrawings(prev => prev.filter(d => Math.abs(d.timestamp - currentTime) >= 0.1));
-
+    // Check for pending drawings on current frame
+    const currentPendingDrawings = pendingDrawings.filter(d => Math.abs(d.timestamp - currentTime) < 0.1);
     const currentFrameDrawings = drawings.filter((d) => Math.abs(d.timestamp - currentTime) < 0.1);
-    if (currentFrameDrawings.length === 0) return;
+
+    // Nothing to clear
+    if (currentPendingDrawings.length === 0 && currentFrameDrawings.length === 0) return;
+
+    // If only pending drawings, clear them without confirmation (not saved yet)
+    if (currentFrameDrawings.length === 0) {
+      setPendingDrawings(prev => prev.filter(d => Math.abs(d.timestamp - currentTime) >= 0.1));
+      toast.success("Desenhos pendentes removidos");
+      return;
+    }
+
+    // Clear pending drawings immediately (they're local)
+    setPendingDrawings(prev => prev.filter(d => Math.abs(d.timestamp - currentTime) >= 0.1));
 
     setConfirmDialog({
       isOpen: true,
