@@ -361,6 +361,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
   const [attachedFile, setAttachedFile] = useState(null);
   const [hasTimestamp, setHasTimestamp] = useState(true);
   const [rangeEndTime, setRangeEndTime] = useState(null);
+  const [rangeStartTime, setRangeStartTime] = useState(null);
   const [isRangeMode, setIsRangeMode] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
@@ -508,8 +509,9 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
     let finalTimestampEnd = null;
 
     if (hasTimestamp && isRangeMode && rangeEndTime !== null) {
-      finalTimestamp = Math.min(currentTime, rangeEndTime);
-      finalTimestampEnd = Math.max(currentTime, rangeEndTime);
+      const start = rangeStartTime !== null ? rangeStartTime : currentTime;
+      finalTimestamp = Math.min(start, rangeEndTime);
+      finalTimestampEnd = Math.max(start, rangeEndTime);
     }
 
     const body = {
@@ -529,6 +531,9 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
     setNewComment("");
     setAttachedFile(null);
     setIsDrawingMode(false);
+    setRangeEndTime(null);
+    setRangeStartTime(null);
+    setIsRangeMode(false);
 
     // Optimistically move pending drawings to confirmed drawings
     if (pendingDrawings.length > 0) {
@@ -918,7 +923,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
               {hasTimestamp ? (
                 <div className="flex items-center gap-2 text-zinc-500">
                   <Clock className="w-3 h-3" />
-                  <span className="text-red-500">{formatTimecode(currentTime)}</span>
+                  <span className="text-red-500">{formatTimecode(isRangeMode && rangeStartTime !== null ? rangeStartTime : currentTime)}</span>
                   {isRangeMode && rangeEndTime !== null && (
                     <>
                       <span className="text-zinc-600">→</span>
@@ -965,7 +970,7 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                   if (isDrawingMode) setIsDrawingMode(false);
                 }}
                 placeholder={isGuest ? "Escreva seu comentário..." : "Escreva seu feedback..."}
-                className="w-full bg-transparent border-none p-3 text-sm text-white focus:ring-0 focus:outline-none transition-colors resize-none h-24"
+                className="w-full bg-transparent border-none p-3 pb-14 text-sm text-white focus:ring-0 focus:outline-none transition-colors resize-none h-40"
                 disabled={isGuest && !canComment}
               />
 
@@ -990,9 +995,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                       className={`p-2 rounded-sm transition-colors flex items-center gap-1 flex-shrink-0 ${isRangeMode ? "text-red-500 bg-red-500/10" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"}`}
                       onClick={() => {
                         if (!isRangeMode) {
+                          setRangeStartTime(currentTime);
                           setRangeEndTime(currentTime + DEFAULT_RANGE_DURATION_SECONDS);
                         } else {
                           setRangeEndTime(null);
+                          setRangeStartTime(null);
                         }
                         setIsRangeMode(!isRangeMode);
                       }}
@@ -1011,11 +1018,11 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                       onMouseDown={handleScrubStart}
                       title="Arraste para ajustar o tempo final"
                     >
-                      <span>Fim:</span>
-                      <span className="text-white font-bold min-w-[2.5em] text-center">
+                      <span className="cursor-ew-resize">Fim:</span>
+                      <span className="text-white font-bold min-w-[2.5em] text-center cursor-ew-resize">
                         {rangeEndTime !== null ? rangeEndTime.toFixed(1) : ""}
                       </span>
-                      <span className="text-zinc-600">s</span>
+                      <span className="text-zinc-600 cursor-ew-resize">s</span>
                     </div>
                   )}
 
@@ -1039,52 +1046,56 @@ export function CommentSidebar({ showHistory, setShowHistory, history }) {
                     <Paperclip className="w-4 h-4" />
                   </button>
 
-                  <div className="relative flex-shrink-0">
-                    <button
-                      type="button"
-                      className={`p-2 rounded-sm transition-colors flex-shrink-0 ${showEmojiPicker
-                        ? "text-yellow-500 bg-yellow-500/10"
-                        : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
-                        }`}
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      title="Adicionar emoji"
+                  <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={`p-2 rounded-sm transition-colors flex-shrink-0 ${showEmojiPicker
+                          ? "text-yellow-500 bg-yellow-500/10"
+                          : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
+                          }`}
+                        title="Adicionar emoji"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="top"
+                      align="start"
+                      sideOffset={10}
+                      className="p-0 bg-zinc-900 border-zinc-800 w-auto rounded-sm overflow-hidden z-[100]"
                     >
-                      <Smile className="w-4 h-4" />
-                    </button>
-
-                    {showEmojiPicker && (
-                      <div className="absolute bottom-full left-0 mb-2 z-50 bg-zinc-900 border border-zinc-800 rounded-sm overflow-hidden">
-                        {/* Quick Reactions */}
-                        <div className="flex items-center gap-1 p-2 border-b border-zinc-800 bg-zinc-950">
-                          {["🎬", "📽️", "🍿", "🎞️"].map((emoji) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              className="p-2 hover:bg-zinc-800 rounded-sm transition-colors text-xl leading-none"
-                              onClick={() => {
-                                setNewComment(newComment + emoji);
-                                setShowEmojiPicker(false);
-                              }}
-                              title={`Adicionar ${emoji}`}
-                            >
-                              {emoji}
-                            </button>
-                          ))}
-                        </div>
-                        <ErrorBoundary>
-                          <EmojiPicker
-                            onEmojiClick={(emojiData) => {
-                              setNewComment(newComment + emojiData.emoji);
+                      {/* Quick Reactions */}
+                      <div className="flex items-center gap-1 p-2 border-b border-zinc-800 bg-zinc-950">
+                        {["🎬", "📽️", "🍿", "🎞️", "👍", "🔥", "😂"].map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            className="p-2 hover:bg-zinc-800 rounded-sm transition-colors text-xl leading-none"
+                            onClick={() => {
+                              setNewComment(newComment + emoji);
                               setShowEmojiPicker(false);
                             }}
-                            theme="dark"
-                            width={300}
-                            height={400}
-                          />
-                        </ErrorBoundary>
+                            title={`Adicionar ${emoji}`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
                       </div>
-                    )}
-                  </div>
+                      <ErrorBoundary>
+                        <EmojiPicker
+                          onEmojiClick={(emojiData) => {
+                            setNewComment(newComment + emojiData.emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                          theme="dark"
+                          width={300}
+                          height={400}
+                          lazyLoadEmojis={true}
+                        />
+                      </ErrorBoundary>
+                    </PopoverContent>
+                  </Popover>
 
                   <button
                     type="button"
