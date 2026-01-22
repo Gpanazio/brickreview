@@ -635,12 +635,19 @@ logger.error("ERROR_BOUNDARY", { component, error });
 - ✅ Pronto para staging
 
 **Próximos Passos:**
-1. Implementar Sprint 2 (itens #6, #8, #9, #31)
-2. Deploy para staging
-3. Smoke tests e validação
-4. Continuar com Sprint 3-4
+1. Monitoramento de Produção
+2. Otimização de Mobile (v0.8.0)
+3. Integração com NLEs (Futuro)
 
-**Tempo Restante Estimado:** ~142h (~18 dias úteis)
+**Tempo Restante Estimado:** ~80h+ (Itens de Longo Prazo)
+
+---
+
+### Sprint 3: Otimizações e Acessibilidade (2026-01-22)
+**Status:** ✅ **COMPLETO**
+
+- [x] **#24 Labels de Acessibilidade:** Adição de `aria-label` em botões de ícone (Player, Sidebar, Files).
+- [x] **#25 Deduplicação de Código:** Remoção de `FileViewer` legado e limpeza de componentes mortos.
 
 ---
 

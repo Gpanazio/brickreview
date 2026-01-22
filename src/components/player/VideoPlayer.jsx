@@ -600,7 +600,7 @@ function VideoPlayerContent({
       <div className="flex flex-col lg:flex-row h-full bg-[#050505] overflow-hidden min-h-0">
         <div className="relative z-10 flex flex-col flex-none lg:flex-1 min-w-0 max-h-[60vh] lg:max-h-none overflow-hidden">
           <div className="p-4 border-b border-zinc-800/50 glass-panel flex items-center gap-4">
-            <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors cursor-pointer">
+            <button onClick={onBack} className="text-zinc-500 hover:text-white transition-colors cursor-pointer" aria-label="Back">
               <ChevronLeft className="w-5 h-5" />
             </button>
             <h2 className="brick-title text-lg tracking-tighter uppercase truncate">
@@ -649,6 +649,7 @@ function VideoPlayerContent({
                 size="icon"
                 onClick={() => setShowHistory(!showHistory)}
                 className={`h-8 w-8 rounded-none border border-zinc-800 ${showHistory ? "bg-red-600 text-white border-red-600" : "text-zinc-500 hover:text-white hover:bg-zinc-800"}`}
+                aria-label={showHistory ? "Hide history" : "Show history"}
               >
                 <History className="w-4 h-4" />
               </Button>
@@ -660,6 +661,7 @@ function VideoPlayerContent({
                   onClick={handleGenerateShare}
                   disabled={isGeneratingShare}
                   className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
+                  aria-label="Share video"
                 >
                   <Share2 className="w-4 h-4" />
                 </Button>
@@ -672,6 +674,7 @@ function VideoPlayerContent({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 rounded-none border border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800"
+                      aria-label="Download options"
                     >
                       <Download className="w-4 h-4" />
                     </Button>
@@ -838,6 +841,7 @@ function VideoPlayerContent({
                   }}
                   disabled={!videoUrl}
                   className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8 disabled:opacity-50"
+                  aria-label={isPlaying ? "Pause" : "Play"}
                 >
                   {isPlaying ? (
                     <Pause className="w-4 h-4 fill-current" />
@@ -926,6 +930,7 @@ function VideoPlayerContent({
                   onClick={() => {
                     if (playerRef.current?.plyr) playerRef.current.plyr.currentTime -= frameTime;
                   }}
+                  aria-label="Previous frame"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
@@ -946,6 +951,7 @@ function VideoPlayerContent({
                   onClick={() => {
                     if (playerRef.current?.plyr) playerRef.current.plyr.currentTime += frameTime;
                   }}
+                  aria-label="Next frame"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -962,6 +968,7 @@ function VideoPlayerContent({
                       }
                     }}
                     className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                    aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
                   >
                     {isMuted || volume === 0 ? (
                       <VolumeX className="w-4 h-4" />
@@ -993,6 +1000,7 @@ function VideoPlayerContent({
                   size="icon"
                   onClick={() => playerRef.current?.plyr?.fullscreen.toggle()}
                   className="text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-none w-8 h-8"
+                  aria-label="Toggle fullscreen"
                 >
                   <Maximize className="w-4 h-4" />
                 </Button>

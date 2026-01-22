@@ -1706,6 +1706,7 @@ const FileCard = memo(({ file, onDelete, onMove, isSelected }) => {
                   <button
                     className="text-zinc-600 hover:text-white p-1.5 hover:bg-zinc-800/50 transition-colors"
                     onClick={(e) => e.stopPropagation()}
+                    aria-label="More options"
                   >
                     <MoreVertical className="w-4 h-4" />
                   </button>
@@ -1980,7 +1981,7 @@ const VideoCard = memo(
                   <div onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="text-zinc-700 hover:text-white transition-colors p-1 hover:bg-zinc-800/50 rounded-sm">
+                        <button className="text-zinc-700 hover:text-white transition-colors p-1 hover:bg-zinc-800/50 rounded-sm" aria-label="Video options">
                           <MoreVertical className="w-4 h-4" />
                         </button>
                       </DropdownMenuTrigger>
