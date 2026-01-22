@@ -1,7 +1,7 @@
 # 🚀 PROGRESSO DA IMPLEMENTAÇÃO - Plano de Segurança
 
 **Data de início:** 2026-01-19
-**Última atualização:** 2026-01-20
+**Última atualização:** 2026-01-22
 **Branch:** `main`
 
 ---
@@ -148,6 +148,22 @@ if (!allowedVideoTypes.includes(fileType.mime)) {
 - 🟡 Falta validação defensiva em `auth.js` (baixa prioridade)
 
 **Conclusão:** Não requer ação imediata
+
+---
+
+### 🔧 Refinamentos de Arquitetura e Segurança (2026-01-22)
+**Status:** ✅ **COMPLETO**
+**Implementado por:** Antigravity Agent
+
+**Melhorias Implementadas:**
+- **Standardização da API:** `GET /api/projects` agora retorna formato consistente `{ data, pagination }`, inclusive para `recent=true`.
+- **User Isolation:** Reforço na query de projetos para garantir isolamento estrito de dados por usuário.
+- **Redis SCAN:** Migração de `KEYS` para `SCAN` para evitar bloqueio do event loop no cache clearing.
+- **Upload Cleanup:** Correção na limpeza de arquivos temporários e melhoria na detecção de MIME type para capas de projeto.
+- **Security Hardening:**
+    - Ajustes em CORS para suportar `Access-Control-Allow-Credentials` com origem dinâmica.
+    - CSP estrito em produção vs permissivo em desenvolvimento.
+- **Frontend Refinement:** Atualização do `MoveItemDialog` para consumir o novo formato da API.
 
 ---
 

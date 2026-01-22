@@ -9,8 +9,9 @@ const REQUIRED_ENV_VARS = {
 
   // JWT (Obrigatório para autenticação)
   JWT_SECRET: "Necessário para autenticação de usuários",
+};
 
-  // Cloudflare R2 (Obrigatório para upload de vídeos)
+const R2_ENV_VARS = {
   R2_ACCOUNT_ID: "ID da conta Cloudflare R2 para armazenar vídeos",
   R2_ACCESS_KEY_ID: "Chave de acesso R2",
   R2_SECRET_ACCESS_KEY: "Chave secreta R2",
@@ -35,6 +36,21 @@ export function validateEnvironment() {
   for (const [key, description] of Object.entries(REQUIRED_ENV_VARS)) {
     if (!process.env[key]) {
       missing.push({ key, description });
+    }
+  }
+
+  // R2 é obrigatório apenas em produção
+  if (process.env.NODE_ENV === 'production') {
+    for (const [key, description] of Object.entries(R2_ENV_VARS)) {
+      if (!process.env[key]) {
+        missing.push({ key, description });
+      }
+    }
+  } else {
+    // Em desenvolvimento, avisa se R2 não estiver configurado
+    const r2Missing = Object.keys(R2_ENV_VARS).some(key => !process.env[key]);
+    if (r2Missing) {
+      warnings.push("R2 Storage não configurado полностью. Uploads podem falhar.");
     }
   }
 

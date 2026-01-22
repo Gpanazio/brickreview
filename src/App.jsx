@@ -415,12 +415,12 @@ function ProjectsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-
           <div className="hidden md:flex items-center gap-2 ml-4">
             <Button variant="ghost" size="icon">
               <User className="w-5 h-5" />
             </Button>
           </div>
+
         </div>
       </header>
 

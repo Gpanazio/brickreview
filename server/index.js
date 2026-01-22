@@ -53,17 +53,29 @@ app.use((req, res, next) => {
 // Request Logging and ID generation
 app.use(requestLogger);
 
-const allowAnyOrigin = !process.env.CORS_ORIGIN || process.env.CORS_ORIGIN === '*'
+const allowAnyOrigin = process.env.CORS_ORIGIN === '*'
 
-// Headers de Segurança e Performance
+// Middleware de segurança (CSP)
 app.use((req, res, next) => {
-  // Segurança
-  res.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; worker-src 'self' blob:; connect-src 'self' https: ws: wss:; media-src 'self' https: blob:; frame-src 'self' https://drive.google.com https://docs.google.com; frame-ancestors 'self';");
+  // Em desenvolvimento, CSP mais permissivo para facilitar debug e hot reload
+  if (process.env.NODE_ENV !== 'production') {
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' ws: wss: https:; media-src 'self' blob: https:; frame-src 'self' https:;"
+    );
+  } else {
+    // Em produção, CSP estrita
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; media-src 'self' blob: https:; frame-src 'self' https://drive.google.com https://docs.google.com; frame-ancestors 'self';"
+    );
+  }
+
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.removeHeader('X-Frame-Options'); // Substituído por frame-ancestors
+  res.removeHeader('X-Frame-Options');
 
-  // Cache Control para API (dinâmico) vs Estáticos
+  // Cache Control
   if (req.path.startsWith('/api/')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   } else if (req.path.match(/\.(css|js|jpg|png|svg|ico)$/)) {
@@ -75,10 +87,20 @@ app.use((req, res, next) => {
 
 app.use(
   cors({
-    origin: allowAnyOrigin
-      ? true
-      : process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim()),
-    credentials: !allowAnyOrigin,
+    origin: (origin, callback) => {
+      // Se permitir qualquer origem (*), reflete a origem do request para suportar credentials
+      if (allowAnyOrigin) {
+        return callback(null, true);
+      }
+      // Se não, verifica a lista branca
+      const allowedOrigins = process.env.CORS_ORIGIN.split(',').map((o) => o.trim());
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true, // Sempre permite cookies/auth headers
   })
 )
 
@@ -153,8 +175,9 @@ app.use('/api/auth', authLimiter, authRoutes)
 app.use('/api/shares', shareLimiter, sharesRoutes)
 app.use('/api/portfolio/shares', shareLimiter, portfolioSharesRoutes)
 
-// Aplicar rate limiter geral para todas as outras rotas da API
-app.use('/api', apiLimiter)
+// Rotas protegidas (Rate limiter será aplicado internamente ou via router wrapper se necessário)
+// Para simplificar e garantir que req.user exista, o apiLimiter deve ser usado APÓS authenticateToken
+// nas rotas que o exigem.
 
 app.use('/api/projects', projectsRoutes)
 app.use('/api/folders', foldersRoutes)

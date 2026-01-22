@@ -31,7 +31,7 @@ export function MoveItemDialog({
     try {
       const res = await fetch("/api/projects", { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      setProjects(data);
+      setProjects(data.data || []);
     } catch (err) {
       console.error(err);
     }

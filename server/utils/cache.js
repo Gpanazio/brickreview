@@ -69,10 +69,21 @@ export const cache = {
     async flushPattern(pattern) {
         if (!redis || connectionFailed) return null;
         try {
-            const keys = await redis.keys(pattern);
-            if (keys.length > 0) {
-                await redis.del(keys);
-            }
+            const stream = redis.scanStream({
+                match: pattern,
+                count: 100
+            });
+
+            stream.on('data', async (keys) => {
+                if (keys.length > 0) {
+                    await redis.del(keys);
+                }
+            });
+
+            return new Promise((resolve, reject) => {
+                stream.on('end', resolve);
+                stream.on('error', reject);
+            });
         } catch {
             // Silently fail
         }
