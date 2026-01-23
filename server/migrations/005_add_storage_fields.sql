@@ -1,3 +1,5 @@
+BEGIN;
+
 -- Add storage location tracking fields to brickreview_videos table
 ALTER TABLE brickreview_videos ADD COLUMN IF NOT EXISTS storage_location VARCHAR(20) DEFAULT 'r2';
 ALTER TABLE brickreview_videos ADD COLUMN IF NOT EXISTS drive_file_id VARCHAR(255);
@@ -13,3 +15,5 @@ COMMENT ON COLUMN brickreview_videos.storage_location IS 'Current primary storag
 COMMENT ON COLUMN brickreview_videos.drive_file_id IS 'Google Drive file ID for backup';
 COMMENT ON COLUMN brickreview_videos.drive_backup_date IS 'When the file was backed up to Drive';
 COMMENT ON COLUMN brickreview_videos.r2_bucket_id IS 'Which R2 bucket (primary/secondary) stores this video';
+
+COMMIT;
