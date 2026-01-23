@@ -97,15 +97,12 @@ app.use(
         .split(',')
         .map((o) => o.trim())
         .filter(Boolean);
-      if (allowedOrigins.length === 0) {
-        if (!origin) {
-          return callback(null, true);
-        }
-        return callback(new Error('Not allowed by CORS'));
-      }
+      // Permite requisições da mesma origem e origens na lista branca.
       if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+
+      // Rejeita todas as outras.
       return callback(new Error('Not allowed by CORS'));
     },
     credentials: true, // Sempre permite cookies/auth headers
