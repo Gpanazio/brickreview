@@ -53,7 +53,8 @@ app.use((req, res, next) => {
 // Request Logging and ID generation
 app.use(requestLogger);
 
-const allowAnyOrigin = process.env.CORS_ORIGIN === '*'
+const originEnv = process.env.CORS_ORIGIN || ''
+const allowAnyOrigin = originEnv === '*'
 
 // Middleware de segurança (CSP)
 app.use((req, res, next) => {
@@ -92,12 +93,17 @@ app.use(
         return callback(null, true);
       }
       // Se não, verifica a lista branca
-      const allowedOrigins = process.env.CORS_ORIGIN.split(',').map((o) => o.trim());
+      const allowedOrigins = originEnv
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
+      // Permite requisições da mesma origem e origens na lista branca.
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
+        return callback(null, true);
       }
+
+      // Rejeita todas as outras.
+      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true, // Sempre permite cookies/auth headers
   })
