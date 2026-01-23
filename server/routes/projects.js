@@ -61,19 +61,7 @@ router.get("/", authenticateToken, asyncHandler(async (req, res) => {
       return res.json(cachedData);
     }
 
-    const data = Array.isArray(cachedData) ? cachedData : [];
-    const responseData = {
-      data,
-      pagination: {
-        page: 1,
-        limit: data.length,
-        total: data.length,
-        totalPages: 1
-      }
-    };
-
-    await cache.set(cacheKey, responseData, 300);
-    return res.json(responseData);
+    await cache.del(cacheKey);
   }
 
   // Modo recente: retorna apenas 5 projetos
