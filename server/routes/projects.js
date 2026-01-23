@@ -57,7 +57,23 @@ router.get("/", authenticateToken, asyncHandler(async (req, res) => {
   // Try cache first
   const cachedData = await cache.get(cacheKey);
   if (cachedData) {
-    return res.json(cachedData);
+    if (cachedData.data !== undefined && cachedData.pagination) {
+      return res.json(cachedData);
+    }
+
+    const data = Array.isArray(cachedData) ? cachedData : [];
+    const responseData = {
+      data,
+      pagination: {
+        page: 1,
+        limit: data.length,
+        total: data.length,
+        totalPages: 1
+      }
+    };
+
+    await cache.set(cacheKey, responseData, 300);
+    return res.json(responseData);
   }
 
   // Modo recente: retorna apenas 5 projetos
@@ -73,8 +89,6 @@ router.get("/", authenticateToken, asyncHandler(async (req, res) => {
       LIMIT 5
     `, [userId]);
 
-    await cache.set(cacheKey, projects.rows, 300); // 5 minutes
-
     // Standardize response format even for recent items
     const responseData = {
       data: projects.rows,
@@ -85,6 +99,7 @@ router.get("/", authenticateToken, asyncHandler(async (req, res) => {
         totalPages: 1
       }
     };
+    await cache.set(cacheKey, responseData, 300); // 5 minutes
     return res.json(responseData);
   }
 
