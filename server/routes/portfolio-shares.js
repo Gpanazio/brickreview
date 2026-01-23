@@ -183,7 +183,7 @@ router.get('/:token/collection-videos', async (req, res) => {
 
       return {
         ...video,
-        thumbnail_url: video.thumbnail_path ? `${bucket.publicUrl}/${video.thumbnail_path}` : null,
+        thumbnail_url: video.thumbnail_path && bucket ? `${bucket.publicUrl}/${video.thumbnail_path}` : null,
       };
     });
 
