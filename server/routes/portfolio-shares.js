@@ -178,11 +178,14 @@ router.get('/:token/collection-videos', async (req, res) => {
     );
 
     // Add thumbnail URLs to videos
-    const bucket = r2Manager.getBucket('primary');
-    const videos = videosResult.rows.map((video) => ({
-      ...video,
-      thumbnail_url: video.thumbnail_path ? `${bucket.publicUrl}/${video.thumbnail_path}` : null,
-    }));
+    const videos = videosResult.rows.map((video) => {
+      const bucket = r2Manager.getBucket(video.r2_bucket_id || 'primary');
+
+      return {
+        ...video,
+        thumbnail_url: video.thumbnail_path ? `${bucket.publicUrl}/${video.thumbnail_path}` : null,
+      };
+    });
 
     res.json({
       collection: collectionResult.rows[0],
