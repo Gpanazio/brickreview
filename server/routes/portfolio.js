@@ -380,11 +380,8 @@ router.delete('/videos/:id', authenticateToken, async (req, res) => {
     if (!validateId(id)) {
       return res.status(400).json({ error: 'ID inválido' });
     }
-    const permanentValue = Array.isArray(req.query.permanent)
-      ? req.query.permanent[0]
-      : req.query.permanent;
-    const permanent = typeof permanentValue === 'string'
-      && ['true', '1'].includes(permanentValue.toLowerCase());
+    const permanentValue = [].concat(req.query.permanent)[0];
+    const permanent = ['true', '1'].includes(String(permanentValue).toLowerCase());
 
     if (permanent) {
       // Get video info before deletion
