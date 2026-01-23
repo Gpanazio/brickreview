@@ -468,8 +468,11 @@ router.post("/:id/create-version", authenticateToken, async (req, res) => {
       [parent_video_id]
     );
 
-    const nextVersion =
-      (maxVersionResult.rows[0].max_version || parentCheck.rows[0].version_number || 1) + 1;
+    const maxVersion = parseInt(
+      maxVersionResult.rows[0].max_version || parentCheck.rows[0].version_number || 1,
+      10
+    );
+    const nextVersion = maxVersion + 1;
 
     // Atualiza o vídeo para ser versão do pai
     const result = await query(
