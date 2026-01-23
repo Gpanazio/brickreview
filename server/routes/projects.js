@@ -57,22 +57,22 @@ router.get("/", authenticateToken, asyncHandler(async (req, res) => {
   // Try cache first
   const cachedData = await cache.get(cacheKey);
   if (cachedData) {
-    const responseData = cachedData?.data && cachedData?.pagination
-      ? cachedData
-      : {
-        data: cachedData,
-        pagination: {
-          page: 1,
-          limit: Array.isArray(cachedData) ? cachedData.length : 0,
-          total: Array.isArray(cachedData) ? cachedData.length : 0,
-          totalPages: 1
-        }
-      };
-
-    if (responseData !== cachedData) {
-      await cache.set(cacheKey, responseData, 300);
+    if (cachedData.data !== undefined && cachedData.pagination) {
+      return res.json(cachedData);
     }
 
+    const data = Array.isArray(cachedData) ? cachedData : [];
+    const responseData = {
+      data,
+      pagination: {
+        page: 1,
+        limit: data.length,
+        total: data.length,
+        totalPages: 1
+      }
+    };
+
+    await cache.set(cacheKey, responseData, 300);
     return res.json(responseData);
   }
 
